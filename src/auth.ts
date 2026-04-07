@@ -16,7 +16,7 @@ const providers = [
       const password = credentials?.password as string | undefined;
       if (!email || !password) return null;
       const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-      if (!user) return null;
+      if (!user || !user.passwordHash) return null;
       const ok = await compare(password, user.passwordHash);
       if (!ok) return null;
       return {
