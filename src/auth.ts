@@ -47,7 +47,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const email = user?.email;
       if (!email) {
-        console.error("Google signIn failed: missing email on Google profile.");
+        console.error("Google signIn failed: missing email on Google profile.", {
+          user,
+          account,
+        });
         return false;
       }
 
@@ -70,7 +73,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         return true;
       } catch (error) {
-        console.error("Error during Google sign-in:", error);
+        console.error("Error during Google sign-in:", error, {
+          user,
+          account,
+        });
         return false;
       }
     },
