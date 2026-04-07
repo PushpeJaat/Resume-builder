@@ -101,9 +101,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.error("JWT callback error:", error);
         }
       }
+
+      // Always preserve token.sub on subsequent calls
+      console.log("JWT callback: current token.sub:", token.sub);
       return token;
     },
     async session({ session, token }) {
+      console.log("Session callback: token.sub:", token.sub);
       if (session.user && token.sub) {
         session.user.id = token.sub;
         const dbUser = await prisma.user.findUnique({
@@ -111,6 +115,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           select: { plan: true },
         });
         session.user.plan = dbUser?.plan === "PREMIUM" ? "PREMIUM" : "FREE";
+        console.log("Session callback: set user ID and plan");
+      } else {
+        console.log("Session callback: no token.sub or session.user");
       }
       return session;
     },
