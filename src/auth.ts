@@ -42,36 +42,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: getAuthSecret(),
   providers,
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (account?.provider === "google") {
-        try {
-          // Check if user exists
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email!.toLowerCase() },
-          });
+    async signIn({ user, account }) {
+      if (account?.provider !== "google") return true;
 
-          if (!existingUser) {
-            // Create new user
-            await prisma.user.create({
-              data: {
-                email: user.email!.toLowerCase(),
-                name: user.name,
-                plan: "FREE",
-              },
-            });
-          }
-          return true;
-        } catch (error) {
-          console.error("Error during Google sign-in:", error);
-          return false;
-        }
+      const email = user?.email;
+      if (!email) {
+        console.error("Google signIn failed: missing email on Google profile.");
+        return false;
       }
-      return true;
+
+      const normalizedEmail = email.toLowerCase();
+
+      try {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: normalizedEmail },
+        });
+
+        if (!existingUser) {
+          await prisma.user.create({
+            data: {
+              email: normalizedEmail,
+              name: user.name ?? undefined,
+              plan: "FREE",
+            },
+          });
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error during Google sign-in:", error);
+        return false;
+      }
     },
     async jwt({ token, user }) {
-      if (user) {
+      if (user?.email) {
         const dbUser = await prisma.user.findUnique({
-          where: { email: user.email!.toLowerCase() },
+          where: { email: user.email.toLowerCase() },
         });
         if (dbUser) {
           token.sub = dbUser.id;
