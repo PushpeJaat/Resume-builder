@@ -42,8 +42,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: getAuthSecret(),
   providers,
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google") {
+        try {
+          // Check if user exists
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email!.toLowerCase() },
+          });
+
+          if (!existingUser) {
+            // Create new user
+            await prisma.user.create({
+              data: {
+                email: user.email!.toLowerCase(),
+                name: user.name,
+                plan: "FREE",
+              },
+            });
+          }
+          return true;
+        } catch (error) {
+          console.error("Error during Google sign-in:", error);
+          return false;
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
-      if (user) token.sub = user.id;
+      if (user) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: user.email!.toLowerCase() },
+        });
+        if (dbUser) {
+          token.sub = dbUser.id;
+        }
+      }
       return token;
     },
     async session({ session, token }) {
