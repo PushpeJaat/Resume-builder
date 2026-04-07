@@ -83,13 +83,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return false;
       }
     },
-    async jwt({ token, user }) {
-      if (user?.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email.toLowerCase() },
-        });
-        if (dbUser) {
-          token.sub = dbUser.id;
+    async jwt({ token, user, account }) {
+      // On sign in, set the token.sub to the database user ID
+      if (user?.email && account?.provider === "google") {
+        try {
+          console.log("JWT callback: looking up user by email:", user.email);
+          const dbUser = await prisma.user.findUnique({
+            where: { email: user.email.toLowerCase() },
+          });
+          if (dbUser) {
+            token.sub = dbUser.id;
+            console.log("JWT callback: found user ID:", dbUser.id);
+          } else {
+            console.error("JWT callback: user not found in database");
+          }
+        } catch (error) {
+          console.error("JWT callback error:", error);
         }
       }
       return token;
