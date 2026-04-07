@@ -42,19 +42,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: getAuthSecret(),
   providers,
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider !== "google") return true;
 
-      const email = user?.email;
+      const email = user?.email ?? (profile as { email?: string })?.email;
       if (!email) {
         console.error("Google signIn failed: missing email on Google profile.", {
           user,
           account,
+          profile,
         });
         return false;
       }
 
       const normalizedEmail = email.toLowerCase();
+      const name = user?.name ?? (profile as { name?: string })?.name;
 
       try {
         const existingUser = await prisma.user.findUnique({
@@ -65,7 +67,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await prisma.user.create({
             data: {
               email: normalizedEmail,
-              name: user.name ?? undefined,
+              name: name ?? undefined,
               plan: "FREE",
             },
           });
@@ -76,6 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         console.error("Error during Google sign-in:", error, {
           user,
           account,
+          profile,
         });
         return false;
       }
