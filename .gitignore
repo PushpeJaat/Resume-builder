@@ -41,3 +41,6 @@ prisma/*.db-journal
 /src/generated/prisma
 
 /src/generated/prisma
+
+.vercel
+.env*.local
