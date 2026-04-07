@@ -6,7 +6,7 @@ export interface TemplateCardProps {
   description: string;
   premium: boolean;
 }
-
+// Demo demo
 export function TemplateCard({ id, name, description, premium }: TemplateCardProps) {
   return (
     <div className="group rounded-2xl border border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
