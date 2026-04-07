@@ -106,11 +106,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // After login, redirect to templates page
-      if (url.startsWith("/")) return `${baseUrl}/dashboard/templates`;
-      // Allows callback URLs on the same origin
-      if (new URL(url).origin === baseUrl) return url;
-      return baseUrl;
+      // After successful login/signup, always redirect to templates page
+      // This ensures Google OAuth users go to the right place
+      return `${baseUrl}/dashboard/templates`;
     },
   },
   pages: {
