@@ -19,8 +19,9 @@ export async function middleware(request: NextRequest) {
 
   const isProtectedEditorPath = pathname === "/editor" || pathname.startsWith("/editor/");
   const isProtectedDashboardPath = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const isProtectedAccountPath = pathname === "/account" || pathname.startsWith("/account/");
 
-  if (!token && (isProtectedDashboardPath || isProtectedEditorPath)) {
+  if (!token && (isProtectedDashboardPath || isProtectedEditorPath || isProtectedAccountPath)) {
     console.log("Middleware: redirecting to login");
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -31,5 +32,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard", "/dashboard/:path*", "/editor", "/editor/:path*"],
+  matcher: ["/dashboard", "/dashboard/:path*", "/editor", "/editor/:path*", "/account", "/account/:path*"],
 };
