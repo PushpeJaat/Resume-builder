@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   Bot,
-  CheckCircle2,
   FileDown,
   LayoutTemplate,
   PencilRuler,
@@ -52,6 +51,28 @@ const templates = [
   { name: "Classic ATS", accent: "from-amber-500 to-orange-500", premium: false },
 ];
 
+const heroSkills = ["TypeScript", "React", "Node.js", "AWS", "System Design", "PostgreSQL"];
+
+const heroExperience = [
+  {
+    role: "Senior Software Engineer",
+    company: "Nova Labs",
+    period: "2022 - Present",
+    bullets: [
+      "Built resume workflow tooling used by 120K+ monthly users.",
+      "Reduced page load time by 38% with streaming and caching improvements.",
+    ],
+  },
+  {
+    role: "Software Engineer",
+    company: "CloudPeak",
+    period: "2019 - 2022",
+    bullets: [
+      "Shipped internal platform features across web, API, and PDF pipelines.",
+    ],
+  },
+];
+
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f8fafc_100%)] text-slate-950">
@@ -90,140 +111,165 @@ export default function HomePage() {
       <main>
         <section className="relative overflow-hidden px-4 pb-20 pt-16 sm:px-6 lg:px-8 lg:pb-28 lg:pt-24">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute left-0 top-10 h-64 w-64 rounded-full bg-sky-200/50 blur-3xl" />
-            <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-cyan-200/40 blur-3xl" />
-            <div className="absolute bottom-0 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-slate-200/60 blur-3xl" />
+            <div className="hero-float hero-float-delay-1 absolute left-[6%] top-14 h-20 w-20 rounded-full bg-sky-200/35 blur-2xl" />
+            <div className="hero-float hero-float-delay-2 absolute left-[18%] top-52 h-10 w-10 rounded-full bg-cyan-200/40 blur-xl" />
+            <div className="hero-float hero-float-delay-3 absolute right-[10%] top-16 h-28 w-28 rounded-full bg-slate-200/50 blur-3xl" />
+            <div className="hero-float hero-float-delay-4 absolute right-[22%] top-56 h-14 w-14 rounded-full bg-sky-100/50 blur-2xl" />
+            <div className="hero-float hero-float-delay-2 absolute bottom-10 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-cyan-100/45 blur-3xl" />
           </div>
 
-          <div className="relative mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
-            <div>
-              <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
+          <div className="relative mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.02fr_0.98fr]">
+            <div className="max-w-2xl">
+              <Badge variant="outline" className="rounded-full border-sky-200 bg-white/80 px-3 py-1 text-sky-700 shadow-sm backdrop-blur">
                 AI-powered resume builder for modern job seekers
               </Badge>
-              <h1 className="mt-6 max-w-3xl text-5xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-6xl">
-                Build Your Professional Resume in Minutes
+              <h1 className="mt-6 text-5xl font-semibold leading-[1.02] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
+                Build a Job-Winning Resume in Minutes
               </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-                Create polished resumes fast with AI-powered writing help, a frictionless editor, and modern templates
-                designed to look sharp on screen and in PDF.
+              <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600 sm:text-xl">
+                Write faster with AI guidance, customize modern templates, and export a polished resume that is ready
+                for recruiters and ATS systems.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button asChild size="lg" className="rounded-2xl px-6">
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                <Button asChild size="lg" className="rounded-2xl px-6 shadow-lg shadow-slate-950/10 transition-transform hover:-translate-y-0.5">
                   <Link href="/editor">
                     Create Resume
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-2xl px-6">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="rounded-2xl border-slate-300 bg-white/80 px-6 transition-transform hover:-translate-y-0.5 hover:bg-white"
+                >
                   <Link href="#templates">View Templates</Link>
                 </Button>
               </div>
-              <div className="mt-10 grid max-w-2xl gap-4 sm:grid-cols-3">
-                {[
-                  { label: "Resumes created", value: "25K+" },
-                  { label: "Average build time", value: "8 min" },
-                  { label: "Template styles", value: "12+" },
-                ].map((stat) => (
-                  <div key={stat.label} className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-                    <p className="text-2xl font-semibold text-slate-950">{stat.value}</p>
-                    <p className="mt-1 text-sm text-slate-500">{stat.label}</p>
-                  </div>
-                ))}
+              <div className="mt-10 flex flex-wrap gap-6 text-sm text-slate-500">
+                <div>
+                  <p className="text-2xl font-semibold text-slate-950">25K+</p>
+                  <p className="mt-1">Resumes created</p>
+                </div>
+                <div className="h-10 w-px bg-slate-200" />
+                <div>
+                  <p className="text-2xl font-semibold text-slate-950">8 min</p>
+                  <p className="mt-1">Average build time</p>
+                </div>
+                <div className="h-10 w-px bg-slate-200" />
+                <div>
+                  <p className="text-2xl font-semibold text-slate-950">12+</p>
+                  <p className="mt-1">Template styles</p>
+                </div>
               </div>
             </div>
 
-            <div className="relative">
-              <div className="absolute -left-4 top-10 hidden h-32 w-32 rounded-full bg-sky-300/30 blur-2xl lg:block" />
-              <div className="absolute -right-6 bottom-6 hidden h-36 w-36 rounded-full bg-cyan-300/30 blur-2xl lg:block" />
+            <div className="relative flex justify-center lg:justify-end">
+              <div className="hero-float hero-float-delay-1 absolute -left-4 top-10 hidden h-24 w-24 rounded-full bg-sky-200/35 blur-2xl lg:block" />
+              <div className="hero-float hero-float-delay-3 absolute -right-3 bottom-12 hidden h-28 w-28 rounded-full bg-cyan-200/30 blur-3xl lg:block" />
 
-              <Card className="relative overflow-hidden rounded-[28px] border-white/70 bg-white/85 shadow-2xl shadow-slate-200/70 backdrop-blur">
-                <CardHeader className="border-b border-slate-100 pb-5">
+              <Card className="w-full max-w-md rounded-[28px] border border-white/70 bg-white/90 shadow-[0_24px_80px_-28px_rgba(15,23,42,0.35)] backdrop-blur">
+                <CardHeader className="border-b border-slate-100 pb-4">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <CardTitle className="text-xl font-semibold">Resume Preview</CardTitle>
-                      <CardDescription>Live, ATS-friendly formatting with AI-assisted writing.</CardDescription>
+                      <CardTitle className="text-lg font-semibold">Resume Preview</CardTitle>
+                      <CardDescription>Software Engineer profile</CardDescription>
                     </div>
                     <Badge className="rounded-full px-3">Live</Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6">
+                <CardContent className="p-5">
                   <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-                    <div className="flex items-start gap-4 border-b border-slate-200 pb-4">
-                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-500" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 w-40 rounded-full bg-slate-900" />
-                        <div className="h-3 w-56 rounded-full bg-slate-300" />
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {["Product Designer", "San Francisco", "janedoe.dev"].map((item) => (
-                            <span key={item} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
-                              {item}
+                    <div className="border-b border-slate-200 pb-4">
+                      <h3 className="text-2xl font-semibold tracking-tight text-slate-950">Aarav Mehta</h3>
+                      <p className="mt-1 text-sm font-medium text-sky-700">Software Engineer</p>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        Full-stack engineer focused on performant web apps, scalable APIs, and clean product
+                        experiences.
+                      </p>
+                    </div>
+
+                    <div className="mt-5 space-y-5">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Experience</p>
+                        <div className="mt-3 space-y-3">
+                          {heroExperience.map((item) => (
+                            <div key={`${item.company}-${item.role}`} className="rounded-2xl bg-white p-3.5 ring-1 ring-slate-200">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">{item.role}</p>
+                                  <p className="text-xs text-slate-500">{item.company}</p>
+                                </div>
+                                <span className="text-[11px] font-medium text-slate-400">{item.period}</span>
+                              </div>
+                              <ul className="mt-2 space-y-1.5 text-xs leading-5 text-slate-600">
+                                {item.bullets.map((bullet) => (
+                                  <li key={bullet} className="flex gap-2">
+                                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />
+                                    <span>{bullet}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Skills</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {heroSkills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200"
+                            >
+                              {skill}
                             </span>
                           ))}
                         </div>
                       </div>
                     </div>
-
-                    <div className="mt-5 space-y-5">
-                      <div>
-                        <div className="mb-2 flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-sky-500" />
-                          <div className="h-3 w-24 rounded-full bg-slate-800" />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="h-2.5 w-full rounded-full bg-slate-200" />
-                          <div className="h-2.5 w-11/12 rounded-full bg-slate-200" />
-                          <div className="h-2.5 w-9/12 rounded-full bg-slate-200" />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="mb-2 flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-cyan-500" />
-                          <div className="h-3 w-28 rounded-full bg-slate-800" />
-                        </div>
-                        <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-                          <div className="h-3 w-40 rounded-full bg-slate-900" />
-                          <div className="mt-2 h-2.5 w-28 rounded-full bg-slate-300" />
-                          <div className="mt-3 space-y-2">
-                            <div className="h-2.5 w-full rounded-full bg-slate-200" />
-                            <div className="h-2.5 w-10/12 rounded-full bg-slate-200" />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-                          <div className="h-3 w-24 rounded-full bg-slate-900" />
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {["Figma", "Notion", "UX"].map((item) => (
-                              <span key={item} className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                {item}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="rounded-2xl bg-slate-950 p-4 text-white">
-                          <p className="text-xs uppercase tracking-[0.22em] text-sky-200">AI Tip</p>
-                          <p className="mt-2 text-sm leading-6 text-slate-200">
-                            Stronger verb detected. Replaced “worked on” with “led”.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </CardContent>
-                <CardFooter className="justify-between border-t border-slate-100 bg-white/70">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    Export-ready layout
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="rounded-xl">
-                    <Link href="/editor">Open Editor</Link>
-                  </Button>
-                </CardFooter>
               </Card>
             </div>
           </div>
+          <style jsx>{`
+            @keyframes hero-float {
+              0% {
+                transform: translate3d(0, 0, 0) scale(1);
+                opacity: 0.22;
+              }
+              50% {
+                transform: translate3d(0, -12px, 0) scale(1.08);
+                opacity: 0.34;
+              }
+              100% {
+                transform: translate3d(0, 0, 0) scale(1);
+                opacity: 0.22;
+              }
+            }
+
+            .hero-float {
+              animation: hero-float 14s ease-in-out infinite;
+            }
+
+            .hero-float-delay-1 {
+              animation-delay: -2s;
+            }
+
+            .hero-float-delay-2 {
+              animation-delay: -5s;
+            }
+
+            .hero-float-delay-3 {
+              animation-delay: -8s;
+            }
+
+            .hero-float-delay-4 {
+              animation-delay: -11s;
+            }
+          `}</style>
         </section>
 
         <section id="features" className="px-4 py-20 sm:px-6 lg:px-8">
