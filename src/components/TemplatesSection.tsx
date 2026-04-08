@@ -28,10 +28,6 @@ export function TemplatesSection() {
             <p className="text-lg text-slate-600 max-w-3xl mx-auto mb-2">
               Preview all our professional resume templates. Start building your perfect resume for free—no sign-up required.
             </p>
-            
-            <p className="text-sm text-slate-500 max-w-2xl mx-auto">
-              Premium templates unlock advanced features. Download requires account creation.
-            </p>
           </div>
 
           {/* Templates Grid */}
@@ -42,7 +38,6 @@ export function TemplatesSection() {
                 id={template.id}
                 name={template.name}
                 description={template.description}
-                premium={template.premium}
               />
             ))}
           </div>

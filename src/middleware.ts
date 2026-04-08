@@ -11,18 +11,10 @@ export async function middleware(request: NextRequest) {
     secureCookie: process.env.NODE_ENV === "production",
   });
 
-  console.log("Middleware: pathname:", pathname);
-  console.log("Middleware: token found:", !!token);
-  if (token) {
-    console.log("Middleware: token.sub:", token.sub);
-  }
-
-  const isProtectedEditorPath = pathname === "/editor" || pathname.startsWith("/editor/");
   const isProtectedDashboardPath = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
   const isProtectedAccountPath = pathname === "/account" || pathname.startsWith("/account/");
 
-  if (!token && (isProtectedDashboardPath || isProtectedEditorPath || isProtectedAccountPath)) {
-    console.log("Middleware: redirecting to login");
+  if (!token && (isProtectedDashboardPath || isProtectedAccountPath)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("callbackUrl", `${pathname}${request.nextUrl.search}`);
@@ -32,5 +24,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard", "/dashboard/:path*", "/editor", "/editor/:path*", "/account", "/account/:path*"],
+  matcher: ["/dashboard", "/dashboard/:path*", "/account", "/account/:path*"],
 };

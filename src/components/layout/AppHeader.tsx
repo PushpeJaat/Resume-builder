@@ -19,9 +19,6 @@ export function AppHeader() {
           <Link href="/dashboard/templates" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
             Templates
           </Link>
-          <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-            Pricing
-          </Link>
           <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
             Blog
           </Link>
@@ -34,11 +31,6 @@ export function AppHeader() {
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 sm:block">
           <p className="max-w-[240px] truncate font-medium text-slate-700">{session?.user?.email}</p>
-          {session?.user?.plan === "PREMIUM" ? (
-            <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-              Premium
-            </span>
-          ) : null}
         </div>
         <Link
           href="/account"

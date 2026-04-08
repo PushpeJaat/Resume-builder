@@ -5,7 +5,7 @@ import { htmlToPdfBuffer } from "@/lib/browserless";
 import { renderResumeDocument } from "@/lib/templates/render";
 import { resumeDataSchema, type ResumeData } from "@/types/resume";
 import { ensureResumeIds } from "@/lib/normalize-resume";
-import { assertResumeOwner, canUseTemplate } from "@/lib/resume-access";
+import { assertResumeOwner } from "@/lib/resume-access";
 
 export const runtime = "nodejs";
 
@@ -18,13 +18,6 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const { error, resume } = await assertResumeOwner(id, session.user.id);
   if (error || !resume) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  if (!canUseTemplate(session.user.plan, resume.templateId)) {
-    return NextResponse.json(
-      { error: "Upgrade to use this template for PDF export." },
-      { status: 403 },
-    );
   }
 
   const parsed = resumeDataSchema.safeParse(resume.data);

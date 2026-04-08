@@ -38,12 +38,6 @@ export function SiteHeader() {
             Templates
           </Link>
           <Link
-            href="/pricing"
-            className="rounded-lg px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 transition-all duration-200"
-          >
-            Pricing
-          </Link>
-          <Link
             href="/blog"
             className="hidden rounded-lg px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 transition-all duration-200 sm:inline-flex"
           >

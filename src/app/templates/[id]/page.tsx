@@ -136,12 +136,6 @@ export default async function TemplatePreviewPage({
               <span className="text-sky-600 font-bold mt-1">✓</span>
               <span>One-click PDF export with perfect formatting</span>
             </li>
-            {template.premium && (
-              <li className="flex items-start gap-3">
-                <span className="text-purple-600 font-bold mt-1">⭐</span>
-                <span>Premium template with exclusive design elements</span>
-              </li>
-            )}
           </ul>
 
           <div className="p-6 rounded-lg bg-blue-50 border border-blue-200 mb-8">

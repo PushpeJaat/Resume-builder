@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/AppHeader";
-import { UpgradeModal } from "@/components/upgrade/UpgradeModal";
 import { getTemplateMeta } from "@/lib/templates/registry";
 
 type ResumeRow = { id: string; title: string; templateId: string; updatedAt: string };
@@ -19,7 +18,6 @@ export default function DashboardPage() {
   const [resumes, setResumes] = useState<ResumeRow[]>([]);
   const [downloads, setDownloads] = useState<DownloadRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -80,13 +78,6 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => setUpgradeOpen(true)}
-                className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900 hover:bg-amber-100"
-              >
-                Upgrade to Pro
-              </button>
               <button
                 type="button"
                 onClick={() => void createResume()}
@@ -220,7 +211,6 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </div>
   );
 }
