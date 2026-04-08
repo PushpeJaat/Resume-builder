@@ -59,21 +59,21 @@ export default function DashboardPage() {
   }, [resumes]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
+    <div className="min-h-screen bg-slate-950 text-white">
       <AppHeader />
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
-        <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-sky-100 blur-2xl" />
-          <div className="absolute -bottom-20 left-6 h-36 w-36 rounded-full bg-cyan-100 blur-2xl" />
+        <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20 sm:p-8">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.18),_transparent_30%),radial-gradient(circle_at_bottom_left,_rgba(34,211,238,0.16),_transparent_28%)]" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
 
           <div className="relative flex flex-wrap items-start justify-between gap-5">
             <div className="max-w-2xl">
-              <p className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-700">
+              <p className="inline-flex items-center rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-200">
                 Workspace overview
               </p>
-              <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Build and ship better resumes</h1>
-              <p className="mt-2 text-sm text-slate-600 sm:text-base">
+              <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">Build and ship better resumes</h1>
+              <p className="mt-2 text-sm text-slate-300 sm:text-base">
                 Track your documents, jump back into editing, and review download activity in one place.
               </p>
             </div>
@@ -81,7 +81,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => void createResume()}
-                className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+                className="rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/25 transition hover:brightness-105"
               >
                 Create new resume
               </button>
@@ -89,52 +89,52 @@ export default function DashboardPage() {
           </div>
 
           <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-500">Total resumes</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{resumes.length}</p>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4 backdrop-blur">
+              <p className="text-xs uppercase tracking-wider text-slate-400">Total resumes</p>
+              <p className="mt-1 text-2xl font-bold text-white">{resumes.length}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-500">PDF downloads</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{downloads.length}</p>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4 backdrop-blur">
+              <p className="text-xs uppercase tracking-wider text-slate-400">PDF downloads</p>
+              <p className="mt-1 text-2xl font-bold text-white">{downloads.length}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-500">Recent activity</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{recentActivityLabel}</p>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4 backdrop-blur">
+              <p className="text-xs uppercase tracking-wider text-slate-400">Recent activity</p>
+              <p className="mt-1 text-2xl font-bold text-white">{recentActivityLabel}</p>
             </div>
           </div>
         </section>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-5">
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-3">
-            <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
-              <h2 className="text-base font-semibold text-slate-900">Your documents</h2>
-              <p className="mt-1 text-sm text-slate-500">Open, edit, or remove resumes from your workspace.</p>
+          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20 lg:col-span-3">
+            <div className="border-b border-white/10 px-5 py-4 sm:px-6">
+              <h2 className="text-base font-semibold text-white">Your documents</h2>
+              <p className="mt-1 text-sm text-slate-400">Open, edit, or remove resumes from your workspace.</p>
             </div>
 
             {loading ? (
               <div className="space-y-3 p-6">
-                <div className="h-14 animate-pulse rounded-xl bg-slate-100" />
-                <div className="h-14 animate-pulse rounded-xl bg-slate-100" />
-                <div className="h-14 animate-pulse rounded-xl bg-slate-100" />
+                <div className="h-14 animate-pulse rounded-xl bg-white/10" />
+                <div className="h-14 animate-pulse rounded-xl bg-white/10" />
+                <div className="h-14 animate-pulse rounded-xl bg-white/10" />
               </div>
             ) : resumes.length === 0 ? (
               <div className="p-6">
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                  <h3 className="text-lg font-semibold text-slate-900">No resumes yet</h3>
-                  <p className="mt-2 text-sm text-slate-600">
+                <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center">
+                  <h3 className="text-lg font-semibold text-white">No resumes yet</h3>
+                  <p className="mt-2 text-sm text-slate-400">
                     Start with a blank resume or pick a template to create your first document.
                   </p>
                   <div className="mt-5 flex flex-wrap justify-center gap-3">
                     <button
                       type="button"
                       onClick={() => void createResume()}
-                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                      className="rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105"
                     >
                       Create your first resume
                     </button>
                     <Link
                       href="/dashboard/templates"
-                      className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white"
+                      className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/5"
                     >
                       Browse templates
                     </Link>
@@ -142,29 +142,29 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-white/10">
                 {resumes.map((resume) => (
                   <li key={resume.id} className="px-5 py-4 sm:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <Link href={`/editor/${resume.id}`} className="text-base font-semibold text-slate-900 hover:text-sky-700">
+                        <Link href={`/editor/${resume.id}`} className="text-base font-semibold text-white transition hover:text-sky-300">
                           {resume.title}
                         </Link>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-slate-400">
                           {getTemplateMeta(resume.templateId)?.name ?? resume.templateId} | Updated {new Date(resume.updatedAt).toLocaleString()}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Link
                           href={`/editor/${resume.id}`}
-                          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                          className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15"
                         >
                           Edit
                         </Link>
                         <button
                           type="button"
                           onClick={() => void deleteResume(resume.id)}
-                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                          className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/5"
                         >
                           Delete
                         </button>
@@ -176,30 +176,30 @@ export default function DashboardPage() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
-            <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
-              <h2 className="text-base font-semibold text-slate-900">Download history</h2>
-              <p className="mt-1 text-sm text-slate-500">Recent PDF exports from your account.</p>
+          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20 lg:col-span-2">
+            <div className="border-b border-white/10 px-5 py-4 sm:px-6">
+              <h2 className="text-base font-semibold text-white">Download history</h2>
+              <p className="mt-1 text-sm text-slate-400">Recent PDF exports from your account.</p>
             </div>
 
             {downloads.length === 0 ? (
               <div className="p-6">
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                  <p className="text-sm font-medium text-slate-700">No downloads yet</p>
-                  <p className="mt-1 text-xs text-slate-500">Your export history will appear here after your first PDF download.</p>
+                <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-6 text-center">
+                  <p className="text-sm font-medium text-white">No downloads yet</p>
+                  <p className="mt-1 text-xs text-slate-400">Your export history will appear here after your first PDF download.</p>
                 </div>
               </div>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-white/10">
                 {downloads.map((download) => (
                   <li key={download.id} className="px-5 py-4 sm:px-6">
-                    <p className="text-sm font-medium text-slate-900">{download.resumeTitle}</p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="text-sm font-medium text-white">{download.resumeTitle}</p>
+                    <p className="mt-1 text-xs text-slate-400">
                       {download.templateId} | {new Date(download.createdAt).toLocaleString()}
                     </p>
                     <Link
                       href={`/editor/${download.resumeId}`}
-                      className="mt-2 inline-flex text-xs font-semibold text-sky-700 hover:text-sky-900"
+                      className="mt-2 inline-flex text-xs font-semibold text-sky-300 transition hover:text-sky-200"
                     >
                       Open resume
                     </Link>
@@ -210,7 +210,6 @@ export default function DashboardPage() {
           </section>
         </div>
       </main>
-
     </div>
   );
 }

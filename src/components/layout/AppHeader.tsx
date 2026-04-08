@@ -7,44 +7,46 @@ export function AppHeader() {
   const { data: session } = useSession();
 
   return (
-    <header className="sticky top-0 z-40 flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-2 backdrop-blur lg:px-6">
-      <div className="flex items-center gap-4 sm:gap-6">
-        <Link href="/dashboard" className="text-lg font-semibold tracking-tight text-slate-900">
-          Resume<span className="text-sky-600">Studio</span>
-        </Link>
-        <nav className="hidden items-center gap-4 md:flex">
-          <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-            Home
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/75 backdrop-blur-xl">
+      <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <Link href="/dashboard" className="text-lg font-semibold tracking-tight text-white">
+            CV<span className="bg-gradient-to-r from-sky-400 to-cyan-300 bg-clip-text text-transparent">pilot</span>
           </Link>
-          <Link href="/dashboard/templates" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-            Templates
-          </Link>
-          <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-            Blog
-          </Link>
-          <Link href="/account" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-            Account
-          </Link>
-        </nav>
-      </div>
-
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 sm:block">
-          <p className="max-w-[240px] truncate font-medium text-slate-700">{session?.user?.email}</p>
+          <nav className="hidden items-center gap-2 md:flex">
+            <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white">
+              Home
+            </Link>
+            <Link href="/dashboard/templates" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white">
+              Templates
+            </Link>
+            <Link href="/blog" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white">
+              Blog
+            </Link>
+            <Link href="/account" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white">
+              Account
+            </Link>
+          </nav>
         </div>
-        <Link
-          href="/account"
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-        >
-          Profile
-        </Link>
-        <button
-          type="button"
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          Log out
-        </button>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 sm:block">
+            <p className="max-w-[240px] truncate font-medium text-slate-100">{session?.user?.email}</p>
+          </div>
+          <Link
+            href="/account"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+          >
+            Profile
+          </Link>
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/20 transition hover:brightness-105"
+          >
+            Log out
+          </button>
+        </div>
       </div>
     </header>
   );

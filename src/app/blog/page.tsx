@@ -27,16 +27,16 @@ const posts = [
 
 export default function BlogPage() {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <SiteHeader />
+    <div className="min-h-screen bg-slate-950 text-white">
+      <SiteHeader theme="dark" />
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-28 sm:px-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
+        <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/25 sm:p-10">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">Resume Studio Blog</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">CVpilot Blog</p>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
               Actionable resume advice for faster job offers
             </h1>
-            <p className="mt-4 text-base text-slate-600 sm:text-lg">
+            <p className="mt-4 text-base text-slate-300 sm:text-lg">
               Short, practical articles on resume writing, hiring trends, and template strategy.
             </p>
           </div>
@@ -44,13 +44,13 @@ export default function BlogPage() {
 
         <section className="mt-8 grid gap-5 md:grid-cols-3">
           {posts.map((post) => (
-            <article key={post.slug} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{post.category}</p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-900">{post.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{post.summary}</p>
+            <article key={post.slug} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-6 shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:bg-white/[0.06]">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{post.category}</p>
+              <h2 className="mt-2 text-xl font-semibold text-white">{post.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{post.summary}</p>
               <div className="mt-5 flex items-center justify-between">
-                <span className="text-xs text-slate-500">{post.readTime}</span>
-                <Link href="/dashboard/templates" className="text-sm font-semibold text-sky-700 hover:text-sky-900">
+                <span className="text-xs text-slate-400">{post.readTime}</span>
+                <Link href="/dashboard/templates" className="text-sm font-semibold text-sky-300 transition hover:text-sky-200">
                   Start from template
                 </Link>
               </div>

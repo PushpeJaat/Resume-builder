@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 import { getTemplateMeta } from "@/lib/templates/registry";
 import { renderResumeDocument } from "@/lib/templates/render";
 import type { ResumeData } from "@/types/resume";
-import Link from "next/link";
 
 const DEMO_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(`
   <svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none">
@@ -80,90 +81,91 @@ export default async function TemplatePreviewPage({
   const html = renderResumeDocument(id, DEFAULT_RESUME_DATA);
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-950 text-white">
+      <SiteHeader theme="dark" />
+      <div className="mx-auto max-w-6xl px-4 pb-12 pt-28 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/10 bg-white/[0.04] px-6 py-5 shadow-2xl shadow-black/20">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{template.name}</h1>
-            <p className="text-sm text-slate-600 mt-1">{template.description}</p>
+            <h1 className="text-2xl font-bold text-white">{template.name}</h1>
+            <p className="mt-1 text-sm text-slate-300">{template.description}</p>
           </div>
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-slate-900 hover:bg-slate-100 transition-colors duration-200"
+              className="inline-flex items-center justify-center rounded-lg border border-white/10 px-4 py-2.5 text-slate-200 transition hover:bg-white/5"
             >
               Back
             </Link>
             <Link
               href={`/editor?template=${id}`}
-              className="inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-gradient-to-r from-sky-600 to-cyan-600 text-white font-semibold shadow-md shadow-sky-600/20 hover:shadow-lg hover:shadow-sky-600/30 transition-all duration-200"
+              className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-6 py-2.5 font-semibold text-slate-950 shadow-md shadow-sky-500/20 transition hover:brightness-105"
             >
               Use This Template
             </Link>
           </div>
         </div>
-      </div>
 
-      {/* Preview */}
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-slate-100 rounded-lg overflow-hidden shadow-xl p-8">
-          <div className="bg-white rounded shadow">
-            <div
-              className="aspect-[8.5/11] overflow-auto"
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
-          </div>
-        </div>
-
-        {/* Info */}
-        <div className="mt-12 max-w-2xl">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">Template Features</h2>
-          <ul className="space-y-2 text-slate-700 mb-8">
-            <li className="flex items-start gap-3">
-              <span className="text-sky-600 font-bold mt-1">✓</span>
-              <span>Professional design optimized for ATS (Applicant Tracking Systems)</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="text-sky-600 font-bold mt-1">✓</span>
-              <span>Pixel-perfect rendering on screen and in print</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="text-sky-600 font-bold mt-1">✓</span>
-              <span>Customizable layout and sections</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="text-sky-600 font-bold mt-1">✓</span>
-              <span>One-click PDF export with perfect formatting</span>
-            </li>
-          </ul>
-
-          <div className="p-6 rounded-lg bg-blue-50 border border-blue-200 mb-8">
-            <p className="text-sm text-blue-900">
-              <strong>Note:</strong> To download your resume as PDF, you&apos;ll need to create a free account. This ensures your resume is securely stored and you can access it anytime.
-            </p>
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
+            <div className="rounded-2xl bg-slate-100 p-6">
+              <div className="overflow-hidden rounded-lg bg-white shadow-xl">
+                <div className="aspect-[8.5/11] overflow-auto" dangerouslySetInnerHTML={{ __html: html }} />
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link
-              href={`/editor?template=${id}`}
-              className="flex-1 inline-flex items-center justify-center px-6 py-4 rounded-lg bg-gradient-to-r from-sky-600 to-cyan-600 text-white font-semibold shadow-lg shadow-sky-600/30 hover:shadow-xl hover:shadow-sky-600/40 hover:from-sky-700 hover:to-cyan-700 transition-all duration-300"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit & Create Resume
-            </Link>
+          <div className="space-y-6">
+            <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20">
+              <h2 className="mb-4 text-2xl font-bold text-white">Template Features</h2>
+              <ul className="mb-8 space-y-2 text-slate-300">
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 font-bold text-sky-300">✓</span>
+                  <span>Professional design optimized for ATS (Applicant Tracking Systems)</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 font-bold text-sky-300">✓</span>
+                  <span>Pixel-perfect rendering on screen and in print</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 font-bold text-sky-300">✓</span>
+                  <span>Customizable layout and sections</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 font-bold text-sky-300">✓</span>
+                  <span>One-click PDF export with perfect formatting</span>
+                </li>
+              </ul>
 
-            <Link
-              href="/signup"
-              className="flex-1 inline-flex items-center justify-center px-6 py-4 rounded-lg border-2 border-slate-300 text-slate-900 font-semibold hover:bg-slate-50 transition-colors duration-200"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download as PDF
-            </Link>
+              <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-6">
+                <p className="text-sm text-sky-100">
+                  <strong>Note:</strong> You can start editing immediately. Create a free account only when you want to download the PDF and store it in your workspace.
+                </p>
+              </div>
+            </section>
+
+            <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20">
+              <div className="flex flex-col gap-4">
+                <Link
+                  href={`/editor?template=${id}`}
+                  className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-6 py-4 font-semibold text-slate-950 shadow-lg shadow-sky-500/20 transition hover:brightness-105"
+                >
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit & Create Resume
+                </Link>
+
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center justify-center rounded-lg border border-white/10 px-6 py-4 font-semibold text-slate-200 transition hover:bg-white/5"
+                >
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Create Account to Download
+                </Link>
+              </div>
+            </section>
           </div>
         </div>
       </div>

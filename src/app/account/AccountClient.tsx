@@ -66,61 +66,61 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
 
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Profile</p>
-            <h1 className="mt-2 text-2xl font-bold text-slate-900">Account settings</h1>
-            <p className="mt-1 text-sm text-slate-600">Manage your sign-in options, plan, and resume activity.</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Profile</p>
+            <h1 className="mt-2 text-2xl font-bold text-white">Account settings</h1>
+            <p className="mt-1 text-sm text-slate-300">Manage your sign-in options, workspace access, and resume activity.</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-right">
-            <p className="text-xs text-slate-500">Current plan</p>
-            <p className="text-sm font-semibold text-slate-900">{plan === "PREMIUM" ? "Premium" : "Free"}</p>
+          <div className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-right">
+            <p className="text-xs text-slate-400">Workspace access</p>
+            <p className="text-sm font-semibold text-white">{plan === "PREMIUM" ? "Full access" : "Free access"}</p>
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-xs text-slate-500">Email</p>
-            <p className="mt-1 text-sm font-medium text-slate-900 break-all">{email}</p>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs text-slate-400">Email</p>
+            <p className="mt-1 break-all text-sm font-medium text-white">{email}</p>
           </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-xs text-slate-500">Display name</p>
-            <p className="mt-1 text-sm font-medium text-slate-900">{name || "Not set"}</p>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs text-slate-400">Display name</p>
+            <p className="mt-1 text-sm font-medium text-white">{name || "Not set"}</p>
           </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-xs text-slate-500">Member since</p>
-            <p className="mt-1 text-sm font-medium text-slate-900">{new Date(createdAt).toLocaleDateString()}</p>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs text-slate-400">Member since</p>
+            <p className="mt-1 text-sm font-medium text-white">{new Date(createdAt).toLocaleDateString()}</p>
           </div>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href="/dashboard"
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/5"
           >
             Open dashboard
           </Link>
           <Link
             href="/dashboard/templates"
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/5"
           >
             Browse templates
           </Link>
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105"
           >
             Log out
           </button>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20">
         <div className="mb-5">
-          <h2 className="text-lg font-semibold text-slate-900">{hasPassword ? "Change password" : "Set password"}</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="text-lg font-semibold text-white">{hasPassword ? "Change password" : "Set password"}</h2>
+          <p className="mt-1 text-sm text-slate-300">
             {hasPassword
               ? "Use your current password to choose a new one."
               : "Your account was created with OAuth. Set a password to enable email login as well."}
@@ -130,20 +130,20 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
         <form onSubmit={onSubmitPassword} className="grid gap-4 sm:grid-cols-2">
           {hasPassword ? (
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Current password</label>
+              <label className="mb-1 block text-sm font-medium text-slate-200">Current password</label>
               <input
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 autoComplete="current-password"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20"
                 required
               />
             </div>
           ) : null}
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">New password</label>
+            <label className="mb-1 block text-sm font-medium text-slate-200">New password</label>
             <input
               type="password"
               value={newPassword}
@@ -151,12 +151,12 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
               autoComplete="new-password"
               minLength={8}
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+              className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Confirm password</label>
+            <label className="mb-1 block text-sm font-medium text-slate-200">Confirm password</label>
             <input
               type="password"
               value={confirmPassword}
@@ -164,7 +164,7 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
               autoComplete="new-password"
               minLength={8}
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+              className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20"
             />
           </div>
 
@@ -175,7 +175,7 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:text-slate-200"
             >
               {submitting ? "Saving..." : hasPassword ? "Change password" : "Set password"}
             </button>
@@ -183,25 +183,25 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
         </form>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">Resume download history</h2>
-          <p className="mt-1 text-sm text-slate-600">See your most recent PDF exports.</p>
+      <section className="rounded-[28px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
+        <div className="border-b border-white/10 px-6 py-4">
+          <h2 className="text-lg font-semibold text-white">Resume download history</h2>
+          <p className="mt-1 text-sm text-slate-300">See your most recent PDF exports.</p>
         </div>
 
         {downloads.length === 0 ? (
-          <p className="px-6 py-6 text-sm text-slate-500">No downloads yet. Export a resume to see history here.</p>
+          <p className="px-6 py-6 text-sm text-slate-400">No downloads yet. Export a resume to see history here.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-white/10">
             {downloads.map((download) => (
               <li key={download.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{download.resumeTitle}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-medium text-white">{download.resumeTitle}</p>
+                  <p className="text-xs text-slate-400">
                     {download.templateId} | {new Date(download.createdAt).toLocaleString()}
                   </p>
                 </div>
-                <Link href={`/editor/${download.resumeId}`} className="text-sm font-semibold text-sky-700 hover:text-sky-900">
+                <Link href={`/editor/${download.resumeId}`} className="text-sm font-semibold text-sky-300 transition hover:text-sky-200">
                   Open resume
                 </Link>
               </li>

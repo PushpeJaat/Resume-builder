@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Resume Studio — Build polished resumes",
+  title: "CVpilot — Build polished resumes",
   description: "Production-ready resume builder with pixel-perfect PDF export. Create stunning professional resumes that look identical on screen and in print.",
   keywords: ["resume builder", "resume maker", "professional resume", "PDF export", "resume templates"],
 };
@@ -24,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
-      <body className={`${inter.variable} min-h-screen antialiased`}>
+      <body suppressHydrationWarning className={`${inter.variable} min-h-screen antialiased`}>
         <Providers>{children}</Providers>
       </body>
     </html>

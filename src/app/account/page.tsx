@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { AppHeader } from "@/components/layout/AppHeader";
-import { AccountClient } from "./AccountClient";
+import { AccountClient } from "@/app/account/AccountClient";
 
 export default async function AccountPage() {
   const session = await auth();
@@ -37,7 +37,7 @@ export default async function AccountPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-950 text-white">
       <AppHeader />
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <AccountClient
