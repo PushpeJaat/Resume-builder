@@ -110,11 +110,19 @@ export default function HomePage() {
       <main>
         <section className="relative overflow-hidden px-4 pb-20 pt-16 sm:px-6 lg:px-8 lg:pb-28 lg:pt-24">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="hero-float hero-float-delay-1 absolute left-[6%] top-14 h-20 w-20 rounded-full bg-sky-200/35 blur-2xl" />
-            <div className="hero-float hero-float-delay-2 absolute left-[18%] top-52 h-10 w-10 rounded-full bg-cyan-200/40 blur-xl" />
-            <div className="hero-float hero-float-delay-3 absolute right-[10%] top-16 h-28 w-28 rounded-full bg-slate-200/50 blur-3xl" />
-            <div className="hero-float hero-float-delay-4 absolute right-[22%] top-56 h-14 w-14 rounded-full bg-sky-100/50 blur-2xl" />
-            <div className="hero-float hero-float-delay-2 absolute bottom-10 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-cyan-100/45 blur-3xl" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.08),transparent_28%),radial-gradient(circle_at_85%_18%,rgba(6,182,212,0.08),transparent_24%),linear-gradient(180deg,transparent,rgba(148,163,184,0.04))]" />
+            <div className="hero-orb hero-float-delay-1 absolute left-[5%] top-14 h-28 w-28 bg-sky-200/45 blur-3xl" />
+            <div className="hero-orb hero-float-delay-2 absolute left-[18%] top-52 h-12 w-12 bg-cyan-200/50 blur-xl" />
+            <div className="hero-orb hero-float-delay-3 absolute right-[8%] top-14 h-32 w-32 bg-slate-200/55 blur-3xl" />
+            <div className="hero-orb hero-float-delay-4 absolute right-[22%] top-56 h-16 w-16 bg-sky-100/60 blur-2xl" />
+            <div className="hero-orb hero-float-delay-2 absolute bottom-10 left-1/2 h-24 w-24 -translate-x-1/2 bg-cyan-100/50 blur-3xl" />
+            <div className="hero-ring hero-float-delay-3 absolute left-[12%] top-28 h-36 w-36" />
+            <div className="hero-ring hero-float-delay-1 absolute right-[18%] top-40 h-24 w-24" />
+            <div className="hero-dot hero-dot-delay-1 absolute left-[14%] top-24" />
+            <div className="hero-dot hero-dot-delay-2 absolute left-[28%] top-[18rem]" />
+            <div className="hero-dot hero-dot-delay-3 absolute right-[16%] top-[8rem]" />
+            <div className="hero-dot hero-dot-delay-4 absolute right-[28%] top-[20rem]" />
+            <div className="hero-dot hero-dot-delay-2 absolute bottom-16 left-[48%]" />
           </div>
 
           <div className="relative mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.02fr_0.98fr]">
