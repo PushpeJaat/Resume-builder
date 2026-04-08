@@ -80,7 +80,10 @@ export default function SignupPage() {
             <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => void signIn("google", { callbackUrl: "/dashboard" })}
+                onClick={() => void signIn("google", {
+                  callbackUrl: "/dashboard",
+                  prompt: "select_account",
+                })}
                 className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-700 bg-slate-900 text-sm font-semibold text-slate-100 hover:bg-slate-800 transition-colors duration-200"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
