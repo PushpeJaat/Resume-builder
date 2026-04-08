@@ -49,19 +49,19 @@ export function TemplatesSection() {
 
           {/* Bottom CTA */}
           <div className="mt-20 text-center">
-            <p className="text-lg text-slate-600 mb-6">
-              Ready to get started?
+            <p className="text-base font-medium text-slate-500">
+              Ready to get started? Create a free account in seconds.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/signup"
-                className="inline-flex items-center justify-center px-8 py-4 rounded-lg bg-gradient-to-r from-sky-600 to-cyan-600 text-white font-semibold shadow-lg shadow-sky-600/30 hover:shadow-xl hover:shadow-sky-600/40 hover:from-sky-700 hover:to-cyan-700 transition-all duration-300"
+                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Create Free Account
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center px-8 py-4 rounded-lg border border-slate-300 text-slate-900 font-semibold hover:bg-slate-50 transition-colors duration-200"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
               >
                 Sign In
               </Link>

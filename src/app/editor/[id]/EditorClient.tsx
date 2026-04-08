@@ -104,9 +104,33 @@ export function EditorClient({ resumeId }: Props) {
 
   if (status === "loading" || loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-slate-50">
+      <div className="flex h-screen flex-col overflow-hidden bg-slate-50">
         <AppHeader />
-        <div className="flex flex-1 items-center justify-center text-sm text-slate-500">Loading editor…</div>
+        <div className="flex min-h-0 flex-1 flex-col border-t border-slate-200 lg:flex-row">
+          <aside className="flex w-full flex-col border-slate-200 bg-white lg:w-[min(440px,100%)] lg:border-r lg:shrink-0">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+              <div className="h-4 w-20 animate-pulse rounded bg-slate-200" />
+              <div className="h-8 flex-1 animate-pulse rounded-lg bg-slate-200" />
+            </div>
+            <div className="flex-1 space-y-4 p-4">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="h-3 w-24 animate-pulse rounded bg-slate-200" />
+                  <div className="mt-3 space-y-2">
+                    <div className="h-8 w-full animate-pulse rounded-lg bg-slate-200" />
+                    <div className="h-8 w-full animate-pulse rounded-lg bg-slate-200" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-slate-200 p-4">
+              <div className="h-10 w-full animate-pulse rounded-xl bg-slate-200" />
+            </div>
+          </aside>
+          <main className="flex-1 p-4">
+            <div className="h-full w-full animate-pulse rounded-2xl bg-slate-100" />
+          </main>
+        </div>
       </div>
     );
   }
@@ -115,11 +139,24 @@ export function EditorClient({ resumeId }: Props) {
     return (
       <div className="flex min-h-screen flex-col bg-slate-50">
         <AppHeader />
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          <p className="text-lg font-semibold text-slate-900">Resume not found</p>
-          <Link href="/dashboard" className="text-sm font-semibold text-sky-600 hover:text-sky-800">
-            Back to dashboard
-          </Link>
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+              <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900">Resume not found</h2>
+            <p className="mt-2 max-w-xs text-sm text-slate-500">
+              This resume may have been deleted or you don&apos;t have access to it.
+            </p>
+            <Link
+              href="/dashboard"
+              className="mt-6 inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Back to dashboard
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -138,27 +175,56 @@ export function EditorClient({ resumeId }: Props) {
       <div className="flex min-h-0 flex-1 flex-col border-t border-slate-200 lg:flex-row">
         <aside className="flex w-full flex-col border-slate-200 bg-white lg:w-[min(440px,100%)] lg:border-r lg:shrink-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">
-            <Link href="/dashboard" className="text-sm font-medium text-sky-600 hover:text-sky-800">
-              ← Dashboard
+            <Link
+              href="/dashboard"
+              className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-900"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              Dashboard
             </Link>
-            <span className="text-slate-300">|</span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="min-w-[160px] flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+              className="min-w-[140px] flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-2 focus:ring-sky-400/20"
               placeholder="Resume title"
             />
-            <span className="text-xs text-slate-400">
-              {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed" : ""}
+            <span
+              className={`shrink-0 text-xs font-medium transition-colors ${
+                saveState === "saving"
+                  ? "text-amber-500"
+                  : saveState === "saved"
+                    ? "text-emerald-600"
+                    : saveState === "error"
+                      ? "text-red-500"
+                      : "text-transparent select-none"
+              }`}
+            >
+              {saveState === "saving"
+                ? "Saving…"
+                : saveState === "saved"
+                  ? "Saved ✓"
+                  : saveState === "error"
+                    ? "Save failed"
+                    : "–"}
             </span>
           </div>
           {premiumLockedExport ? (
-            <div className="border-b border-violet-100 bg-violet-50 px-4 py-2 text-xs text-violet-900">
-              You are previewing a <strong>Pro</strong> template.{" "}
-              <button type="button" className="font-semibold underline" onClick={() => setUpgradeOpen(true)}>
-                Upgrade
-              </button>{" "}
-              to download the PDF.
+            <div className="flex items-center gap-2 border-b border-violet-100 bg-violet-50 px-4 py-2.5">
+              <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-violet-700">
+                Pro
+              </span>
+              <span className="text-xs text-violet-800">
+                template selected —{" "}
+                <button
+                  type="button"
+                  className="font-semibold underline decoration-violet-400 underline-offset-2 hover:text-violet-900"
+                  onClick={() => setUpgradeOpen(true)}
+                >
+                  upgrade to export PDF
+                </button>
+              </span>
             </div>
           ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -176,15 +242,35 @@ export function EditorClient({ resumeId }: Props) {
               type="button"
               onClick={() => void downloadPdf()}
               disabled={pdfState === "loading" || premiumLockedExport}
-              className="w-full rounded-xl bg-sky-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
             >
-              {pdfState === "loading" ? "Preparing PDF…" : "Download PDF"}
+              {pdfState === "loading" ? (
+                <>
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Preparing PDF…
+                </>
+              ) : premiumLockedExport ? (
+                "Upgrade to Download"
+              ) : (
+                "Download PDF"
+              )}
             </button>
-            {pdfError ? <p className="mt-2 text-center text-xs text-red-600">{pdfError}</p> : null}
+            {pdfError && !premiumLockedExport ? (
+              <p className="mt-2 text-center text-xs text-red-600">{pdfError}</p>
+            ) : null}
           </div>
         </aside>
-        <main className="relative flex min-h-[50vh] min-w-0 flex-1 flex-col p-4 lg:min-h-0">
-          <ResumePreviewFrame templateId={templateId} data={data} />
+        <main className="relative flex min-h-[50vh] min-w-0 flex-1 flex-col overflow-hidden lg:min-h-0">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Preview</span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">Live</span>
+          </div>
+          <div className="flex-1 overflow-auto bg-slate-100 p-4">
+            <ResumePreviewFrame templateId={templateId} data={data} />
+          </div>
         </main>
       </div>
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
