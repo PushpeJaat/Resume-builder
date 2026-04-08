@@ -4,12 +4,21 @@ import { renderResumeDocument } from "@/lib/templates/render";
 import type { ResumeData } from "@/types/resume";
 import Link from "next/link";
 
+const DEMO_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none">
+    <rect width="320" height="320" rx="36" fill="#E0F2FE"/>
+    <circle cx="160" cy="118" r="58" fill="#7DD3FC"/>
+    <path d="M73 286c20-52 55-78 87-78s67 26 87 78" fill="#1D4ED8"/>
+  </svg>
+`)}`;
+
 const DEFAULT_RESUME_DATA: ResumeData = {
   personal: {
     fullName: "Jane Doe",
     email: "jane.doe@example.com",
     phone: "+1 (555) 123-4567",
     location: "San Francisco, CA",
+    photoUrl: DEMO_PHOTO,
     links: [
       { label: "Portfolio", url: "https://portfolio.example.com" },
       { label: "LinkedIn", url: "https://linkedin.com/in/janedoe" },

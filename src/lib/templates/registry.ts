@@ -24,6 +24,18 @@ export const TEMPLATES: TemplateMeta[] = [
     description: "Bold type, geometric accents, portfolio-forward.",
     premium: true,
   },
+  {
+    id: "executive-portrait",
+    name: "Executive Portrait",
+    description: "Leadership-focused layout with a polished profile photo header.",
+    premium: false,
+  },
+  {
+    id: "profile-edge",
+    name: "Profile Edge",
+    description: "Photo-led resume with a strong contact rail and resilient long-form sections.",
+    premium: true,
+  },
 ];
 
 export function getTemplateMeta(id: string): TemplateMeta | undefined {

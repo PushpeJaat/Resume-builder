@@ -5,6 +5,10 @@ import type { ResumeData } from "@/types/resume";
 export function ensureResumeIds(data: ResumeData): ResumeData {
   return {
     ...data,
+    personal: {
+      ...data.personal,
+      photoUrl: data.personal.photoUrl?.trim() ?? "",
+    },
     experience: data.experience.map((e) => ({
       ...e,
       id: e.id && e.id.length > 0 ? e.id : randomUUID(),

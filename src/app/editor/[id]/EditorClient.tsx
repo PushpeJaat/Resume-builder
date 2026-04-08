@@ -23,7 +23,11 @@ export function EditorClient({ resumeId }: Props) {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [importState, setImportState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +104,47 @@ export function EditorClient({ resumeId }: Props) {
     a.click();
     URL.revokeObjectURL(url);
     setPdfState("idle");
+  };
+
+  const importResumeFile = useCallback(
+    async (file: File) => {
+      setImportState("loading");
+      setImportMessage(null);
+      const formData = new FormData();
+      formData.set("file", file);
+
+      const res = await fetch("/api/resumes/import", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = (await res.json().catch(() => null)) as
+        | { data?: ResumeData; titleSuggestion?: string; mode?: "ai" | "heuristic"; warning?: string; error?: string }
+        | null;
+
+      if (!res.ok || !json?.data) {
+        setImportState("error");
+        setImportMessage(json?.error ?? "Could not import that resume.");
+        return;
+      }
+
+      setData(json.data);
+      if (json.titleSuggestion) {
+        setTitle(json.titleSuggestion);
+      }
+      setImportState("success");
+      setImportMessage(
+        json.warning ?? (json.mode === "ai" ? "Resume imported with AI extraction." : "Resume imported with the fallback parser."),
+      );
+    },
+    [],
+  );
+
+  const onImportInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    await importResumeFile(file);
   };
 
   if (status === "loading" || loading) {
@@ -227,6 +272,56 @@ export function EditorClient({ resumeId }: Props) {
               </span>
             </div>
           ) : null}
+          <div className="border-b border-slate-100 px-4 py-4">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              onChange={(event) => void onImportInputChange(event)}
+            />
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => importInputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  importInputRef.current?.click();
+                }
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragActive(true);
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                setDragActive(false);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragActive(false);
+                const file = event.dataTransfer.files?.[0];
+                if (file) {
+                  void importResumeFile(file);
+                }
+              }}
+              className={`rounded-2xl border border-dashed p-4 text-left transition ${
+                dragActive ? "border-sky-400 bg-sky-50" : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100/80"
+              }`}
+            >
+              <p className="text-sm font-semibold text-slate-900">Import an existing resume</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Drop a PDF, DOCX, TXT, or Markdown resume here. We&apos;ll extract the content and populate the editor automatically.
+              </p>
+              <div className="mt-3 inline-flex items-center rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200">
+                {importState === "loading" ? "Importing..." : "Choose file"}
+              </div>
+              {importMessage ? (
+                <p className={`mt-3 text-xs ${importState === "error" ? "text-red-600" : "text-emerald-600"}`}>{importMessage}</p>
+              ) : null}
+            </div>
+          </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             <ResumeEditor
               data={data}

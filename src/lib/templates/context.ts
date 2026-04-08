@@ -4,6 +4,8 @@ import type { ResumeData } from "@/types/resume";
 export type TemplateContext = {
   personal: ResumeData["personal"] & {
     hasLinks: boolean;
+    hasPhoto: boolean;
+    initials: string;
   };
   summary: string;
   hasSummary: boolean;
@@ -22,11 +24,20 @@ export type TemplateContext = {
 
 export function toTemplateContext(data: ResumeData): TemplateContext {
   const links = data.personal.links.filter((l) => l.label.trim() || l.url.trim());
+  const initials = data.personal.fullName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+
   return {
     personal: {
       ...data.personal,
       links,
       hasLinks: links.length > 0,
+      hasPhoto: data.personal.photoUrl.trim().length > 0,
+      initials,
     },
     summary: data.summary,
     hasSummary: data.summary.trim().length > 0,
