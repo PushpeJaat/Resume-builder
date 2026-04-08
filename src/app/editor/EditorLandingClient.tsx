@@ -38,7 +38,13 @@ export default function EditorLandingClient() {
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <button
                     type="button"
-                    onClick={() => void signIn("google", { callbackUrl: "/dashboard" })}
+                    onClick={() =>
+                      void signIn(
+                        "google",
+                        { callbackUrl: "/dashboard" },
+                        { prompt: "select_account" },
+                      )
+                    }
                     className="inline-flex items-center justify-center rounded-2xl bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-400"
                   >
                     Sign in with Google
