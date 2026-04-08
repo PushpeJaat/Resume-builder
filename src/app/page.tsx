@@ -14,7 +14,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -234,42 +233,6 @@ export default function HomePage() {
               </Card>
             </div>
           </div>
-          <style jsx>{`
-            @keyframes hero-float {
-              0% {
-                transform: translate3d(0, 0, 0) scale(1);
-                opacity: 0.22;
-              }
-              50% {
-                transform: translate3d(0, -12px, 0) scale(1.08);
-                opacity: 0.34;
-              }
-              100% {
-                transform: translate3d(0, 0, 0) scale(1);
-                opacity: 0.22;
-              }
-            }
-
-            .hero-float {
-              animation: hero-float 14s ease-in-out infinite;
-            }
-
-            .hero-float-delay-1 {
-              animation-delay: -2s;
-            }
-
-            .hero-float-delay-2 {
-              animation-delay: -5s;
-            }
-
-            .hero-float-delay-3 {
-              animation-delay: -8s;
-            }
-
-            .hero-float-delay-4 {
-              animation-delay: -11s;
-            }
-          `}</style>
         </section>
 
         <section id="features" className="px-4 py-20 sm:px-6 lg:px-8">
