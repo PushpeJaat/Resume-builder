@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { renderResumeDocument } from "@/lib/templates/render";
 import type { ResumeData } from "@/types/resume";
@@ -67,29 +68,59 @@ export interface TemplateCardProps {
   id: string;
   name: string;
   description: string;
+  previewImageSrc?: string | StaticImageData;
+  previewImageAlt?: string;
+  previewHref?: string;
+  actionHref?: string;
+  actionLabel?: string;
+  external?: boolean;
 }
 
-export function TemplateCard({ id, name, description }: TemplateCardProps) {
+export function TemplateCard({
+  id,
+  name,
+  description,
+  previewImageSrc,
+  previewImageAlt,
+  previewHref,
+  actionHref,
+  actionLabel = "Use Template",
+  external = false,
+}: TemplateCardProps) {
   const html = useMemo(() => renderResumeDocument(id, DEMO_DATA), [id]);
+  const resolvedPreviewHref = previewHref ?? `/templates/${id}`;
+  const resolvedActionHref = actionHref ?? `/editor?template=${id}`;
+  const linkProps = external ? { target: "_blank", rel: "noopener noreferrer" } : {};
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/60">
       {/* Actual template preview */}
       <div className="relative aspect-[3/4] overflow-hidden bg-slate-50">
-        <div className="pointer-events-none absolute inset-0 origin-top-left scale-[0.28] overflow-hidden" style={{ width: "357%", height: "357%" }}>
-          <iframe
-            title={`${name} preview`}
-            srcDoc={html}
-            className="h-full w-full border-0 bg-white"
-            sandbox="allow-same-origin"
-            tabIndex={-1}
+        {previewImageSrc ? (
+          <Image
+            src={previewImageSrc}
+            alt={previewImageAlt ?? `${name} preview`}
+            fill
+            sizes="(min-width: 1280px) 24rem, (min-width: 768px) 33vw, 100vw"
+            className="object-cover object-top"
           />
-        </div>
+        ) : (
+          <div className="pointer-events-none absolute inset-0 origin-top-left scale-[0.28] overflow-hidden" style={{ width: "357%", height: "357%" }}>
+            <iframe
+              title={`${name} preview`}
+              srcDoc={html}
+              className="h-full w-full border-0 bg-white"
+              sandbox="allow-same-origin"
+              tabIndex={-1}
+            />
+          </div>
+        )}
         {/* Overlay for click-through */}
         <Link
-          href={`/templates/${id}`}
+          href={resolvedPreviewHref}
           className="absolute inset-0 z-10"
           aria-label={`Preview ${name}`}
+          {...linkProps}
         />
       </div>
 
@@ -101,16 +132,18 @@ export function TemplateCard({ id, name, description }: TemplateCardProps) {
         {/* Footer buttons */}
         <div className="mt-5 flex gap-2.5">
           <Link
-            href={`/templates/${id}`}
+            href={resolvedPreviewHref}
             className="flex-1 inline-flex items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+            {...linkProps}
           >
             Preview
           </Link>
           <Link
-            href={`/editor?template=${id}`}
+            href={resolvedActionHref}
             className="flex-1 inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            {...linkProps}
           >
-            Use Template
+            {actionLabel}
           </Link>
         </div>
       </div>
