@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0284c7"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="48" height="48" rx="11" fill="url(#bg)"/>
+  <!-- Subtle top-left highlight -->
+  <circle cx="5" cy="5" r="12" fill="white" opacity="0.08"/>
+  <!-- Document body -->
+  <rect x="7" y="6" width="22" height="29" rx="3" fill="white"/>
+  <!-- Page fold shadow (top-right corner) -->
+  <path d="M23 6 L29 6 L29 12 Z" fill="#0284c7" opacity="0.15"/>
+  <!-- Fold crease line -->
+  <line x1="23" y1="6" x2="29" y2="12" stroke="#0284c7" stroke-width="0.75" opacity="0.3"/>
+  <!-- Heading bar -->
+  <rect x="11" y="15" width="13" height="2.5" rx="1.25" fill="#0369a1" opacity="0.55"/>
+  <!-- Content lines -->
+  <rect x="11" y="21" width="15" height="2" rx="1" fill="#0284c7" opacity="0.3"/>
+  <rect x="11" y="25.5" width="11" height="2" rx="1" fill="#0284c7" opacity="0.3"/>
+  <rect x="11" y="30" width="13" height="2" rx="1" fill="#0284c7" opacity="0.3"/>
+  <!-- Navigation badge — outer gradient ring -->
+  <circle cx="35" cy="35" r="10" fill="url(#bg)"/>
+  <!-- Badge inner white fill -->
+  <circle cx="35" cy="35" r="8" fill="white"/>
+  <!-- Upward compass arrow -->
+  <path d="M35 28.5 L39 41.5 L35 38.5 L31 41.5 Z" fill="#0284c7"/>
+</svg>

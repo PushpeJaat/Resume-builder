@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
 
 export function AppHeader() {
@@ -11,8 +12,11 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/75 backdrop-blur-xl">
       <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
         <div className="flex items-center gap-4 sm:gap-6">
-          <Link href="/dashboard" className="text-lg font-semibold tracking-tight text-white">
-            CV<span className="bg-gradient-to-r from-sky-400 to-cyan-300 bg-clip-text text-transparent">pilot</span>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <Image src="/logo.svg" alt="CVpilot" width={32} height={32} />
+            <span className="text-lg font-semibold tracking-tight text-white">
+              CV<span className="bg-gradient-to-r from-sky-400 to-cyan-300 bg-clip-text text-transparent">pilot</span>
+            </span>
           </Link>
           <nav className="hidden items-center gap-2 md:flex">
             <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white">
