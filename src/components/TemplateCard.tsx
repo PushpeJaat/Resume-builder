@@ -174,17 +174,18 @@ export function TemplateCard({
         <div className="flex gap-1.5 sm:gap-2">
           <Link
             href={resolvedPreviewHref}
-            className="inline-flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-2 py-1.5 text-[11px] font-semibold text-slate-950 shadow-md shadow-sky-400/30 transition hover:brightness-110 sm:px-4 sm:py-2 sm:text-sm"
+            className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-2 py-1.5 text-[11px] font-semibold text-slate-950 shadow-md shadow-sky-400/30 transition hover:brightness-110 sm:px-4 sm:py-2 sm:text-sm"
             {...linkProps}
           >
             Preview
           </Link>
           <Link
             href={resolvedActionHref}
-            className="inline-flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-700 sm:px-4 sm:py-2 sm:text-sm"
+            className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-700 sm:px-4 sm:py-2 sm:text-sm"
             {...linkProps}
           >
-            {actionLabel}
+            <span className="sm:hidden">Use</span>
+            <span className="hidden sm:inline">{actionLabel}</span>
           </Link>
         </div>
       </div>
