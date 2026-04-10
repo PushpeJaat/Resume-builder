@@ -9,8 +9,8 @@ type Props = {
 };
 
 export function SiteHeader({ theme = "light" }: Props) {
-  const { data: session } = useSession();
-  const isLoggedIn = Boolean(session?.user?.id);
+  const { data: session, status } = useSession();
+  const isLoggedIn = status === "authenticated" && Boolean(session?.user?.id);
   const dark = theme === "dark";
 
   return (
@@ -66,7 +66,9 @@ export function SiteHeader({ theme = "light" }: Props) {
 
           <div className={cn("hidden h-6 w-px sm:block", dark ? "bg-white/12" : "bg-slate-200")} />
 
-          {isLoggedIn ? (
+          {status === "loading" ? (
+            <div className="h-9 w-20 animate-pulse rounded-lg bg-current opacity-10" />
+          ) : isLoggedIn ? (
             <>
               <Link
                 href="/dashboard"
