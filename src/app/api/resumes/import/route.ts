@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { importResumeFromFile } from "@/lib/resume-import";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const formData = await req.formData().catch(() => null);
   const file = formData?.get("file");
 
