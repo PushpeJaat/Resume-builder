@@ -44,6 +44,7 @@ export function EditorClient({ resumeId }: Props) {
 
   // Import state
   const [importState, setImportState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [importError, setImportError] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -136,6 +137,7 @@ export function EditorClient({ resumeId }: Props) {
   /* â”€â”€ Import â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   const importResumeFile = useCallback(async (file: File) => {
     setImportState("loading");
+    setImportError("");
     const formData = new FormData();
     formData.set("file", file);
     const res = await fetch("/api/resumes/import", { method: "POST", body: formData });
@@ -144,14 +146,17 @@ export function EditorClient({ resumeId }: Props) {
       | null;
 
     if (!res.ok || !json?.data) {
+      const message = json?.error ?? "Could not import that file.";
       setImportState("error");
-      toast.error(json?.error ?? "Could not import that file.");
+      setImportError(message);
+      toast.error(message);
       setTimeout(() => setImportState("idle"), 3000);
       return;
     }
     setData(json.data);
     if (json.titleSuggestion) setTitle(json.titleSuggestion);
     setImportState("success");
+    setImportError("");
     toast.success(
       json.mode === "ai"
         ? "Resume extracted with AI â€” fields auto-filled!"
@@ -379,7 +384,7 @@ export function EditorClient({ resumeId }: Props) {
             ) : importState === "success" ? (
               <p className="text-sm font-semibold text-emerald-300">Fields auto-filled! Review and adjust as needed.</p>
             ) : importState === "error" ? (
-              <p className="text-sm font-semibold text-red-300">Import failed â€” try a different file or format.</p>
+              <p className="text-sm font-semibold text-red-300">{importError || "Import failed. Try a different file or format."}</p>
             ) : dragActive ? (
               <p className="text-sm font-semibold text-sky-200">Drop your resume here to auto-fill</p>
             ) : (
