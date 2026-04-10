@@ -13,6 +13,8 @@ import { profileEdgeBody } from "./profile-edge/body.hbs";
 import { profileEdgeCss } from "./profile-edge/styles.css";
 import { canvaStandardBody } from "./canva-standard/body.hbs";
 import { canvaStandardCss } from "./canva-standard/styles.css";
+import { luminaryBody } from "./luminary/body.hbs";
+import { luminaryCss } from "./luminary/styles.css";
 import { DEFAULT_TEMPLATE_ID } from "./registry";
 
 const fontLinks = `
@@ -72,6 +74,10 @@ const compilers: Record<string, { compile: Handlebars.TemplateDelegate; css: str
   "canva-standard": {
     compile: Handlebars.compile(canvaStandardBody),
     css: canvaStandardCss,
+  },
+  "luminary": {
+    compile: Handlebars.compile(luminaryBody),
+    css: luminaryCss,
   },
 };
 

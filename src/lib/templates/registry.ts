@@ -35,6 +35,11 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Canva Standard",
     description: "Canva-inspired blue sidebar layout with crisp cards and polished A4 hierarchy.",
   },
+  {
+    id: "luminary",
+    name: "Luminary",
+    description: "Magazine-quality layout with a full-bleed dark header, circular photo, and gold editorial accents.",
+  },
 ];
 
 export function getTemplateMeta(id: string): TemplateMeta | undefined {
