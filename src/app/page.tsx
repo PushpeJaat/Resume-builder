@@ -41,15 +41,6 @@ const features = [
   },
 ];
 
-const templates = [
-  { name: "Minimal Clean", accent: "from-slate-900 to-slate-700", premium: false },
-  { name: "Modern Professional", accent: "from-sky-600 to-cyan-500", premium: true },
-  { name: "Executive Portrait", accent: "from-emerald-600 to-teal-500", premium: false },
-  { name: "Creative Designer", accent: "from-fuchsia-600 to-rose-500", premium: true },
-  { name: "Profile Edge", accent: "from-indigo-600 to-violet-500", premium: true },
-  { name: "Canva Standard", accent: "from-blue-600 to-sky-400", premium: false },
-];
-
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f8fafc_100%)] text-slate-950">
@@ -66,9 +57,9 @@ export default function HomePage() {
             <a href="#features" className="transition hover:text-slate-950">
               Features
             </a>
-            <a href="#templates" className="transition hover:text-slate-950">
+            <Link href="/dashboard/templates" className="transition hover:text-slate-950">
               Templates
-            </a>
+            </Link>
             <a href="#pricing" className="transition hover:text-slate-950">
               Pricing
             </a>
@@ -118,74 +109,6 @@ export default function HomePage() {
                   </Card>
                 );
               })}
-            </div>
-          </div>
-        </section>
-
-        <section id="templates" className="px-4 py-20 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="max-w-2xl">
-                <Badge variant="outline" className="rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
-                  Templates
-                </Badge>
-                <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Modern layouts for every role</h2>
-                <p className="mt-4 text-base leading-7 text-slate-600">
-                  Browse polished template directions inspired by modern SaaS products and premium resume builders.
-                </p>
-              </div>
-              <Button asChild variant="outline" className="rounded-xl">
-                <Link href="/dashboard/templates">See all templates</Link>
-              </Button>
-            </div>
-
-            <div className="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {templates.map((template, index) => (
-                <Card key={template.name} className="overflow-hidden rounded-[26px] border-slate-200/80 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/60">
-                  <CardContent className="p-0">
-                    <div className={`relative h-72 overflow-hidden bg-gradient-to-br ${template.accent} p-5`}>
-                      {template.premium ? (
-                        <Badge className="absolute right-4 top-4 rounded-full bg-white/90 px-3 text-slate-950 shadow-sm">
-                          <Star className="h-3 w-3 fill-current" />
-                          Premium
-                        </Badge>
-                      ) : null}
-                      <div className="mx-auto h-full max-w-[280px] rounded-[22px] bg-white/95 p-4 shadow-2xl shadow-slate-950/20">
-                        <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
-                          <div className="h-12 w-12 rounded-2xl bg-slate-200" />
-                          <div className="flex-1 space-y-2">
-                            <div className="h-3 w-28 rounded-full bg-slate-900" />
-                            <div className="h-2.5 w-16 rounded-full bg-slate-300" />
-                          </div>
-                        </div>
-                        <div className="mt-4 grid grid-cols-[0.38fr_1fr] gap-3">
-                          <div className="space-y-2">
-                            <div className="h-2.5 w-full rounded-full bg-slate-200" />
-                            <div className="h-2.5 w-5/6 rounded-full bg-slate-200" />
-                            <div className="h-16 rounded-2xl bg-slate-100" />
-                          </div>
-                          <div className="space-y-2">
-                            <div className="h-2.5 w-full rounded-full bg-slate-200" />
-                            <div className="h-2.5 w-full rounded-full bg-slate-200" />
-                            <div className="h-2.5 w-10/12 rounded-full bg-slate-200" />
-                            <div className="mt-3 h-14 rounded-2xl bg-slate-100" />
-                            <div className="h-14 rounded-2xl bg-slate-100" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="absolute bottom-4 left-4 rounded-full bg-white/15 px-3 py-1 text-xs font-medium tracking-wide text-white backdrop-blur">
-                        0{index + 1}
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardHeader>
-                    <CardTitle>{template.name}</CardTitle>
-                    <CardDescription>
-                      Built for clarity, readable hierarchy, and a strong first impression.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
             </div>
           </div>
         </section>
