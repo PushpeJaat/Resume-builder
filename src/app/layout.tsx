@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   description: "Production-ready resume builder with pixel-perfect PDF export. Create stunning professional resumes that look identical on screen and in print.",
   keywords: ["resume builder", "resume maker", "professional resume", "PDF export", "resume templates"],
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/logo.svg",
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
 };
 

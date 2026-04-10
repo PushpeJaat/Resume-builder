@@ -22,17 +22,15 @@ export function SiteHeader({ theme = "light" }: Props) {
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href="/" className="flex items-center group">
           <Image
-            src="/logo.svg"
+            src="/logo.png"
             alt="CVpilot"
-            width={36}
-            height={36}
-            className="transition-transform duration-200 group-hover:scale-105"
+            width={130}
+            height={40}
+            className="h-10 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
+            priority
           />
-          <span className={cn("text-lg font-bold tracking-tight", dark ? "text-white" : "text-slate-900")}>
-            CV<span className="text-transparent bg-gradient-to-r from-sky-600 to-cyan-600 bg-clip-text">pilot</span>
-          </span>
         </Link>
 
         <nav className="flex items-center gap-2 sm:gap-3 text-sm font-medium">
