@@ -5,7 +5,7 @@ import { TemplatesSection } from "@/components/TemplatesSection";
 
 export default function TemplatesPage() {
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-slate-800">
       <AppHeader />
       <main className="pt-4">
         <TemplatesSection />
