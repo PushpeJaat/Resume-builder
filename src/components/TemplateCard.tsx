@@ -142,7 +142,7 @@ export function TemplateCard({
   const linkProps = external ? { target: "_blank", rel: "noopener noreferrer" } : {};
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/60">
+    <div className="group flex flex-col overflow-hidden rounded-2xl border border-sky-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:border-sky-400 hover:shadow-xl hover:shadow-sky-100/80">
       {/* Actual template preview */}
       <div className="relative overflow-hidden bg-slate-50">
         {previewImageSrc ? (
@@ -171,17 +171,17 @@ export function TemplateCard({
       <div className="flex flex-col p-4">
         <h3 className="mb-3 text-base font-bold text-slate-900">{name}</h3>
         {/* Footer buttons */}
-        <div className="flex gap-2.5">
+        <div className="flex gap-2">
           <Link
             href={resolvedPreviewHref}
-            className="flex-1 inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-sky-400/30 transition hover:brightness-110"
+            className="flex-1 inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950 shadow-md shadow-sky-400/30 transition hover:brightness-110 sm:px-4 sm:text-sm"
             {...linkProps}
           >
             Preview
           </Link>
           <Link
             href={resolvedActionHref}
-            className="flex-1 inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            className="flex-1 inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 sm:px-4 sm:text-sm"
             {...linkProps}
           >
             {actionLabel}
