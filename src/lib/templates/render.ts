@@ -15,6 +15,8 @@ import { canvaStandardBody } from "./canva-standard/body.hbs";
 import { canvaStandardCss } from "./canva-standard/styles.css";
 import { luminaryBody } from "./luminary/body.hbs";
 import { luminaryCss } from "./luminary/styles.css";
+import { slateSidebarBody } from "./slate-sidebar/body.hbs";
+import { slateSidebarCss } from "./slate-sidebar/styles.css";
 import { DEFAULT_TEMPLATE_ID } from "./registry";
 
 const fontLinks = `
@@ -78,6 +80,10 @@ const compilers: Record<string, { compile: Handlebars.TemplateDelegate; css: str
   "luminary": {
     compile: Handlebars.compile(luminaryBody),
     css: luminaryCss,
+  },
+  "slate-sidebar": {
+    compile: Handlebars.compile(slateSidebarBody),
+    css: slateSidebarCss,
   },
 };
 

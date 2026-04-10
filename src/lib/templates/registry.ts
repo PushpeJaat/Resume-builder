@@ -40,6 +40,11 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Luminary",
     description: "Magazine-quality layout with a full-bleed dark header, circular photo, and gold editorial accents.",
   },
+  {
+    id: "slate-sidebar",
+    name: "Slate Sidebar",
+    description: "Dark slate sidebar with clean white main panel — professional and easy to scan.",
+  },
 ];
 
 export function getTemplateMeta(id: string): TemplateMeta | undefined {
