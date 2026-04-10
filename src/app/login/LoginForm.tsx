@@ -61,7 +61,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-800 text-white">
+    <div className="min-h-screen bg-slate-600 text-white">
       <SiteHeader theme="dark" />
 
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">

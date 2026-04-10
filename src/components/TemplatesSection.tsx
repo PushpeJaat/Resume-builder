@@ -6,7 +6,7 @@ import { TemplateCard } from "./TemplateCard";
 
 export function TemplatesSection() {
   return (
-    <section className="relative overflow-hidden bg-slate-800 px-4 py-24 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden bg-slate-600 px-4 py-24 sm:px-6 lg:px-8">
       {/* Background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute left-[-10rem] top-20 h-80 w-80 rounded-full bg-sky-500/15 blur-3xl" />
