@@ -5,7 +5,7 @@ import { TemplatesSection } from "@/components/TemplatesSection";
 
 export default function TemplatesPage() {
   return (
-    <div className="min-h-screen bg-slate-600">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f8fafc_100%)]">
       <AppHeader />
       <main className="pt-4">
         <TemplatesSection />
