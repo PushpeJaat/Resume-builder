@@ -4,24 +4,36 @@ import { useRef } from "react";
 import NextImage from "next/image";
 import type { ResumeData } from "@/types/resume";
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{children}</label>;
+function FieldLabel({ children, dark }: { children: React.ReactNode; dark?: boolean }) {
+  return (
+    <label className={`mb-1 block text-xs font-semibold uppercase tracking-wide ${dark ? "text-slate-400" : "text-slate-500"}`}>
+      {children}
+    </label>
+  );
 }
 
-function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+function Input({ dark, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { dark?: boolean }) {
   return (
     <input
       {...props}
-      className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-sky-500/30 transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 ${props.className ?? ""}`}
+      className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ring-sky-500/30 transition placeholder:opacity-50 focus:ring-2 ${
+        dark
+          ? "border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:border-sky-500/60 focus:bg-white/8"
+          : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-sky-500"
+      } ${props.className ?? ""}`}
     />
   );
 }
 
-function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+function TextArea({ dark, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { dark?: boolean }) {
   return (
     <textarea
       {...props}
-      className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-sky-500/30 transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 ${props.className ?? ""}`}
+      className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ring-sky-500/30 transition placeholder:opacity-50 focus:ring-2 ${
+        dark
+          ? "border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:border-sky-500/60 focus:bg-white/8"
+          : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-sky-500"
+      } ${props.className ?? ""}`}
     />
   );
 }
@@ -72,10 +84,34 @@ const SECTIONS = [
 type Props = {
   data: ResumeData;
   onChange: (next: ResumeData) => void;
+  dark?: boolean;
 };
 
-export function ResumeEditor({ data, onChange }: Props) {
+export function ResumeEditor({ data, onChange, dark = false }: Props) {
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  // Derive Tailwind class tokens from dark mode flag
+  const card = dark
+    ? "rounded-xl border border-white/8 bg-white/[0.04] p-4"
+    : "rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
+  const heading = dark ? "text-sm font-semibold text-slate-100" : "text-sm font-semibold text-slate-900";
+  const subtext = dark ? "text-slate-400" : "text-slate-500";
+  const navBg = dark
+    ? "sticky top-0 z-10 -mx-4 -mt-4 border-b border-white/8 bg-slate-900/80 px-4 backdrop-blur"
+    : "sticky top-0 z-10 -mx-4 -mt-4 border-b border-slate-200 bg-white px-4";
+  const navBtn = dark
+    ? "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 transition hover:bg-white/5 hover:text-white"
+    : "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900";
+  const addBtn = dark
+    ? "rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/15"
+    : "rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800";
+  const jobCard = dark
+    ? "rounded-lg border border-white/8 bg-white/[0.04] p-3"
+    : "rounded-lg border border-slate-100 bg-slate-50/80 p-3";
+  const removeBtn = dark ? "text-xs text-slate-400 hover:text-red-400" : "text-xs text-slate-500 hover:text-red-600";
+  const addLink2 = dark
+    ? "text-xs font-semibold text-sky-400 hover:text-sky-200"
+    : "text-xs font-semibold text-sky-600 hover:text-sky-800";
 
   const scrollToSection = (id: string) => {
     sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -233,14 +269,14 @@ export function ResumeEditor({ data, onChange }: Props) {
   return (
     <div className="flex flex-col gap-6 pb-24">
       {/* Section Navigator */}
-      <nav className="sticky top-0 z-10 -mx-4 -mt-4 border-b border-slate-200 bg-white px-4">
+      <nav className={navBg}>
         <div className="flex gap-1 overflow-x-auto py-2">
           {SECTIONS.map((s) => (
             <button
               key={s.id}
               type="button"
               onClick={() => scrollToSection(s.id)}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              className={navBtn}
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
@@ -254,23 +290,23 @@ export function ResumeEditor({ data, onChange }: Props) {
       {/* Personal Info */}
       <section
         ref={(el) => { sectionRefs.current.personal = el; }}
-        className="scroll-mt-14 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className={`scroll-mt-14 ${card}`}
       >
-        <h2 className="text-sm font-semibold text-slate-900">Personal Info</h2>
+        <h2 className={heading}>Personal Info</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-[112px_minmax(0,1fr)]">
           <div className="space-y-3">
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <div className={`overflow-hidden rounded-2xl border ${dark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"}`}>
               {data.personal.photoUrl ? (
                 <div className="relative aspect-square w-full">
                   <NextImage src={data.personal.photoUrl} alt="Profile" fill unoptimized className="object-cover" />
                 </div>
               ) : (
-                <div className="flex aspect-square items-center justify-center text-xs font-semibold uppercase tracking-widest text-slate-400">
+                <div className={`flex aspect-square items-center justify-center text-xs font-semibold uppercase tracking-widest ${subtext}`}>
                   No photo
                 </div>
               )}
             </div>
-            <label className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+            <label className={`inline-flex w-full cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-xs font-semibold transition ${dark ? "border-white/10 text-slate-300 hover:bg-white/5" : "border-slate-300 text-slate-700 hover:bg-slate-50"}`}>
               Upload photo
               <input
                 type="file"
@@ -283,7 +319,7 @@ export function ResumeEditor({ data, onChange }: Props) {
               <button
                 type="button"
                 onClick={() => setPersonal({ photoUrl: "" })}
-                className="w-full rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-red-600"
+                className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition ${removeBtn}`}
               >
                 Remove photo
               </button>
@@ -291,8 +327,9 @@ export function ResumeEditor({ data, onChange }: Props) {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <FieldLabel>Full name</FieldLabel>
+              <FieldLabel dark={dark}>Full name</FieldLabel>
               <Input
+                dark={dark}
                 value={data.personal.fullName}
                 onChange={(e) => setPersonal({ fullName: e.target.value })}
                 placeholder="Jordan Lee"
@@ -327,12 +364,8 @@ export function ResumeEditor({ data, onChange }: Props) {
         </div>
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-between">
-            <FieldLabel>Links</FieldLabel>
-            <button
-              type="button"
-              onClick={addLink}
-              className="text-xs font-semibold text-sky-600 hover:text-sky-800"
-            >
+            <FieldLabel dark={dark}>Links</FieldLabel>
+            <button type="button" onClick={addLink} className={addLink2}>
               + Add link
             </button>
           </div>
@@ -340,12 +373,14 @@ export function ResumeEditor({ data, onChange }: Props) {
             {data.personal.links.map((link, i) => (
               <div key={i} className="flex flex-wrap gap-2">
                 <Input
+                  dark={dark}
                   className="min-w-[120px] flex-1"
                   placeholder="Label"
                   value={link.label}
                   onChange={(e) => updateLink(i, { label: e.target.value })}
                 />
                 <Input
+                  dark={dark}
                   className="min-w-[160px] flex-[2]"
                   placeholder="https://"
                   value={link.url}
@@ -354,7 +389,7 @@ export function ResumeEditor({ data, onChange }: Props) {
                 <button
                   type="button"
                   onClick={() => removeLink(i)}
-                  className="rounded-lg px-2 text-xs text-slate-500 hover:bg-slate-100"
+                  className={removeBtn}
                 >
                   Remove
                 </button>
@@ -367,11 +402,12 @@ export function ResumeEditor({ data, onChange }: Props) {
       {/* Summary */}
       <section
         ref={(el) => { sectionRefs.current.summary = el; }}
-        className="scroll-mt-14 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className={`scroll-mt-14 ${card}`}
       >
-        <h2 className="text-sm font-semibold text-slate-900">Summary</h2>
+        <h2 className={heading}>Summary</h2>
         <div className="mt-3">
           <TextArea
+            dark={dark}
             rows={5}
             value={data.summary}
             onChange={(e) => onChange({ ...data, summary: e.target.value })}
@@ -383,56 +419,44 @@ export function ResumeEditor({ data, onChange }: Props) {
       {/* Experience */}
       <section
         ref={(el) => { sectionRefs.current.experience = el; }}
-        className="scroll-mt-14 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className={`scroll-mt-14 ${card}`}
       >
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Experience</h2>
-          <button
-            type="button"
-            onClick={addExperience}
-            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
-          >
+          <h2 className={heading}>Experience</h2>
+          <button type="button" onClick={addExperience} className={addBtn}>
             + Add role
           </button>
         </div>
         <div className="mt-4 space-y-6">
           {data.experience.map((job, ei) => (
-            <div key={job.id ?? ei} className="rounded-lg border border-slate-100 bg-slate-50/80 p-3">
+            <div key={job.id ?? ei} className={jobCard}>
               <div className="mb-3 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => removeExp(ei)}
-                  className="text-xs text-slate-500 hover:text-red-600"
-                >
+                <button type="button" onClick={() => removeExp(ei)} className={removeBtn}>
                   Remove role
                 </button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <FieldLabel>Role</FieldLabel>
-                  <Input value={job.role} onChange={(e) => updateExp(ei, { role: e.target.value })} />
+                  <FieldLabel dark={dark}>Role</FieldLabel>
+                  <Input dark={dark} value={job.role} onChange={(e) => updateExp(ei, { role: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
-                  <FieldLabel>Company</FieldLabel>
-                  <Input value={job.company} onChange={(e) => updateExp(ei, { company: e.target.value })} />
+                  <FieldLabel dark={dark}>Company</FieldLabel>
+                  <Input dark={dark} value={job.company} onChange={(e) => updateExp(ei, { company: e.target.value })} />
                 </div>
                 <div>
-                  <FieldLabel>Start</FieldLabel>
-                  <Input value={job.start} onChange={(e) => updateExp(ei, { start: e.target.value })} placeholder="2021" />
+                  <FieldLabel dark={dark}>Start</FieldLabel>
+                  <Input dark={dark} value={job.start} onChange={(e) => updateExp(ei, { start: e.target.value })} placeholder="2021" />
                 </div>
                 <div>
-                  <FieldLabel>End</FieldLabel>
-                  <Input value={job.end} onChange={(e) => updateExp(ei, { end: e.target.value })} placeholder="Present" />
+                  <FieldLabel dark={dark}>End</FieldLabel>
+                  <Input dark={dark} value={job.end} onChange={(e) => updateExp(ei, { end: e.target.value })} placeholder="Present" />
                 </div>
               </div>
               <div className="mt-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <FieldLabel>Bullet points</FieldLabel>
-                  <button
-                    type="button"
-                    onClick={() => addBullet(ei)}
-                    className="text-xs font-semibold text-sky-600 hover:text-sky-800"
-                  >
+                  <FieldLabel dark={dark}>Bullet points</FieldLabel>
+                  <button type="button" onClick={() => addBullet(ei)} className={addLink2}>
                     + Bullet
                   </button>
                 </div>
@@ -440,18 +464,19 @@ export function ResumeEditor({ data, onChange }: Props) {
                   {job.bullets.map((b, bi) => (
                     <div key={bi} className="flex gap-2">
                       <TextArea
+                        dark={dark}
                         rows={2}
                         className="flex-1"
                         value={b}
                         onChange={(e) => updateBullet(ei, bi, e.target.value)}
-                        placeholder="Impact-focused accomplishment\u2026"
+                        placeholder="Impact-focused accomplishment…"
                       />
                       <button
                         type="button"
                         onClick={() => removeBullet(ei, bi)}
-                        className="self-start rounded-lg px-2 text-xs text-slate-500 hover:bg-slate-200"
+                        className={`self-start rounded-lg px-2 text-xs ${removeBtn}`}
                       >
-                        \u2715
+                        ✕
                       </button>
                     </div>
                   ))}
@@ -465,42 +490,38 @@ export function ResumeEditor({ data, onChange }: Props) {
       {/* Education */}
       <section
         ref={(el) => { sectionRefs.current.education = el; }}
-        className="scroll-mt-14 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className={`scroll-mt-14 ${card}`}
       >
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Education</h2>
-          <button
-            type="button"
-            onClick={addEducation}
-            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
-          >
+          <h2 className={heading}>Education</h2>
+          <button type="button" onClick={addEducation} className={addBtn}>
             + Add school
           </button>
         </div>
         <div className="mt-4 space-y-4">
           {data.education.map((ed, i) => (
-            <div key={ed.id ?? i} className="rounded-lg border border-slate-100 bg-slate-50/80 p-3">
+            <div key={ed.id ?? i} className={jobCard}>
               <div className="mb-2 flex justify-end">
-                <button type="button" onClick={() => removeEdu(i)} className="text-xs text-slate-500 hover:text-red-600">
+                <button type="button" onClick={() => removeEdu(i)} className={removeBtn}>
                   Remove
                 </button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <FieldLabel>School</FieldLabel>
-                  <Input value={ed.school} onChange={(e) => updateEdu(i, { school: e.target.value })} />
+                  <FieldLabel dark={dark}>School</FieldLabel>
+                  <Input dark={dark} value={ed.school} onChange={(e) => updateEdu(i, { school: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
-                  <FieldLabel>Degree / field</FieldLabel>
-                  <Input value={ed.degree} onChange={(e) => updateEdu(i, { degree: e.target.value })} />
+                  <FieldLabel dark={dark}>Degree / field</FieldLabel>
+                  <Input dark={dark} value={ed.degree} onChange={(e) => updateEdu(i, { degree: e.target.value })} />
                 </div>
                 <div>
-                  <FieldLabel>Start</FieldLabel>
-                  <Input value={ed.start} onChange={(e) => updateEdu(i, { start: e.target.value })} />
+                  <FieldLabel dark={dark}>Start</FieldLabel>
+                  <Input dark={dark} value={ed.start} onChange={(e) => updateEdu(i, { start: e.target.value })} />
                 </div>
                 <div>
-                  <FieldLabel>End</FieldLabel>
-                  <Input value={ed.end} onChange={(e) => updateEdu(i, { end: e.target.value })} />
+                  <FieldLabel dark={dark}>End</FieldLabel>
+                  <Input dark={dark} value={ed.end} onChange={(e) => updateEdu(i, { end: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -511,44 +532,33 @@ export function ResumeEditor({ data, onChange }: Props) {
       {/* Skills */}
       <section
         ref={(el) => { sectionRefs.current.skills = el; }}
-        className="scroll-mt-14 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className={`scroll-mt-14 ${card}`}
       >
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Skills</h2>
-          <button
-            type="button"
-            onClick={addSkillCat}
-            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
-          >
+          <h2 className={heading}>Skills</h2>
+          <button type="button" onClick={addSkillCat} className={addBtn}>
             + Add category
           </button>
         </div>
         <div className="mt-4 space-y-4">
           {data.skills.map((cat, ci) => (
-            <div key={cat.id ?? ci} className="rounded-lg border border-slate-100 bg-slate-50/80 p-3">
+            <div key={cat.id ?? ci} className={jobCard}>
               <div className="mb-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => removeSkillCat(ci)}
-                  className="text-xs text-slate-500 hover:text-red-600"
-                >
+                <button type="button" onClick={() => removeSkillCat(ci)} className={removeBtn}>
                   Remove category
                 </button>
               </div>
-              <FieldLabel>Category name</FieldLabel>
+              <FieldLabel dark={dark}>Category name</FieldLabel>
               <Input
+                dark={dark}
                 className="mb-3"
                 value={cat.category}
                 onChange={(e) => updateSkillCat(ci, { category: e.target.value })}
                 placeholder="Engineering"
               />
               <div className="mb-2 flex items-center justify-between">
-                <FieldLabel>Items</FieldLabel>
-                <button
-                  type="button"
-                  onClick={() => addSkillItem(ci)}
-                  className="text-xs font-semibold text-sky-600 hover:text-sky-800"
-                >
+                <FieldLabel dark={dark}>Items</FieldLabel>
+                <button type="button" onClick={() => addSkillItem(ci)} className={addLink2}>
                   + Skill
                 </button>
               </div>
@@ -556,6 +566,7 @@ export function ResumeEditor({ data, onChange }: Props) {
                 {cat.items.map((item, ii) => (
                   <div key={ii} className="flex gap-2">
                     <Input
+                      dark={dark}
                       value={item}
                       onChange={(e) => updateSkillItem(ci, ii, e.target.value)}
                       placeholder="TypeScript"
@@ -563,9 +574,9 @@ export function ResumeEditor({ data, onChange }: Props) {
                     <button
                       type="button"
                       onClick={() => removeSkillItem(ci, ii)}
-                      className="rounded-lg px-2 text-xs text-slate-500 hover:bg-slate-200"
+                      className={`rounded-lg px-2 text-xs ${removeBtn}`}
                     >
-                      \u2715
+                      ✕
                     </button>
                   </div>
                 ))}

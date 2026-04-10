@@ -3,6 +3,7 @@ import { Inter, Geist } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { cn } from "@/lib/utils";
+import { Toaster } from "sonner";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -26,6 +27,7 @@ export default function RootLayout({
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <body suppressHydrationWarning className={`${inter.variable} min-h-screen antialiased`}>
         <Providers>{children}</Providers>
+        <Toaster theme="dark" position="bottom-right" richColors />
       </body>
     </html>
   );
