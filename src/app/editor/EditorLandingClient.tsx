@@ -66,6 +66,9 @@ export default function EditorLandingClient() {
     setData(json.data);
     setImportState("success");
     setImportError("");
+    if (json.warning) {
+      toast.warning(json.warning);
+    }
     toast.success(
       json.mode === "ai"
         ? "Resume extracted with AI â€” fields auto-filled!"

@@ -111,18 +111,27 @@ async function extractResumeText(file: File): Promise<string> {
   const extension = getFileExtension(file.name);
 
   if (extension === "pdf") {
-    const parser = new PDFParse({ data: buffer });
+    let parser: PDFParse | null = null;
     try {
+      parser = new PDFParse({ data: buffer });
       const result = await parser.getText();
       return result.text ?? "";
+    } catch {
+      throw new Error("Could not read text from that PDF. Try a text-based PDF, DOCX, TXT, or MD file.");
     } finally {
-      await parser.destroy();
+      if (parser) {
+        await parser.destroy().catch(() => undefined);
+      }
     }
   }
 
   if (extension === "docx") {
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value ?? "";
+    try {
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value ?? "";
+    } catch {
+      throw new Error("Could not read text from that DOCX file. Try saving it again as DOCX or upload TXT/MD instead.");
+    }
   }
 
   return buffer.toString("utf8");
