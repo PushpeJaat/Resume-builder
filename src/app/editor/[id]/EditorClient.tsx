@@ -141,12 +141,16 @@ export function EditorClient({ resumeId }: Props) {
     const formData = new FormData();
     formData.set("file", file);
     const res = await fetch("/api/resumes/import", { method: "POST", body: formData });
-    const json = (await res.json().catch(() => null)) as
+    const responseText = await res.text();
+    const json = safeJsonParse(responseText) as
       | { data?: ResumeData; titleSuggestion?: string; mode?: "ai" | "heuristic"; warning?: string; error?: string }
       | null;
 
     if (!res.ok || !json?.data) {
-      const message = json?.error ?? "Could not import that file.";
+      const message =
+        json?.error ??
+        extractImportErrorMessage(responseText) ??
+        `Could not import that file. Server returned ${res.status}.`;
       setImportState("error");
       setImportError(message);
       toast.error(message);
@@ -167,6 +171,22 @@ export function EditorClient({ resumeId }: Props) {
     );
     setTimeout(() => setImportState("idle"), 3000);
   }, []);
+
+  function safeJsonParse(value: string) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  function extractImportErrorMessage(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html")) {
+      return null;
+    }
+    return trimmed.slice(0, 240);
+  }
 
   /* â”€â”€ Close template menu on outside click â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   useEffect(() => {
