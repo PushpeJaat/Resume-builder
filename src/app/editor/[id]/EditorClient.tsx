@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ResumeEditor } from "@/components/editor/ResumeEditor";
@@ -12,6 +13,9 @@ type Props = { resumeId: string };
 
 export function EditorClient({ resumeId }: Props) {
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const autoDownload = searchParams.get("autoDownload") === "1";
   const [title, setTitle] = useState("");
   const [templateId, setTemplateId] = useState("modern-professional");
   const [data, setData] = useState<ResumeData>(emptyResumeData());
@@ -54,6 +58,20 @@ export function EditorClient({ resumeId }: Props) {
       setLoading(false);
     }
   }, [load, isLoggedIn, status]);
+
+  // Auto-trigger PDF download when redirected here after sign-in with ?autoDownload=1
+  const autoDownloadFiredRef = useRef(false);
+  useEffect(() => {
+    if (!autoDownload || loading || !isLoggedIn || autoDownloadFiredRef.current) return;
+    autoDownloadFiredRef.current = true;
+    // Strip the query param from the URL so a refresh doesn't re-trigger
+    router.replace(`/editor/${resumeId}`, { scroll: false });
+    // Small delay so the preview/iframe has a chance to settle before PDF request
+    const t = setTimeout(() => void downloadPdf(), 800);
+    return () => clearTimeout(t);
+    // downloadPdf is defined below; eslint-disable-next-line is intentional
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDownload, loading, isLoggedIn]);
 
   const persist = useCallback(
     async (patch: { title?: string; templateId?: string; data?: ResumeData }) => {

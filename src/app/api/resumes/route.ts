@@ -23,18 +23,27 @@ export async function GET() {
   return NextResponse.json({ resumes });
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  let title = "Untitled resume";
+  let templateId = DEFAULT_TEMPLATE_ID;
+  let data: object = emptyResumeData() as object;
+
+  try {
+    const body = await request.json() as { title?: unknown; templateId?: unknown; data?: unknown };
+    if (typeof body.title === "string" && body.title.trim()) title = body.title.trim();
+    if (typeof body.templateId === "string" && body.templateId) templateId = body.templateId;
+    if (body.data && typeof body.data === "object" && !Array.isArray(body.data)) data = body.data as object;
+  } catch {
+    // No body or invalid JSON — use defaults
+  }
+
   const resume = await prisma.resume.create({
-    data: {
-      userId: session.user.id,
-      title: "Untitled resume",
-      templateId: DEFAULT_TEMPLATE_ID,
-      data: emptyResumeData() as object,
-    },
+    data: { userId: session.user.id, title, templateId, data },
     select: { id: true },
   });
   return NextResponse.json({ id: resume.id });

@@ -47,7 +47,7 @@ const templates = [
   { name: "Executive Portrait", accent: "from-emerald-600 to-teal-500", premium: false },
   { name: "Creative Designer", accent: "from-fuchsia-600 to-rose-500", premium: true },
   { name: "Profile Edge", accent: "from-indigo-600 to-violet-500", premium: true },
-  { name: "Classic ATS", accent: "from-amber-500 to-orange-500", premium: false },
+  { name: "Canva Standard", accent: "from-blue-600 to-sky-400", premium: false },
 ];
 
 export default function HomePage() {

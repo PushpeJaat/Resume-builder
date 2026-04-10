@@ -11,6 +11,8 @@ import { executivePortraitBody } from "./executive-portrait/body.hbs";
 import { executivePortraitCss } from "./executive-portrait/styles.css";
 import { profileEdgeBody } from "./profile-edge/body.hbs";
 import { profileEdgeCss } from "./profile-edge/styles.css";
+import { canvaStandardBody } from "./canva-standard/body.hbs";
+import { canvaStandardCss } from "./canva-standard/styles.css";
 import { DEFAULT_TEMPLATE_ID } from "./registry";
 
 const fontLinks = `
@@ -66,6 +68,10 @@ const compilers: Record<string, { compile: Handlebars.TemplateDelegate; css: str
   "profile-edge": {
     compile: Handlebars.compile(profileEdgeBody),
     css: profileEdgeCss,
+  },
+  "canva-standard": {
+    compile: Handlebars.compile(canvaStandardBody),
+    css: canvaStandardCss,
   },
 };
 

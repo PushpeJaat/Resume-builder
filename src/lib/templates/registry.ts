@@ -30,6 +30,11 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Profile Edge",
     description: "Photo-led resume with a strong contact rail and resilient long-form sections.",
   },
+  {
+    id: "canva-standard",
+    name: "Canva Standard",
+    description: "Canva-inspired blue sidebar layout with crisp cards and polished A4 hierarchy.",
+  },
 ];
 
 export function getTemplateMeta(id: string): TemplateMeta | undefined {

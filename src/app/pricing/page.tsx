@@ -28,7 +28,7 @@ export default function PricingPage() {
               </p>
               <ul className="mt-8 grid gap-3 sm:grid-cols-2">
                 {[
-                  "All 5 professional templates",
+                  "All 6 professional templates",
                   "Full customization",
                   "Live preview",
                   "PDF export",

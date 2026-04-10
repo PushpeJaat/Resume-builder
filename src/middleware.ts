@@ -11,7 +11,9 @@ export async function middleware(request: NextRequest) {
     secureCookie: process.env.NODE_ENV === "production",
   });
 
-  const isProtectedDashboardPath = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const isProtectedDashboardPath =
+    (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) &&
+    pathname !== "/dashboard/templates";
   const isProtectedAccountPath = pathname === "/account" || pathname.startsWith("/account/");
 
   if (!token && (isProtectedDashboardPath || isProtectedAccountPath)) {

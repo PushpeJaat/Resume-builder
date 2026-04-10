@@ -53,6 +53,19 @@ export default function EditorLandingClient() {
                 if (session?.user) {
                   return;
                 }
+                // Persist resume data in sessionStorage so it can be restored after auth
+                try {
+                  sessionStorage.setItem(
+                    "pendingResume",
+                    JSON.stringify({
+                      templateId,
+                      data,
+                      title: `My ${getTemplateMeta(templateId)?.name ?? "Resume"}`,
+                    }),
+                  );
+                } catch {
+                  // sessionStorage unavailable — continue anyway
+                }
                 setShowAuthModal(true);
               }}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 py-3 text-sm font-semibold text-slate-950 transition hover:brightness-105"

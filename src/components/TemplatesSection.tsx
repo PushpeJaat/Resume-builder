@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { TEMPLATES } from "@/lib/templates/registry";
-import heroResumeImage from "@/HeroResume/Professional Modern CV Resume.jpg";
 import { TemplateCard } from "./TemplateCard";
 
 export function TemplatesSection() {
@@ -34,17 +33,6 @@ export function TemplatesSection() {
 
           {/* Templates Grid */}
           <div className="grid md:grid-cols-3 gap-8">
-            <TemplateCard
-              id="blue-simple-professional-cv-resume"
-              name="Blue Simple Professional CV Resume"
-              description="Clean A4 Canva resume layout with a strong professional hierarchy and polished blue accent system."
-              previewImageSrc={heroResumeImage}
-              previewImageAlt="Blue Simple Professional CV Resume preview"
-              previewHref="https://www.canva.com/design/DAG3K-hKuyg/anb9RyVuUKfrfVbNbougQw/view?utm_content=DAG3K-hKuyg&utm_campaign=designshare&utm_medium=embeds&utm_source=link"
-              actionHref="https://www.canva.com/design/DAG3K-hKuyg/anb9RyVuUKfrfVbNbougQw/view?utm_content=DAG3K-hKuyg&utm_campaign=designshare&utm_medium=embeds&utm_source=link"
-              actionLabel="Open Template"
-              external
-            />
             {TEMPLATES.map((template) => (
               <TemplateCard
                 key={template.id}

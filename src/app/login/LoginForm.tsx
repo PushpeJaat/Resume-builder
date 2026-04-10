@@ -34,6 +34,28 @@ export function LoginForm() {
       return;
     }
 
+    // Restore a pending guest resume if one was saved before auth
+    try {
+      const pendingStr = sessionStorage.getItem("pendingResume");
+      if (pendingStr) {
+        const pending = JSON.parse(pendingStr) as { templateId: string; data: unknown; title: string };
+        const createRes = await fetch("/api/resumes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pending),
+        });
+        if (createRes.ok) {
+          const json = (await createRes.json()) as { id: string };
+          sessionStorage.removeItem("pendingResume");
+          router.push(`/editor/${json.id}?autoDownload=1`);
+          router.refresh();
+          return;
+        }
+      }
+    } catch {
+      // fall through to normal redirect
+    }
+
     router.push(callbackUrl);
     router.refresh();
   }
@@ -112,7 +134,13 @@ export function LoginForm() {
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => void signIn("google", { callbackUrl }, { prompt: "select_account" })}
+                onClick={() => {
+                  let target = callbackUrl;
+                  try {
+                    if (sessionStorage.getItem("pendingResume")) target = "/editor/resume-restore";
+                  } catch { /* ignore */ }
+                  void signIn("google", { callbackUrl: target }, { prompt: "select_account" });
+                }}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/8"
               >
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
