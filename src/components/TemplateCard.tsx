@@ -168,22 +168,20 @@ export function TemplateCard({
       </div>
 
       {/* Content */}
-      <div className="flex flex-1 flex-col p-5">
-        <h3 className="text-base font-bold text-slate-900">{name}</h3>
-        <p className="mt-1 text-sm leading-relaxed text-slate-500">{description}</p>
-
+      <div className="flex flex-col p-4">
+        <h3 className="mb-3 text-base font-bold text-slate-900">{name}</h3>
         {/* Footer buttons */}
-        <div className="mt-5 flex gap-2.5">
+        <div className="flex gap-2.5">
           <Link
             href={resolvedPreviewHref}
-            className="flex-1 inline-flex items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+            className="flex-1 inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-sky-400/30 transition hover:brightness-110"
             {...linkProps}
           >
             Preview
           </Link>
           <Link
             href={resolvedActionHref}
-            className="flex-1 inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="flex-1 inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
             {...linkProps}
           >
             {actionLabel}
