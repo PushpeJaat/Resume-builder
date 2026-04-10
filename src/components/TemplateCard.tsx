@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { renderResumeDocument } from "@/lib/templates/render";
@@ -16,53 +16,102 @@ const DEMO_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(`
 
 const DEMO_DATA: ResumeData = {
   personal: {
-    fullName: "Jane Doe",
-    email: "jane.doe@example.com",
-    phone: "+1 (555) 123-4567",
+    fullName: "Alexandra Reid",
+    email: "alex.reid@example.com",
+    phone: "+1 (415) 555-0192",
     location: "San Francisco, CA",
     photoUrl: DEMO_PHOTO,
     links: [
-      { label: "Portfolio", url: "https://portfolio.example.com" },
-      { label: "LinkedIn", url: "https://linkedin.com/in/janedoe" },
+      { label: "LinkedIn", url: "https://linkedin.com/in/alexreid" },
+      { label: "Portfolio", url: "https://alexreid.design" },
+      { label: "GitHub", url: "https://github.com/alexreid" },
     ],
   },
   summary:
-    "Experienced product designer with 6+ years creating intuitive digital experiences for SaaS companies.",
+    "Senior Product Designer with 8+ years building data-driven SaaS products. Proven record leading 0→1 design for enterprise platforms, scaling design systems, and translating complex workflows into intuitive interfaces. Passionate about accessibility and measurable impact.",
   experience: [
     {
-      company: "Design Studio Inc.",
+      company: "Notion",
       role: "Senior Product Designer",
-      start: "2021",
+      start: "2022",
       end: "Present",
       bullets: [
-        "Led design system overhaul, improving team efficiency by 40%",
-        "Directed user research for 5+ major product launches",
+        "Spearheaded redesign of the Blocks editor, increasing WAU by 34%",
+        "Built a 400-component design system adopted by 12 product teams",
+        "Led accessibility audit and remediation, achieving WCAG 2.1 AA compliance",
+        "Mentored 4 junior designers through structured growth frameworks",
       ],
     },
     {
-      company: "Tech Innovations Ltd.",
+      company: "Figma",
       role: "Product Designer",
-      start: "2018",
-      end: "2021",
+      start: "2019",
+      end: "2022",
       bullets: [
-        "Designed and shipped mobile app used by 100K+ users",
-        "Reduced onboarding friction by 60% through iterative testing",
+        "Designed FigJam whiteboard tool from prototype to launch (2M+ users day 1)",
+        "Owned mobile app redesign, improving session length by 55%",
+        "Reduced design-to-ship cycle by 3 weeks through tighter eng collaboration",
+      ],
+    },
+    {
+      company: "Airbnb",
+      role: "UX Designer",
+      start: "2017",
+      end: "2019",
+      bullets: [
+        "Redesigned host onboarding flow, reducing drop-off by 42%",
+        "Conducted 80+ usability sessions synthesized into product roadmap",
       ],
     },
   ],
   education: [
     {
-      school: "California Institute of Design",
-      degree: "Bachelor of Fine Arts",
-      start: "2014",
-      end: "2018",
+      school: "Rhode Island School of Design",
+      degree: "BFA in Graphic Design",
+      start: "2013",
+      end: "2017",
     },
   ],
   skills: [
-    { category: "Design Tools", items: ["Figma", "Adobe XD", "Sketch"] },
-    { category: "Skills", items: ["UI/UX Design", "User Research", "Prototyping"] },
+    { category: "Design Tools", items: ["Figma", "Framer", "Adobe XD", "Protopie", "Sketch"] },
+    { category: "Research", items: ["User Interviews", "Usability Testing", "A/B Testing", "Journey Mapping"] },
+    { category: "Development", items: ["HTML/CSS", "React", "Storybook", "Zeplin"] },
+    { category: "Soft Skills", items: ["Leadership", "Stakeholder Mgmt", "Public Speaking"] },
   ],
 };
+
+/** Scales an A4 iframe (794×1122 px) to exactly fill its container. */
+function ScaledIframe({ html, name }: { html: string; name: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.35);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setScale(entry.contentRect.width / 794);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full overflow-hidden" style={{ aspectRatio: "210 / 297" }}>
+      <div
+        className="pointer-events-none absolute left-0 top-0"
+        style={{ width: 794, height: 1122, transform: `scale(${scale})`, transformOrigin: "top left" }}
+      >
+        <iframe
+          title={`${name} preview`}
+          srcDoc={html}
+          style={{ width: 794, height: 1122, border: "none", display: "block" }}
+          sandbox="allow-same-origin"
+          tabIndex={-1}
+        />
+      </div>
+    </div>
+  );
+}
 
 export interface TemplateCardProps {
   id: string;
@@ -95,25 +144,19 @@ export function TemplateCard({
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/60">
       {/* Actual template preview */}
-      <div className="relative aspect-[3/4] overflow-hidden bg-slate-50">
+      <div className="relative overflow-hidden bg-slate-50">
         {previewImageSrc ? (
-          <Image
-            src={previewImageSrc}
-            alt={previewImageAlt ?? `${name} preview`}
-            fill
-            sizes="(min-width: 1280px) 24rem, (min-width: 768px) 33vw, 100vw"
-            className="object-cover object-top"
-          />
-        ) : (
-          <div className="pointer-events-none absolute inset-0 origin-top-left scale-[0.28] overflow-hidden" style={{ width: "357%", height: "357%" }}>
-            <iframe
-              title={`${name} preview`}
-              srcDoc={html}
-              className="h-full w-full border-0 bg-white"
-              sandbox="allow-same-origin"
-              tabIndex={-1}
+          <div className="aspect-[210/297]">
+            <Image
+              src={previewImageSrc}
+              alt={previewImageAlt ?? `${name} preview`}
+              fill
+              sizes="(min-width: 1280px) 24rem, (min-width: 768px) 33vw, 100vw"
+              className="object-cover object-top"
             />
           </div>
+        ) : (
+          <ScaledIframe html={html} name={name} />
         )}
         {/* Overlay for click-through */}
         <Link

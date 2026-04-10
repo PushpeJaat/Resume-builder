@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { getTemplateMeta } from "@/lib/templates/registry";
 import { renderResumeDocument } from "@/lib/templates/render";
+import { TemplatePreviewClient } from "./TemplatePreviewClient";
 import type { ResumeData } from "@/types/resume";
 
 const DEMO_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(`
@@ -15,54 +16,67 @@ const DEMO_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(`
 
 const DEFAULT_RESUME_DATA: ResumeData = {
   personal: {
-    fullName: "Jane Doe",
-    email: "jane.doe@example.com",
-    phone: "+1 (555) 123-4567",
+    fullName: "Alexandra Reid",
+    email: "alex.reid@example.com",
+    phone: "+1 (415) 555-0192",
     location: "San Francisco, CA",
     photoUrl: DEMO_PHOTO,
     links: [
-      { label: "Portfolio", url: "https://portfolio.example.com" },
-      { label: "LinkedIn", url: "https://linkedin.com/in/janedoe" },
+      { label: "LinkedIn", url: "https://linkedin.com/in/alexreid" },
+      { label: "Portfolio", url: "https://alexreid.design" },
+      { label: "GitHub", url: "https://github.com/alexreid" },
     ],
   },
   summary:
-    "Experienced product designer with 6+ years creating intuitive digital experiences for SaaS companies. Passionate about solving complex problems through thoughtful design.",
+    "Senior Product Designer with 8+ years building data-driven SaaS products. Proven record leading 0→1 design for enterprise platforms, scaling design systems, and translating complex workflows into intuitive interfaces. Passionate about accessibility, cross-functional collaboration, and measurable impact.",
   experience: [
     {
-      company: "Design Studio Inc.",
+      company: "Notion",
       role: "Senior Product Designer",
-      start: "2021",
+      start: "2022",
       end: "Present",
       bullets: [
-        "Led design system overhaul, improving team efficiency by 40%",
-        "Directed user research for 5+ major product launches",
-        "Mentored junior designers and conducted design critiques",
+        "Spearheaded redesign of the Blocks editor, increasing weekly active users by 34%",
+        "Built and maintained a 400-component design system adopted by 12 product teams",
+        "Led accessibility audit and remediation, achieving WCAG 2.1 AA compliance",
+        "Mentored 4 junior designers through structured growth frameworks",
       ],
     },
     {
-      company: "Tech Innovations Ltd.",
+      company: "Figma",
       role: "Product Designer",
-      start: "2018",
-      end: "2021",
+      start: "2019",
+      end: "2022",
       bullets: [
-        "Designed and shipped mobile app used by 100K+ users",
-        "Reduced onboarding friction by 60% through iterative testing",
-        "Collaborated cross-functionally with engineering and product teams",
+        "Designed FigJam whiteboard tool from prototype to launch (2M+ users day 1)",
+        "Owned end-to-end mobile app redesign, improving session length by 55%",
+        "Partnered with engineering to reduce design-to-ship cycle by 3 weeks on average",
+      ],
+    },
+    {
+      company: "Airbnb",
+      role: "UX Designer",
+      start: "2017",
+      end: "2019",
+      bullets: [
+        "Redesigned host onboarding flow, reducing drop-off by 42%",
+        "Conducted 80+ usability sessions, synthesizing insights into product roadmap",
       ],
     },
   ],
   education: [
     {
-      school: "California Institute of Design",
-      degree: "Bachelor of Fine Arts",
-      start: "2014",
-      end: "2018",
+      school: "Rhode Island School of Design",
+      degree: "BFA in Graphic Design",
+      start: "2013",
+      end: "2017",
     },
   ],
   skills: [
-    { category: "Design Tools", items: ["Figma", "Adobe XD", "Sketch", "Protopie"] },
-    { category: "Skills", items: ["UI/UX Design", "User Research", "Wireframing", "Prototyping", "Design Systems"] },
-    { category: "Soft Skills", items: ["Communication", "Leadership", "Problem Solving", "Collaboration"] },
+    { category: "Design Tools", items: ["Figma", "Framer", "Adobe XD", "Protopie", "Sketch"] },
+    { category: "Research", items: ["User Interviews", "Usability Testing", "A/B Testing", "Journey Mapping"] },
+    { category: "Development", items: ["HTML/CSS", "React basics", "Storybook", "Zeplin"] },
+    { category: "Soft Skills", items: ["Leadership", "Stakeholder Mgmt", "Public Speaking"] },
   ],
 };
 
@@ -106,11 +120,10 @@ export default async function TemplatePreviewPage({
         </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
+          {/* Left: live scaled preview */}
           <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
-            <div className="rounded-2xl bg-slate-100 p-6">
-              <div className="overflow-hidden rounded-lg bg-white shadow-xl">
-                <div className="aspect-[8.5/11] overflow-auto" dangerouslySetInnerHTML={{ __html: html }} />
-              </div>
+            <div className="overflow-hidden rounded-2xl bg-white shadow-xl">
+              <TemplatePreviewClient templateId={id} html={html} />
             </div>
           </div>
 
