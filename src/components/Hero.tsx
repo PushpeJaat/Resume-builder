@@ -64,7 +64,7 @@ export default function Hero() {
               size="lg"
               className="h-11 rounded-full border-slate-300 bg-white/85 px-7 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur transition-transform hover:-translate-y-0.5 hover:bg-white"
             >
-              <Link href="/templates">View Templates</Link>
+              <Link href="/dashboard/templates">View Templates</Link>
             </Button>
           </div>
         </div>
