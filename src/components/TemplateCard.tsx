@@ -169,19 +169,19 @@ export function TemplateCard({
 
       {/* Content */}
       <div className="flex flex-col p-4">
-        <h3 className="mb-3 text-base font-bold text-slate-900">{name}</h3>
+        <h3 className="mb-3 truncate whitespace-nowrap text-sm font-bold text-slate-900 sm:text-base">{name}</h3>
         {/* Footer buttons */}
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 sm:gap-2">
           <Link
             href={resolvedPreviewHref}
-            className="flex-1 inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950 shadow-md shadow-sky-400/30 transition hover:brightness-110 sm:px-4 sm:text-sm"
+            className="inline-flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-2 py-1.5 text-[11px] font-semibold text-slate-950 shadow-md shadow-sky-400/30 transition hover:brightness-110 sm:px-4 sm:py-2 sm:text-sm"
             {...linkProps}
           >
             Preview
           </Link>
           <Link
             href={resolvedActionHref}
-            className="flex-1 inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 sm:px-4 sm:text-sm"
+            className="inline-flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-700 sm:px-4 sm:py-2 sm:text-sm"
             {...linkProps}
           >
             {actionLabel}
