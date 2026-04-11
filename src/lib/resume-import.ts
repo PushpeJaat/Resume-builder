@@ -1,4 +1,6 @@
 import mammoth from "mammoth";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { z } from "zod";
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { emptyResumeData, type ResumeData } from "@/types/resume";
@@ -110,27 +112,23 @@ async function extractResumeText(file: File): Promise<string> {
   const extension = getFileExtension(file.name);
 
   if (extension === "pdf") {
-    type PdfParserInstance = {
-      getText: () => Promise<{ text?: string | null }>;
-      destroy: () => Promise<void>;
-    };
+    const PDFParseCtor = await loadPdfParserCtor();
+    if (!PDFParseCtor) {
+      throw new Error("PDF parser is unavailable on this server runtime.");
+    }
+
+    await configurePdfParserWorker(PDFParseCtor);
 
     let parser: PdfParserInstance | null = null;
     try {
-      // Load only when needed so non-PDF imports avoid initializing the parser.
-      const pdfParseModule = await import("pdf-parse");
-      const PDFParseCtor = (pdfParseModule as { PDFParse?: new (args: { data: Buffer }) => PdfParserInstance })
-        .PDFParse;
-
-      if (!PDFParseCtor) {
-        throw new Error("PDF parser is unavailable on this server runtime.");
-      }
-
       parser = new PDFParseCtor({ data: buffer });
       const result = await parser.getText();
       return result.text ?? "";
-    } catch {
-      throw new Error("Could not read text from that PDF. Try a text-based PDF, DOCX, TXT, or MD file.");
+    } catch (error) {
+      console.error("PDF text extraction failed", error);
+      throw new Error(
+        "Could not read text from that PDF. If it is scanned or password-protected, upload DOCX/TXT/MD or export a text-based PDF.",
+      );
     } finally {
       if (parser) {
         await parser.destroy().catch(() => undefined);
@@ -148,6 +146,71 @@ async function extractResumeText(file: File): Promise<string> {
   }
 
   return buffer.toString("utf8");
+}
+
+type PdfParserInstance = {
+  getText: () => Promise<{ text?: string | null }>;
+  destroy: () => Promise<void>;
+};
+
+type PdfParserCtor = {
+  new (args: { data: Buffer }): PdfParserInstance;
+  setWorker?: (workerSrc?: string) => string;
+};
+
+let cachedPdfWorkerSrc: string | null | undefined;
+
+async function configurePdfParserWorker(PDFParseCtor: PdfParserCtor) {
+  if (typeof PDFParseCtor.setWorker !== "function") {
+    return;
+  }
+
+  const workerSrc = await loadPdfWorkerSrc();
+  if (!workerSrc) {
+    return;
+  }
+
+  try {
+    PDFParseCtor.setWorker(workerSrc);
+  } catch {
+    // Keep default worker behavior if explicit worker setup fails.
+  }
+}
+
+async function loadPdfWorkerSrc(): Promise<string | null> {
+  if (cachedPdfWorkerSrc !== undefined) {
+    return cachedPdfWorkerSrc;
+  }
+
+  try {
+    const require = createRequire(import.meta.url);
+    const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+    cachedPdfWorkerSrc = pathToFileURL(workerPath).href;
+    return cachedPdfWorkerSrc;
+  } catch {
+    cachedPdfWorkerSrc = null;
+    return null;
+  }
+}
+
+async function loadPdfParserCtor(): Promise<PdfParserCtor | null> {
+  // Prefer CommonJS loading first so Next server runtime uses the Node-targeted export.
+  try {
+    const require = createRequire(import.meta.url);
+    const required = require("pdf-parse") as { PDFParse?: PdfParserCtor };
+    if (required.PDFParse) {
+      return required.PDFParse;
+    }
+  } catch {
+    // Fall back to ESM import below.
+  }
+
+  try {
+    const imported = (await import("pdf-parse")) as { PDFParse?: PdfParserCtor };
+    return imported.PDFParse ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function extractStructuredResumeWithAi(rawText: string): Promise<z.infer<typeof aiImportSchema> | null> {
