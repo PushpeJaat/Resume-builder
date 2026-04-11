@@ -1,40 +1,97 @@
 "use client";
 
-import { useRef } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import NextImage from "next/image";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BriefcaseBusiness,
+  FileText,
+  GraduationCap,
+  Plus,
+  Trash2,
+  Upload,
+  UserRound,
+  Wrench,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { ResumeData } from "@/types/resume";
 
-function FieldLabel({ children, dark }: { children: React.ReactNode; dark?: boolean }) {
-  return (
-    <label className={`mb-1 block text-xs font-semibold uppercase tracking-wide ${dark ? "text-slate-400" : "text-slate-500"}`}>
-      {children}
-    </label>
-  );
+const STEPS = [
+  {
+    id: "personal",
+    title: "Personal Information",
+    description: "Identity, contact details, and profile links.",
+    icon: UserRound,
+  },
+  {
+    id: "summary",
+    title: "Summary",
+    description: "Write a concise and compelling professional introduction.",
+    icon: FileText,
+  },
+  {
+    id: "experience",
+    title: "Experience",
+    description: "Add roles and measurable impact points.",
+    icon: BriefcaseBusiness,
+  },
+  {
+    id: "education",
+    title: "Education",
+    description: "Add schools, degrees, and timeline details.",
+    icon: GraduationCap,
+  },
+  {
+    id: "skills",
+    title: "Skills",
+    description: "Group technical and domain strengths.",
+    icon: Wrench,
+  },
+] as const;
+
+const STEP_COUNT = STEPS.length;
+
+type Props = {
+  data: ResumeData;
+  onChange: (next: ResumeData) => void;
+};
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500/95">{children}</p>;
 }
 
-function Input({ dark, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { dark?: boolean }) {
-  return (
-    <input
-      {...props}
-      className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ring-sky-500/30 transition placeholder:opacity-50 focus:ring-2 ${
-        dark
-          ? "border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:border-sky-500/60 focus:bg-white/8"
-          : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-sky-500"
-      } ${props.className ?? ""}`}
-    />
-  );
-}
-
-function TextArea({ dark, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { dark?: boolean }) {
+function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ring-sky-500/30 transition placeholder:opacity-50 focus:ring-2 ${
-        dark
-          ? "border-white/10 bg-white/5 text-white placeholder:text-slate-500 focus:border-sky-500/60 focus:bg-white/8"
-          : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-sky-500"
-      } ${props.className ?? ""}`}
+      className={`min-h-28 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[15px] leading-relaxed text-slate-900 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-sky-100 ${props.className ?? ""}`}
     />
+  );
+}
+
+function ArrayEmptyState({
+  title,
+  description,
+  action,
+  onAction,
+}: {
+  title: string;
+  description: string;
+  action: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-5 text-center transition-all duration-300 ease-out hover:border-sky-200 hover:bg-sky-50/55">
+      <p className="text-sm font-semibold tracking-tight text-slate-800">{title}</p>
+      <p className="mt-1 text-xs leading-relaxed text-slate-500">{description}</p>
+      <Button type="button" variant="outline" size="sm" className="mt-3 transition-all duration-200 hover:-translate-y-0.5" onClick={onAction}>
+        <Plus className="size-3.5" />
+        {action}
+      </Button>
+    </div>
   );
 }
 
@@ -50,13 +107,13 @@ async function readFileAsDataUrl(file: File): Promise<string> {
 async function optimizePhotoFile(file: File): Promise<string> {
   const rawUrl = await readFileAsDataUrl(file);
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const nextImage = new Image();
-    nextImage.onload = () => resolve(nextImage);
-    nextImage.onerror = () => reject(new Error("Could not process the selected image."));
-    nextImage.src = rawUrl;
+    const targetImage = new Image();
+    targetImage.onload = () => resolve(targetImage);
+    targetImage.onerror = () => reject(new Error("Could not process the selected image."));
+    targetImage.src = rawUrl;
   });
 
-  const maxEdge = 640;
+  const maxEdge = 720;
   const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
   const width = Math.max(1, Math.round(image.width * scale));
   const height = Math.max(1, Math.round(image.height * scale));
@@ -70,90 +127,81 @@ async function optimizePhotoFile(file: File): Promise<string> {
   }
 
   context.drawImage(image, 0, 0, width, height);
-  return canvas.toDataURL("image/jpeg", 0.86);
+  return canvas.toDataURL("image/jpeg", 0.88);
 }
 
-const SECTIONS = [
-  { id: "personal", label: "Personal Info", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
-  { id: "summary", label: "Summary", icon: "M4 6h16M4 12h16M4 18h7" },
-  { id: "experience", label: "Experience", icon: "M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
-  { id: "education", label: "Education", icon: "M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" },
-  { id: "skills", label: "Skills", icon: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" },
-] as const;
+function buildId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
-type Props = {
-  data: ResumeData;
-  onChange: (next: ResumeData) => void;
-  dark?: boolean;
-};
+function ResumeEditorComponent({ data, onChange }: Props) {
+  const [currentStep, setCurrentStep] = useState(0);
 
-export function ResumeEditor({ data, onChange, dark = false }: Props) {
-  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const currentStepMeta = STEPS[currentStep];
+  const progressPercent = Math.round(((currentStep + 1) / STEP_COUNT) * 100);
 
-  // Derive Tailwind class tokens from dark mode flag
-  const card = dark
-    ? "rounded-xl border border-white/8 bg-white/[0.04] p-4"
-    : "rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
-  const heading = dark ? "text-sm font-semibold text-slate-100" : "text-sm font-semibold text-slate-900";
-  const subtext = dark ? "text-slate-400" : "text-slate-500";
-  const navBg = dark
-    ? "sticky top-0 z-10 -mx-4 -mt-4 border-b border-white/8 bg-slate-900/80 px-4 backdrop-blur"
-    : "sticky top-0 z-10 -mx-4 -mt-4 border-b border-slate-200 bg-white px-4";
-  const navBtn = dark
-    ? "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 transition hover:bg-white/5 hover:text-white"
-    : "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900";
-  const addBtn = dark
-    ? "rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/15"
-    : "rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800";
-  const jobCard = dark
-    ? "rounded-lg border border-white/8 bg-white/[0.04] p-3"
-    : "rounded-lg border border-slate-100 bg-slate-50/80 p-3";
-  const removeBtn = dark ? "text-xs text-slate-400 hover:text-red-400" : "text-xs text-slate-500 hover:text-red-600";
-  const addLink2 = dark
-    ? "text-xs font-semibold text-sky-400 hover:text-sky-200"
-    : "text-xs font-semibold text-sky-600 hover:text-sky-800";
+  const setPersonal = useCallback(
+    (patch: Partial<ResumeData["personal"]>) => {
+      onChange({ ...data, personal: { ...data.personal, ...patch } });
+    },
+    [data, onChange],
+  );
 
-  const scrollToSection = (id: string) => {
-    sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  const setSummary = useCallback(
+    (summary: string) => {
+      onChange({ ...data, summary });
+    },
+    [data, onChange],
+  );
 
-  const setPersonal = (patch: Partial<ResumeData["personal"]>) => {
-    onChange({ ...data, personal: { ...data.personal, ...patch } });
-  };
+  const addLink = useCallback(() => {
+    setPersonal({ links: [...data.personal.links, { label: "", url: "" }] });
+  }, [data.personal.links, setPersonal]);
 
-  const addLink = () => {
-    setPersonal({
-      links: [...data.personal.links, { label: "", url: "" }],
-    });
-  };
+  const updateLink = useCallback(
+    (index: number, patch: Partial<ResumeData["personal"]["links"][number]>) => {
+      const links = [...data.personal.links];
+      links[index] = { ...links[index], ...patch };
+      setPersonal({ links });
+    },
+    [data.personal.links, setPersonal],
+  );
 
-  const updateLink = (i: number, patch: Partial<(typeof data.personal.links)[0]>) => {
-    const links = [...data.personal.links];
-    links[i] = { ...links[i], ...patch };
-    setPersonal({ links });
-  };
+  const removeLink = useCallback(
+    (index: number) => {
+      setPersonal({ links: data.personal.links.filter((_, itemIndex) => itemIndex !== index) });
+    },
+    [data.personal.links, setPersonal],
+  );
 
-  const removeLink = (i: number) => {
-    setPersonal({ links: data.personal.links.filter((_, j) => j !== i) });
-  };
+  const handlePhotoUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file || !file.type.startsWith("image/")) {
+        return;
+      }
 
-  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
+      try {
+        const photoUrl = await optimizePhotoFile(file);
+        setPersonal({ photoUrl });
+      } catch {
+        toast.error("Could not process the selected image.");
+      }
+    },
+    [setPersonal],
+  );
 
-    const photoUrl = await optimizePhotoFile(file);
-    setPersonal({ photoUrl });
-  };
-
-  const addExperience = () => {
+  const addExperience = useCallback(() => {
     onChange({
       ...data,
       experience: [
         ...data.experience,
         {
-          id: crypto.randomUUID(),
+          id: buildId(),
           company: "",
           role: "",
           start: "",
@@ -162,51 +210,69 @@ export function ResumeEditor({ data, onChange, dark = false }: Props) {
         },
       ],
     });
-  };
+  }, [data, onChange]);
 
-  const updateExp = (i: number, patch: Partial<(typeof data.experience)[0]>) => {
-    const experience = [...data.experience];
-    experience[i] = { ...experience[i], ...patch };
-    onChange({ ...data, experience });
-  };
+  const updateExperience = useCallback(
+    (index: number, patch: Partial<ResumeData["experience"][number]>) => {
+      const next = [...data.experience];
+      next[index] = { ...next[index], ...patch };
+      onChange({ ...data, experience: next });
+    },
+    [data, onChange],
+  );
 
-  const removeExp = (i: number) => {
-    onChange({ ...data, experience: data.experience.filter((_, j) => j !== i) });
-  };
+  const removeExperience = useCallback(
+    (index: number) => {
+      onChange({
+        ...data,
+        experience: data.experience.filter((_, itemIndex) => itemIndex !== index),
+      });
+    },
+    [data, onChange],
+  );
 
-  const addBullet = (ei: number) => {
-    const experience = [...data.experience];
-    experience[ei] = {
-      ...experience[ei],
-      bullets: [...experience[ei].bullets, ""],
-    };
-    onChange({ ...data, experience });
-  };
+  const addBullet = useCallback(
+    (experienceIndex: number) => {
+      const next = [...data.experience];
+      next[experienceIndex] = {
+        ...next[experienceIndex],
+        bullets: [...next[experienceIndex].bullets, ""],
+      };
+      onChange({ ...data, experience: next });
+    },
+    [data, onChange],
+  );
 
-  const updateBullet = (ei: number, bi: number, value: string) => {
-    const experience = [...data.experience];
-    const bullets = [...experience[ei].bullets];
-    bullets[bi] = value;
-    experience[ei] = { ...experience[ei], bullets };
-    onChange({ ...data, experience });
-  };
+  const updateBullet = useCallback(
+    (experienceIndex: number, bulletIndex: number, value: string) => {
+      const next = [...data.experience];
+      const bullets = [...next[experienceIndex].bullets];
+      bullets[bulletIndex] = value;
+      next[experienceIndex] = { ...next[experienceIndex], bullets };
+      onChange({ ...data, experience: next });
+    },
+    [data, onChange],
+  );
 
-  const removeBullet = (ei: number, bi: number) => {
-    const experience = [...data.experience];
-    experience[ei] = {
-      ...experience[ei],
-      bullets: experience[ei].bullets.filter((_, j) => j !== bi),
-    };
-    onChange({ ...data, experience });
-  };
+  const removeBullet = useCallback(
+    (experienceIndex: number, bulletIndex: number) => {
+      const next = [...data.experience];
+      next[experienceIndex] = {
+        ...next[experienceIndex],
+        bullets: next[experienceIndex].bullets.filter((_, itemIndex) => itemIndex !== bulletIndex),
+      };
+      onChange({ ...data, experience: next });
+    },
+    [data, onChange],
+  );
 
-  const addEducation = () => {
+  const addEducation = useCallback(() => {
     onChange({
       ...data,
       education: [
         ...data.education,
         {
-          id: crypto.randomUUID(),
+          id: buildId(),
           school: "",
           degree: "",
           start: "",
@@ -214,377 +280,743 @@ export function ResumeEditor({ data, onChange, dark = false }: Props) {
         },
       ],
     });
-  };
+  }, [data, onChange]);
 
-  const updateEdu = (i: number, patch: Partial<(typeof data.education)[0]>) => {
-    const education = [...data.education];
-    education[i] = { ...education[i], ...patch };
-    onChange({ ...data, education });
-  };
+  const updateEducation = useCallback(
+    (index: number, patch: Partial<ResumeData["education"][number]>) => {
+      const next = [...data.education];
+      next[index] = { ...next[index], ...patch };
+      onChange({ ...data, education: next });
+    },
+    [data, onChange],
+  );
 
-  const removeEdu = (i: number) => {
-    onChange({ ...data, education: data.education.filter((_, j) => j !== i) });
-  };
+  const removeEducation = useCallback(
+    (index: number) => {
+      onChange({
+        ...data,
+        education: data.education.filter((_, itemIndex) => itemIndex !== index),
+      });
+    },
+    [data, onChange],
+  );
 
-  const addSkillCat = () => {
+  const addSkillCategory = useCallback(() => {
     onChange({
       ...data,
-      skills: [...data.skills, { id: crypto.randomUUID(), category: "", items: [""] }],
+      skills: [...data.skills, { id: buildId(), category: "", items: [""] }],
     });
-  };
+  }, [data, onChange]);
 
-  const updateSkillCat = (i: number, patch: Partial<(typeof data.skills)[0]>) => {
-    const skills = [...data.skills];
-    skills[i] = { ...skills[i], ...patch };
-    onChange({ ...data, skills });
-  };
+  const updateSkillCategory = useCallback(
+    (index: number, patch: Partial<ResumeData["skills"][number]>) => {
+      const next = [...data.skills];
+      next[index] = { ...next[index], ...patch };
+      onChange({ ...data, skills: next });
+    },
+    [data, onChange],
+  );
 
-  const removeSkillCat = (i: number) => {
-    onChange({ ...data, skills: data.skills.filter((_, j) => j !== i) });
-  };
+  const removeSkillCategory = useCallback(
+    (index: number) => {
+      onChange({ ...data, skills: data.skills.filter((_, itemIndex) => itemIndex !== index) });
+    },
+    [data, onChange],
+  );
 
-  const addSkillItem = (ci: number) => {
-    const skills = [...data.skills];
-    skills[ci] = { ...skills[ci], items: [...skills[ci].items, ""] };
-    onChange({ ...data, skills });
-  };
+  const addSkillItem = useCallback(
+    (categoryIndex: number) => {
+      const next = [...data.skills];
+      next[categoryIndex] = {
+        ...next[categoryIndex],
+        items: [...next[categoryIndex].items, ""],
+      };
+      onChange({ ...data, skills: next });
+    },
+    [data, onChange],
+  );
 
-  const updateSkillItem = (ci: number, ii: number, value: string) => {
-    const skills = [...data.skills];
-    const items = [...skills[ci].items];
-    items[ii] = value;
-    skills[ci] = { ...skills[ci], items };
-    onChange({ ...data, skills });
-  };
+  const updateSkillItem = useCallback(
+    (categoryIndex: number, itemIndex: number, value: string) => {
+      const next = [...data.skills];
+      const items = [...next[categoryIndex].items];
+      items[itemIndex] = value;
+      next[categoryIndex] = { ...next[categoryIndex], items };
+      onChange({ ...data, skills: next });
+    },
+    [data, onChange],
+  );
 
-  const removeSkillItem = (ci: number, ii: number) => {
-    const skills = [...data.skills];
-    skills[ci] = {
-      ...skills[ci],
-      items: skills[ci].items.filter((_, j) => j !== ii),
-    };
-    onChange({ ...data, skills });
-  };
+  const removeSkillItem = useCallback(
+    (categoryIndex: number, itemIndex: number) => {
+      const next = [...data.skills];
+      next[categoryIndex] = {
+        ...next[categoryIndex],
+        items: next[categoryIndex].items.filter((_, index) => index !== itemIndex),
+      };
+      onChange({ ...data, skills: next });
+    },
+    [data, onChange],
+  );
 
-  return (
-    <div className="flex flex-col gap-6 pb-24">
-      {/* Section Navigator */}
-      <nav className={navBg}>
-        <div className="flex gap-1 overflow-x-auto py-2">
-          {SECTIONS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => scrollToSection(s.id)}
-              className={navBtn}
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
-              </svg>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+  const validateStep = useCallback(
+    (stepIndex: number) => {
+      if (stepIndex === 0) {
+        if (!data.personal.fullName.trim()) {
+          return "Full name is required before moving forward.";
+        }
+        if (!data.personal.email.trim()) {
+          return "Email is required before moving forward.";
+        }
+      }
 
-      {/* Personal Info */}
-      <section
-        ref={(el) => { sectionRefs.current.personal = el; }}
-        className={`scroll-mt-14 ${card}`}
-      >
-        <h2 className={heading}>Personal Info</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-[112px_minmax(0,1fr)]">
-          <div className="space-y-3">
-            <div className={`overflow-hidden rounded-2xl border ${dark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"}`}>
-              {data.personal.photoUrl ? (
-                <div className="relative aspect-square w-full">
-                  <NextImage src={data.personal.photoUrl} alt="Profile" fill unoptimized className="object-cover" />
-                </div>
-              ) : (
-                <div className={`flex aspect-square items-center justify-center text-xs font-semibold uppercase tracking-widest ${subtext}`}>
-                  No photo
-                </div>
-              )}
-            </div>
-            <label className={`inline-flex w-full cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-xs font-semibold transition ${dark ? "border-white/10 text-slate-300 hover:bg-white/5" : "border-slate-300 text-slate-700 hover:bg-slate-50"}`}>
-              Upload photo
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/jpg"
-                className="hidden"
-                onChange={(event) => void handlePhotoUpload(event)}
-              />
-            </label>
-            {data.personal.photoUrl ? (
-              <button
-                type="button"
-                onClick={() => setPersonal({ photoUrl: "" })}
-                className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition ${removeBtn}`}
-              >
-                Remove photo
-              </button>
-            ) : null}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <FieldLabel dark={dark}>Full name</FieldLabel>
-              <Input
-                dark={dark}
-                value={data.personal.fullName}
-                onChange={(e) => setPersonal({ fullName: e.target.value })}
-                placeholder="Jordan Lee"
-              />
-            </div>
-            <div>
-              <FieldLabel>Email</FieldLabel>
-              <Input
-                type="email"
-                value={data.personal.email}
-                onChange={(e) => setPersonal({ email: e.target.value })}
-                placeholder="you@email.com"
-              />
-            </div>
-            <div>
-              <FieldLabel>Phone</FieldLabel>
-              <Input
-                value={data.personal.phone}
-                onChange={(e) => setPersonal({ phone: e.target.value })}
-                placeholder="+1 555 0100"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <FieldLabel>Location</FieldLabel>
-              <Input
-                value={data.personal.location}
-                onChange={(e) => setPersonal({ location: e.target.value })}
-                placeholder="San Francisco, CA"
-              />
-            </div>
-          </div>
-        </div>
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <FieldLabel dark={dark}>Links</FieldLabel>
-            <button type="button" onClick={addLink} className={addLink2}>
-              + Add link
-            </button>
-          </div>
-          <div className="space-y-2">
-            {data.personal.links.map((link, i) => (
-              <div key={i} className="flex flex-wrap gap-2">
-                <Input
-                  dark={dark}
-                  className="min-w-[120px] flex-1"
-                  placeholder="Label"
-                  value={link.label}
-                  onChange={(e) => updateLink(i, { label: e.target.value })}
-                />
-                <Input
-                  dark={dark}
-                  className="min-w-[160px] flex-[2]"
-                  placeholder="https://"
-                  value={link.url}
-                  onChange={(e) => updateLink(i, { url: e.target.value })}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeLink(i)}
-                  className={removeBtn}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      if (stepIndex === 1) {
+        if (!data.summary.trim()) {
+          return "Add a summary before moving forward.";
+        }
+      }
 
-      {/* Summary */}
-      <section
-        ref={(el) => { sectionRefs.current.summary = el; }}
-        className={`scroll-mt-14 ${card}`}
-      >
-        <h2 className={heading}>Summary</h2>
-        <div className="mt-3">
-          <TextArea
-            dark={dark}
-            rows={5}
-            value={data.summary}
-            onChange={(e) => onChange({ ...data, summary: e.target.value })}
-            placeholder="Two or three sentences that frame your strengths and focus."
-          />
-        </div>
-      </section>
+      if (stepIndex === 2) {
+        if (data.experience.length === 0) {
+          return "Add at least one experience entry.";
+        }
+        const hasInvalidExperience = data.experience.some(
+          (job) => !job.role.trim() || !job.company.trim(),
+        );
+        if (hasInvalidExperience) {
+          return "Each experience entry needs both role and company.";
+        }
+      }
 
-      {/* Experience */}
-      <section
-        ref={(el) => { sectionRefs.current.experience = el; }}
-        className={`scroll-mt-14 ${card}`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <h2 className={heading}>Experience</h2>
-          <button type="button" onClick={addExperience} className={addBtn}>
-            + Add role
-          </button>
-        </div>
-        <div className="mt-4 space-y-6">
-          {data.experience.map((job, ei) => (
-            <div key={job.id ?? ei} className={jobCard}>
-              <div className="mb-3 flex justify-end">
-                <button type="button" onClick={() => removeExp(ei)} className={removeBtn}>
-                  Remove role
-                </button>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <FieldLabel dark={dark}>Role</FieldLabel>
-                  <Input dark={dark} value={job.role} onChange={(e) => updateExp(ei, { role: e.target.value })} />
-                </div>
-                <div className="sm:col-span-2">
-                  <FieldLabel dark={dark}>Company</FieldLabel>
-                  <Input dark={dark} value={job.company} onChange={(e) => updateExp(ei, { company: e.target.value })} />
-                </div>
-                <div>
-                  <FieldLabel dark={dark}>Start</FieldLabel>
-                  <Input dark={dark} value={job.start} onChange={(e) => updateExp(ei, { start: e.target.value })} placeholder="2021" />
-                </div>
-                <div>
-                  <FieldLabel dark={dark}>End</FieldLabel>
-                  <Input dark={dark} value={job.end} onChange={(e) => updateExp(ei, { end: e.target.value })} placeholder="Present" />
-                </div>
-              </div>
-              <div className="mt-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <FieldLabel dark={dark}>Bullet points</FieldLabel>
-                  <button type="button" onClick={() => addBullet(ei)} className={addLink2}>
-                    + Bullet
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {job.bullets.map((b, bi) => (
-                    <div key={bi} className="flex gap-2">
-                      <TextArea
-                        dark={dark}
-                        rows={2}
-                        className="flex-1"
-                        value={b}
-                        onChange={(e) => updateBullet(ei, bi, e.target.value)}
-                        placeholder="Impact-focused accomplishment…"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeBullet(ei, bi)}
-                        className={`self-start rounded-lg px-2 text-xs ${removeBtn}`}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      if (stepIndex === 3) {
+        if (data.education.length === 0) {
+          return "Add at least one education entry.";
+        }
+        const hasInvalidEducation = data.education.some(
+          (entry) => !entry.school.trim() || !entry.degree.trim(),
+        );
+        if (hasInvalidEducation) {
+          return "Each education entry needs both school and degree.";
+        }
+      }
 
-      {/* Education */}
-      <section
-        ref={(el) => { sectionRefs.current.education = el; }}
-        className={`scroll-mt-14 ${card}`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <h2 className={heading}>Education</h2>
-          <button type="button" onClick={addEducation} className={addBtn}>
-            + Add school
-          </button>
-        </div>
-        <div className="mt-4 space-y-4">
-          {data.education.map((ed, i) => (
-            <div key={ed.id ?? i} className={jobCard}>
-              <div className="mb-2 flex justify-end">
-                <button type="button" onClick={() => removeEdu(i)} className={removeBtn}>
-                  Remove
-                </button>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <FieldLabel dark={dark}>School</FieldLabel>
-                  <Input dark={dark} value={ed.school} onChange={(e) => updateEdu(i, { school: e.target.value })} />
-                </div>
-                <div className="sm:col-span-2">
-                  <FieldLabel dark={dark}>Degree / field</FieldLabel>
-                  <Input dark={dark} value={ed.degree} onChange={(e) => updateEdu(i, { degree: e.target.value })} />
-                </div>
-                <div>
-                  <FieldLabel dark={dark}>Start</FieldLabel>
-                  <Input dark={dark} value={ed.start} onChange={(e) => updateEdu(i, { start: e.target.value })} />
-                </div>
-                <div>
-                  <FieldLabel dark={dark}>End</FieldLabel>
-                  <Input dark={dark} value={ed.end} onChange={(e) => updateEdu(i, { end: e.target.value })} />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      if (stepIndex === 4) {
+        if (data.skills.length === 0) {
+          return "Add at least one skill category.";
+        }
+        const hasInvalidSkillCategory = data.skills.some(
+          (category) =>
+            !category.category.trim() || !category.items.some((item) => item.trim().length > 0),
+        );
+        if (hasInvalidSkillCategory) {
+          return "Each skill category needs a name and at least one skill item.";
+        }
+      }
 
-      {/* Skills */}
-      <section
-        ref={(el) => { sectionRefs.current.skills = el; }}
-        className={`scroll-mt-14 ${card}`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <h2 className={heading}>Skills</h2>
-          <button type="button" onClick={addSkillCat} className={addBtn}>
-            + Add category
-          </button>
-        </div>
-        <div className="mt-4 space-y-4">
-          {data.skills.map((cat, ci) => (
-            <div key={cat.id ?? ci} className={jobCard}>
-              <div className="mb-2 flex justify-end">
-                <button type="button" onClick={() => removeSkillCat(ci)} className={removeBtn}>
-                  Remove category
-                </button>
-              </div>
-              <FieldLabel dark={dark}>Category name</FieldLabel>
-              <Input
-                dark={dark}
-                className="mb-3"
-                value={cat.category}
-                onChange={(e) => updateSkillCat(ci, { category: e.target.value })}
-                placeholder="Engineering"
-              />
-              <div className="mb-2 flex items-center justify-between">
-                <FieldLabel dark={dark}>Items</FieldLabel>
-                <button type="button" onClick={() => addSkillItem(ci)} className={addLink2}>
-                  + Skill
-                </button>
-              </div>
-              <div className="space-y-2">
-                {cat.items.map((item, ii) => (
-                  <div key={ii} className="flex gap-2">
-                    <Input
-                      dark={dark}
-                      value={item}
-                      onChange={(e) => updateSkillItem(ci, ii, e.target.value)}
-                      placeholder="TypeScript"
+      return null;
+    },
+    [data],
+  );
+
+  const goNext = useCallback(() => {
+    const validationError = validateStep(currentStep);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    if (currentStep >= STEP_COUNT - 1) {
+      toast.success("All sections complete. Review your preview and download.");
+      return;
+    }
+
+    setCurrentStep((step) => Math.min(step + 1, STEP_COUNT - 1));
+  }, [currentStep, validateStep]);
+
+  const goBack = useCallback(() => {
+    setCurrentStep((step) => Math.max(step - 1, 0));
+  }, []);
+
+  const goToCompletedStep = useCallback((stepIndex: number) => {
+    if (stepIndex <= currentStep) {
+      setCurrentStep(stepIndex);
+    }
+  }, [currentStep]);
+
+  const stepContent = useMemo(() => {
+    if (currentStep === 0) {
+      return (
+        <div className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-[116px_minmax(0,1fr)]">
+            <div className="space-y-3">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+                {data.personal.photoUrl ? (
+                  <div className="relative aspect-square w-full">
+                    <NextImage
+                      src={data.personal.photoUrl}
+                      alt="Profile"
+                      fill
+                      unoptimized
+                      className="object-cover"
                     />
-                    <button
+                  </div>
+                ) : (
+                  <div className="flex aspect-square items-center justify-center text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                    No photo
+                  </div>
+                )}
+              </div>
+              <label className="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50">
+                <Upload className="size-3.5" />
+                Upload
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/jpg"
+                  className="hidden"
+                  onChange={(event) => {
+                    void handlePhotoUpload(event);
+                  }}
+                />
+              </label>
+              {data.personal.photoUrl ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-center text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => setPersonal({ photoUrl: "" })}
+                >
+                  <Trash2 className="size-3.5" />
+                  Remove photo
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2 space-y-1.5">
+                <FieldLabel>Full Name</FieldLabel>
+                <Input
+                  value={data.personal.fullName}
+                  onChange={(event) => setPersonal({ fullName: event.target.value })}
+                  placeholder="Jordan Lee"
+                  className="h-11 rounded-xl border-slate-200 bg-white text-[15px]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Email</FieldLabel>
+                <Input
+                  type="email"
+                  value={data.personal.email}
+                  onChange={(event) => setPersonal({ email: event.target.value })}
+                  placeholder="you@email.com"
+                  className="h-11 rounded-xl border-slate-200 bg-white text-[15px]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Phone</FieldLabel>
+                <Input
+                  value={data.personal.phone}
+                  onChange={(event) => setPersonal({ phone: event.target.value })}
+                  placeholder="+1 555 0100"
+                  className="h-11 rounded-xl border-slate-200 bg-white text-[15px]"
+                />
+              </div>
+              <div className="sm:col-span-2 space-y-1.5">
+                <FieldLabel>Location</FieldLabel>
+                <Input
+                  value={data.personal.location}
+                  onChange={(event) => setPersonal({ location: event.target.value })}
+                  placeholder="San Francisco, CA"
+                  className="h-11 rounded-xl border-slate-200 bg-white text-[15px]"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <FieldLabel>Links</FieldLabel>
+              <Button type="button" variant="ghost" size="sm" onClick={addLink}>
+                <Plus className="size-3.5" />
+                Add Link
+              </Button>
+            </div>
+
+            {data.personal.links.length === 0 ? (
+              <ArrayEmptyState
+                title="No links added"
+                description="Add portfolio, GitHub, LinkedIn, or other relevant URLs."
+                action="Add first link"
+                onAction={addLink}
+              />
+            ) : (
+              <div className="space-y-2">
+                {data.personal.links.map((link, index) => (
+                  <div key={`${link.label}-${index}`} className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:grid-cols-[1fr_1.5fr_auto]">
+                    <Input
+                      value={link.label}
+                      placeholder="LinkedIn"
+                      onChange={(event) => updateLink(index, { label: event.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white"
+                    />
+                    <Input
+                      value={link.url}
+                      placeholder="https://..."
+                      onChange={(event) => updateLink(index, { url: event.target.value })}
+                      className="h-10 rounded-lg border-slate-200 bg-white"
+                    />
+                    <Button
                       type="button"
-                      onClick={() => removeSkillItem(ci, ii)}
-                      className={`rounded-lg px-2 text-xs ${removeBtn}`}
+                      variant="ghost"
+                      size="sm"
+                      className="justify-center text-slate-500 hover:bg-red-50 hover:text-red-600"
+                      onClick={() => removeLink(index)}
                     >
-                      ✕
-                    </button>
+                      <Trash2 className="size-3.5" />
+                      Remove
+                    </Button>
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (currentStep === 1) {
+      return (
+        <div className="space-y-1.5">
+          <FieldLabel>Professional Summary</FieldLabel>
+          <TextArea
+            rows={7}
+            value={data.summary}
+            onChange={(event) => setSummary(event.target.value)}
+            placeholder="Two to three sentences that capture your strengths, expertise, and what roles you are targeting."
+          />
+        </div>
+      );
+    }
+
+    if (currentStep === 2) {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={addExperience}>
+              <Plus className="size-3.5" />
+              Add Role
+            </Button>
+          </div>
+
+          {data.experience.length === 0 ? (
+            <ArrayEmptyState
+              title="No experience yet"
+              description="Add your first role to start building a stronger resume narrative."
+              action="Add role"
+              onAction={addExperience}
+            />
+          ) : (
+            <div className="space-y-4">
+              {data.experience.map((job, experienceIndex) => (
+                <div
+                  key={job.id ?? `experience-${experienceIndex}`}
+                  className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold tracking-tight text-slate-800">
+                      Role {experienceIndex + 1}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-500 hover:bg-red-50 hover:text-red-600"
+                      onClick={() => removeExperience(experienceIndex)}
+                    >
+                      <Trash2 className="size-3.5" />
+                      Remove Role
+                    </Button>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <FieldLabel>Role</FieldLabel>
+                      <Input
+                        value={job.role}
+                        onChange={(event) => updateExperience(experienceIndex, { role: event.target.value })}
+                        placeholder="Senior Product Designer"
+                        className="h-11 rounded-xl border-slate-200 bg-white"
+                      />
+                    </div>
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <FieldLabel>Company</FieldLabel>
+                      <Input
+                        value={job.company}
+                        onChange={(event) => updateExperience(experienceIndex, { company: event.target.value })}
+                        placeholder="Acme Inc."
+                        className="h-11 rounded-xl border-slate-200 bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>Start</FieldLabel>
+                      <Input
+                        value={job.start}
+                        onChange={(event) => updateExperience(experienceIndex, { start: event.target.value })}
+                        placeholder="2022"
+                        className="h-11 rounded-xl border-slate-200 bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>End</FieldLabel>
+                      <Input
+                        value={job.end}
+                        onChange={(event) => updateExperience(experienceIndex, { end: event.target.value })}
+                        placeholder="Present"
+                        className="h-11 rounded-xl border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <FieldLabel>Bullet Points</FieldLabel>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => addBullet(experienceIndex)}
+                      >
+                        <Plus className="size-3.5" />
+                        Add Bullet
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {job.bullets.map((bullet, bulletIndex) => (
+                        <div key={`${job.id ?? experienceIndex}-bullet-${bulletIndex}`} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                          <TextArea
+                            rows={2}
+                            value={bullet}
+                            onChange={(event) => updateBullet(experienceIndex, bulletIndex, event.target.value)}
+                            className="min-h-20 rounded-lg"
+                            placeholder="Improved conversion by 28% by redesigning onboarding and reducing friction in first-run tasks."
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="sm:self-start text-slate-500 hover:bg-red-50 hover:text-red-600"
+                            onClick={() => removeBullet(experienceIndex, bulletIndex)}
+                          >
+                            <Trash2 className="size-3.5" />
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+        </div>
+      );
+    }
+
+    if (currentStep === 3) {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={addEducation}>
+              <Plus className="size-3.5" />
+              Add School
+            </Button>
+          </div>
+
+          {data.education.length === 0 ? (
+            <ArrayEmptyState
+              title="No education added"
+              description="Add your most relevant academic credentials."
+              action="Add school"
+              onAction={addEducation}
+            />
+          ) : (
+            <div className="space-y-4">
+              {data.education.map((entry, educationIndex) => (
+                <div
+                  key={entry.id ?? `education-${educationIndex}`}
+                  className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold tracking-tight text-slate-800">
+                      Education {educationIndex + 1}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-500 hover:bg-red-50 hover:text-red-600"
+                      onClick={() => removeEducation(educationIndex)}
+                    >
+                      <Trash2 className="size-3.5" />
+                      Remove
+                    </Button>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <FieldLabel>School</FieldLabel>
+                      <Input
+                        value={entry.school}
+                        onChange={(event) => updateEducation(educationIndex, { school: event.target.value })}
+                        placeholder="University of California, Berkeley"
+                        className="h-11 rounded-xl border-slate-200 bg-white"
+                      />
+                    </div>
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <FieldLabel>Degree / Field</FieldLabel>
+                      <Input
+                        value={entry.degree}
+                        onChange={(event) => updateEducation(educationIndex, { degree: event.target.value })}
+                        placeholder="B.S. Computer Science"
+                        className="h-11 rounded-xl border-slate-200 bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>Start</FieldLabel>
+                      <Input
+                        value={entry.start}
+                        onChange={(event) => updateEducation(educationIndex, { start: event.target.value })}
+                        placeholder="2018"
+                        className="h-11 rounded-xl border-slate-200 bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>End</FieldLabel>
+                      <Input
+                        value={entry.end}
+                        onChange={(event) => updateEducation(educationIndex, { end: event.target.value })}
+                        placeholder="2022"
+                        className="h-11 rounded-xl border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-end">
+          <Button type="button" variant="outline" size="sm" onClick={addSkillCategory}>
+            <Plus className="size-3.5" />
+            Add Category
+          </Button>
+        </div>
+
+        {data.skills.length === 0 ? (
+          <ArrayEmptyState
+            title="No skills listed"
+            description="Create categories like Frontend, Backend, Tools, or Design."
+            action="Add category"
+            onAction={addSkillCategory}
+          />
+        ) : (
+          <div className="space-y-4">
+            {data.skills.map((category, categoryIndex) => (
+              <div
+                key={category.id ?? `skills-${categoryIndex}`}
+                className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold tracking-tight text-slate-800">
+                    Skill Group {categoryIndex + 1}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-slate-500 hover:bg-red-50 hover:text-red-600"
+                    onClick={() => removeSkillCategory(categoryIndex)}
+                  >
+                    <Trash2 className="size-3.5" />
+                    Remove
+                  </Button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <FieldLabel>Category</FieldLabel>
+                  <Input
+                    value={category.category}
+                    onChange={(event) => updateSkillCategory(categoryIndex, { category: event.target.value })}
+                    placeholder="Frontend"
+                    className="h-11 rounded-xl border-slate-200 bg-white"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <FieldLabel>Items</FieldLabel>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => addSkillItem(categoryIndex)}
+                    >
+                      <Plus className="size-3.5" />
+                      Add Skill
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {category.items.map((item, itemIndex) => (
+                      <div
+                        key={`${category.id ?? categoryIndex}-item-${itemIndex}`}
+                        className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+                      >
+                        <Input
+                          value={item}
+                          onChange={(event) => updateSkillItem(categoryIndex, itemIndex, event.target.value)}
+                          placeholder="TypeScript"
+                          className="h-10 rounded-lg border-slate-200 bg-white"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="sm:self-center text-slate-500 hover:bg-red-50 hover:text-red-600"
+                          onClick={() => removeSkillItem(categoryIndex, itemIndex)}
+                        >
+                          <Trash2 className="size-3.5" />
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }, [
+    addBullet,
+    addEducation,
+    addExperience,
+    addLink,
+    addSkillCategory,
+    addSkillItem,
+    currentStep,
+    data.education,
+    data.experience,
+    data.personal,
+    data.skills,
+    data.summary,
+    handlePhotoUpload,
+    removeBullet,
+    removeEducation,
+    removeExperience,
+    removeLink,
+    removeSkillCategory,
+    removeSkillItem,
+    setPersonal,
+    setSummary,
+    updateBullet,
+    updateEducation,
+    updateExperience,
+    updateLink,
+    updateSkillCategory,
+    updateSkillItem,
+  ]);
+
+  return (
+    <div className="space-y-4 pb-8 [&_[data-slot=button][data-size=sm]]:h-10 [&_[data-slot=button][data-size=sm]]:px-3.5 [&_[data-slot=button][data-size=sm]]:text-[13px] lg:[&_[data-slot=button][data-size=sm]]:h-7 lg:[&_[data-slot=button][data-size=sm]]:px-2.5 lg:[&_[data-slot=button][data-size=sm]]:text-[0.8rem]">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Step {currentStep + 1} of {STEP_COUNT}
+          </p>
+          <p className="text-[11px] font-semibold text-slate-600">{progressPercent}%</p>
+        </div>
+        <div className="mt-2 h-2 rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-sky-600 to-cyan-500 transition-[width] duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        <div className="mt-3 grid grid-cols-5 gap-1.5">
+          {STEPS.map((step, index) => {
+            const isDone = index < currentStep;
+            const isCurrent = index === currentStep;
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => goToCompletedStep(index)}
+                className={`h-10 rounded-lg border text-center text-[11px] font-semibold transition ${
+                  isCurrent
+                    ? "border-sky-300 bg-sky-50 text-sky-700"
+                    : isDone
+                      ? "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                      : "cursor-not-allowed border-slate-100 bg-slate-50/60 text-slate-400"
+                }`}
+                aria-current={isCurrent ? "step" : undefined}
+                disabled={!isDone && !isCurrent}
+                title={step.title}
+              >
+                {index + 1}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_22px_50px_-40px_rgba(15,23,42,0.68)]">
+        <div className="mb-5 flex items-start gap-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-700">
+            <currentStepMeta.icon className="size-4" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold tracking-tight text-slate-900">{currentStepMeta.title}</h2>
+            <p className="mt-1 text-sm text-slate-500">{currentStepMeta.description}</p>
+          </div>
+        </div>
+
+        {stepContent}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={goBack}
+            disabled={currentStep === 0}
+            className="h-11 min-w-24 rounded-xl"
+          >
+            <ArrowLeft className="size-4" />
+            Back
+          </Button>
+
+          <p className="hidden text-xs font-medium text-slate-500 sm:block">
+            {currentStep < STEP_COUNT - 1 ? `Up next: ${STEPS[currentStep + 1].title}` : "Final step"}
+          </p>
+
+          <Button
+            type="button"
+            onClick={goNext}
+            className="h-11 min-w-24 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+          >
+            {currentStep === STEP_COUNT - 1 ? "Finish" : "Next"}
+            {currentStep < STEP_COUNT - 1 ? <ArrowRight className="size-4" /> : null}
+          </Button>
         </div>
       </section>
     </div>
   );
 }
+
+export const ResumeEditor = memo(ResumeEditorComponent);

@@ -4,11 +4,10 @@ import {
   FileDown,
   LayoutTemplate,
   PencilRuler,
-  Sparkles,
-  Star,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/BrandMark";
 import Hero from "@/components/Hero";
 import {
   Card,
@@ -46,12 +45,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f8fafc_100%)] text-slate-950">
       <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-500 text-white shadow-lg shadow-sky-500/20">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <span className="text-xl font-semibold tracking-tight">CVpilot</span>
-          </Link>
+          <BrandMark />
 
           <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
             <a href="#features" className="transition hover:text-slate-950">

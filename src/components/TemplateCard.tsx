@@ -128,7 +128,6 @@ export interface TemplateCardProps {
 export function TemplateCard({
   id,
   name,
-  description,
   previewImageSrc,
   previewImageAlt,
   previewHref,

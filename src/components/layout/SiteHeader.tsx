@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
+import { BrandMark } from "@/components/BrandMark";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -24,17 +24,7 @@ export function SiteHeader({ theme = "light" }: Props) {
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* Logo */}
-        <Link href="/" className="flex items-center group" onClick={() => setMenuOpen(false)}>
-          <Image
-            src="/logo.png"
-            alt="CVpilot"
-            width={130}
-            height={40}
-            className="h-9 w-auto object-contain transition-transform duration-200 group-hover:scale-105 sm:h-10"
-            priority
-          />
-        </Link>
+        <BrandMark theme={dark ? "dark" : "light"} size="sm" onClick={() => setMenuOpen(false)} />
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-2 text-sm font-medium md:flex md:gap-3">

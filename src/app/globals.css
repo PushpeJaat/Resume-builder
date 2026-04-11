@@ -180,6 +180,17 @@ body {
   }
 }
 
+@keyframes editor-fade-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.35s ease-out both;
 }
@@ -194,6 +205,30 @@ body {
 
 .animate-float {
   animation: float 3s ease-in-out infinite;
+}
+
+.editor-fade-rise {
+  animation: editor-fade-rise 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.editor-fade-rise-delay-1 {
+  animation-delay: 40ms;
+}
+
+.editor-fade-rise-delay-2 {
+  animation-delay: 90ms;
+}
+
+.editor-fade-rise-delay-3 {
+  animation-delay: 140ms;
+}
+
+.editor-fade-rise-delay-4 {
+  animation-delay: 190ms;
+}
+
+.editor-fade-rise-delay-5 {
+  animation-delay: 240ms;
 }
 
 .hero-float {
@@ -260,6 +295,17 @@ body {
 
 .hero-dot-delay-4 {
   animation-delay: -10s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-fade-rise,
+  .editor-fade-rise-delay-1,
+  .editor-fade-rise-delay-2,
+  .editor-fade-rise-delay-3,
+  .editor-fade-rise-delay-4,
+  .editor-fade-rise-delay-5 {
+    animation: none !important;
+  }
 }
 
 .bg-grid-slate-700 {

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
+import { BrandMark } from "@/components/BrandMark";
 
 export function AppHeader() {
   const { data: session, status } = useSession();
@@ -14,16 +14,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/90 backdrop-blur-xl">
       <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
         <div className="flex items-center gap-3 sm:gap-6">
-          <Link href="/" className="flex items-center" onClick={() => setMenuOpen(false)}>
-            <Image
-              src="/logo.png"
-              alt="CVpilot"
-              width={110}
-              height={34}
-              className="h-8 w-auto object-contain sm:h-9"
-              priority
-            />
-          </Link>
+          <BrandMark size="sm" onClick={() => setMenuOpen(false)} />
           {/* Desktop nav */}
           <nav className="hidden items-center gap-1 md:flex">
             <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900">Home</Link>

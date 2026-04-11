@@ -1,347 +1,430 @@
-﻿"use client";
+"use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
   Bot,
   Check,
-  ChevronDown,
   Download,
-  Eye,
-  FileText,
   Loader2,
+  Save,
   Sparkles,
   UploadCloud,
   X,
 } from "lucide-react";
-import { AppHeader } from "@/components/layout/AppHeader";
+import { EditorLayout } from "@/components/editor/EditorLayout";
+import { PreviewPanel } from "@/components/editor/PreviewPanel";
 import { ResumeEditor } from "@/components/editor/ResumeEditor";
-import { ResumePreviewFrame } from "@/components/editor/ResumePreviewFrame";
-import { TEMPLATES, getTemplateMeta, DEFAULT_TEMPLATE_ID } from "@/lib/templates/registry";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  DEFAULT_TEMPLATE_ID,
+  getTemplateMeta,
+  TEMPLATES,
+} from "@/lib/templates/registry";
 import { emptyResumeData, type ResumeData } from "@/types/resume";
+
+type ImportState = "idle" | "loading" | "success" | "error";
+type ActionState = "idle" | "saving" | "downloading";
 
 export default function EditorLandingClient() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { data: session } = useSession();
+
   const rawTemplate = searchParams.get("template") ?? DEFAULT_TEMPLATE_ID;
   const initialTemplate = getTemplateMeta(rawTemplate) ? rawTemplate : DEFAULT_TEMPLATE_ID;
 
   const [templateId, setTemplateId] = useState(initialTemplate);
+  const [title, setTitle] = useState("My Resume");
   const [data, setData] = useState<ResumeData>(emptyResumeData());
-  const { data: session } = useSession();
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
 
-  // Import state
-  const [importState, setImportState] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [importError, setImportError] = useState<string>("");
+  const [actionState, setActionState] = useState<ActionState>("idle");
+  const [importState, setImportState] = useState<ImportState>("idle");
+  const [importError, setImportError] = useState("");
   const [dragActive, setDragActive] = useState(false);
+
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const templateMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const currentTemplate = TEMPLATES.find((t) => t.id === templateId);
+  const currentTemplate = TEMPLATES.find((template) => template.id === templateId);
 
-  /* â”€â”€ Import â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  const importResumeFile = async (file: File) => {
+  const importResumeFile = useCallback(async (file: File) => {
     setImportState("loading");
     setImportError("");
+
     const formData = new FormData();
     formData.set("file", file);
-    const res = await fetch("/api/resumes/import", { method: "POST", body: formData });
-    const responseText = await res.text();
-    const json = safeJsonParse(responseText) as
-      | { data?: ResumeData; mode?: "ai" | "heuristic"; warning?: string; error?: string }
+
+    const response = await fetch("/api/resumes/import", {
+      method: "POST",
+      body: formData,
+    });
+
+    const responseText = await response.text();
+    const payload = safeJsonParse(responseText) as
+      | {
+          data?: ResumeData;
+          titleSuggestion?: string;
+          mode?: "ai" | "heuristic";
+          warning?: string;
+          error?: string;
+        }
       | null;
 
-    if (!res.ok || !json?.data) {
+    if (!response.ok || !payload?.data) {
       const message =
-        json?.error ??
+        payload?.error ??
         extractImportErrorMessage(responseText) ??
-        `Could not import that file. Server returned ${res.status}.`;
+        `Could not import that file. Server returned ${response.status}.`;
       setImportState("error");
       setImportError(message);
       toast.error(message);
-      setTimeout(() => setImportState("idle"), 3000);
+      window.setTimeout(() => setImportState("idle"), 3000);
       return;
     }
-    setData(json.data);
-    setImportState("success");
-    setImportError("");
-    if (json.warning) {
-      toast.warning(json.warning);
+
+    setData(payload.data);
+    if (payload.titleSuggestion) {
+      setTitle(payload.titleSuggestion);
     }
+
+    setImportState("success");
+    if (payload.warning) {
+      toast.warning(payload.warning);
+    }
+
     toast.success(
-      json.mode === "ai"
-        ? "Resume extracted with AI â€” fields auto-filled!"
+      payload.mode === "ai"
+        ? "Resume extracted with AI and fields were auto-filled."
         : "Resume imported successfully.",
     );
-    setTimeout(() => setImportState("idle"), 3000);
-  };
+    window.setTimeout(() => setImportState("idle"), 2200);
+  }, []);
 
-  /* â”€â”€ Download (gate with auth) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  const handleDownload = () => {
-    if (session?.user) return; // logged-in users should use the saved editor
-    try {
-      sessionStorage.setItem(
-        "pendingResume",
-        JSON.stringify({
+  const createResume = useCallback(
+    async (mode: "save" | "download") => {
+      if (!session?.user?.id) {
+        try {
+          sessionStorage.setItem(
+            "pendingResume",
+            JSON.stringify({
+              templateId,
+              data,
+              title: title.trim() || `My ${currentTemplate?.name ?? "Resume"}`,
+            }),
+          );
+        } catch {
+          // sessionStorage may be unavailable in strict browser contexts.
+        }
+
+        setShowAuthModal(true);
+        toast.info("Create a free account to save and download.");
+        return;
+      }
+
+      setActionState(mode === "save" ? "saving" : "downloading");
+      const response = await fetch("/api/resumes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           templateId,
           data,
-          title: `My ${currentTemplate?.name ?? "Resume"}`,
+          title: title.trim() || `My ${currentTemplate?.name ?? "Resume"}`,
         }),
-      );
-    } catch {
-      // sessionStorage unavailable â€” continue
-    }
-    setShowAuthModal(true);
-  };
+      });
+
+      if (!response.ok) {
+        setActionState("idle");
+        toast.error("Could not create resume right now.");
+        return;
+      }
+
+      const payload = (await response.json()) as { id: string };
+      if (mode === "download") {
+        router.push(`/editor/${payload.id}?autoDownload=1`);
+        return;
+      }
+
+      router.push(`/editor/${payload.id}`);
+    },
+    [currentTemplate?.name, data, router, session?.user?.id, templateId, title],
+  );
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-slate-950 text-white">
-      <AppHeader />
+    <div className="flex min-h-dvh flex-col bg-[linear-gradient(180deg,#f3f5f8_0%,#f6f7f9_52%,#f1f5f9_100%)] text-slate-900">
+      <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/76">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-3 px-4 py-4 lg:px-6">
+          <Button variant="ghost" size="sm" className="rounded-xl text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-slate-900" asChild>
+            <Link href="/">
+              <ArrowLeft className="size-4" />
+              Home
+            </Link>
+          </Button>
 
-      {/* â”€â”€ Toolbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-white/10 bg-slate-900/70 px-4 py-2.5 backdrop-blur-xl">
-        <Link
-          href="/"
-          className="mr-1 flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Home
-        </Link>
-
-        <div className="h-4 w-px bg-white/10" />
-
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
-          {currentTemplate?.name ?? "Resume Editor"}
-        </span>
-
-        {!session?.user && (
-          <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-semibold text-amber-200">
-            Guest mode
-          </span>
-        )}
-
-        {/* Template switcher */}
-        <div ref={templateMenuRef} className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowTemplateMenu((v) => !v)}
-            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-white/10"
-          >
-            <Eye className="h-3.5 w-3.5 text-slate-400" />
-            <span className="max-w-[120px] truncate">{currentTemplate?.name ?? "Template"}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-          </button>
-          {showTemplateMenu && (
-            <div className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-white/10 bg-slate-800 shadow-2xl shadow-black/40">
-              <div className="p-1.5">
-                {TEMPLATES.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => { setTemplateId(t.id); setShowTemplateMenu(false); }}
-                    className={`flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/5 ${templateId === t.id ? "bg-sky-500/10 text-sky-300" : "text-slate-200"}`}
-                  >
-                    <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${templateId === t.id ? "bg-sky-400" : "bg-white/20"}`} />
-                    <div>
-                      <p className="text-sm font-semibold">{t.name}</p>
-                      <p className="mt-0.5 text-xs leading-tight text-slate-400">{t.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Download */}
-        <button
-          type="button"
-          onClick={handleDownload}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/25 transition hover:brightness-110"
-        >
-          <Download className="h-4 w-4" />
-          Download PDF
-        </button>
-      </div>
-
-      {/* â”€â”€ AI Import Dropzone (full width) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label="Upload existing resume to auto-fill with AI"
-        onClick={() => importState === "idle" && importInputRef.current?.click()}
-        onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === " ") && importState === "idle") {
-            e.preventDefault();
-            importInputRef.current?.click();
-          }
-        }}
-        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-        onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
-        onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragActive(false);
-          const file = e.dataTransfer.files?.[0];
-          if (file && importState === "idle") void importResumeFile(file);
-        }}
-        className={`relative shrink-0 cursor-pointer border-b transition-all duration-300 ${
-          dragActive
-            ? "border-sky-500/60 bg-sky-500/10"
-            : importState === "loading"
-            ? "border-amber-500/20 bg-amber-500/5"
-            : importState === "success"
-            ? "border-emerald-500/30 bg-emerald-500/5"
-            : importState === "error"
-            ? "border-red-500/30 bg-red-500/5"
-            : "border-white/8 bg-white/[0.02] hover:bg-white/[0.04]"
-        }`}
-      >
-        <input
-          ref={importInputRef}
-          type="file"
-          accept=".pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) void importResumeFile(file);
-          }}
-        />
-
-        <div className="flex items-center gap-4 px-5 py-3.5">
-          {/* Icon */}
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
-            importState === "loading" ? "bg-amber-400/15" :
-            importState === "success" ? "bg-emerald-400/15" :
-            importState === "error" ? "bg-red-400/15" :
-            dragActive ? "bg-sky-400/20" : "bg-sky-500/10"
-          }`}>
-            {importState === "loading" ? (
-              <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
-            ) : importState === "success" ? (
-              <Check className="h-4 w-4 text-emerald-400" />
-            ) : importState === "error" ? (
-              <X className="h-4 w-4 text-red-400" />
-            ) : (
-              <UploadCloud className={`h-4 w-4 ${dragActive ? "text-sky-300" : "text-sky-400"}`} />
-            )}
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Workspace</p>
+            <h1 className="text-[1.06rem] font-semibold tracking-tight text-slate-900">Resume Editor</h1>
           </div>
 
-          {/* Text */}
-          <div className="min-w-0 flex-1">
-            {importState === "loading" ? (
-              <p className="text-sm font-semibold text-amber-300">Extracting your resume with AIâ€¦</p>
-            ) : importState === "success" ? (
-              <p className="text-sm font-semibold text-emerald-300">Fields auto-filled! Review and adjust as needed.</p>
-            ) : importState === "error" ? (
-              <p className="text-sm font-semibold text-red-300">{importError || "Import failed. Try a different file or format."}</p>
-            ) : dragActive ? (
-              <p className="text-sm font-semibold text-sky-200">Drop your resume here to auto-fill</p>
+          <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+            {session?.user?.id ? "Signed in" : "Guest mode"}
+          </Badge>
+
+          <Button
+            variant="outline"
+            onClick={() => void createResume("save")}
+            disabled={actionState !== "idle"}
+            className="hidden rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm lg:inline-flex"
+          >
+            {actionState === "saving" ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Saving
+              </>
             ) : (
               <>
-                <p className="text-sm font-semibold text-slate-200">Already have a resume? Import &amp; auto-fill</p>
-                <p className="text-xs text-slate-500">Drop a PDF, DOCX, TXT or Markdown file â€” AI extracts all sections instantly</p>
+                <Save className="size-4" />
+                Save
               </>
             )}
-          </div>
+          </Button>
 
-          {/* AI badge */}
-          <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-sky-500/20 bg-sky-500/8 px-3 py-1">
-            <Bot className="h-3 w-3 text-sky-400" />
-            <span className="text-xs font-semibold text-sky-300">AI Extract</span>
-          </div>
-
-          {importState === "idle" && !dragActive && (
-            <div className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 sm:flex">
-              <Sparkles className="h-3.5 w-3.5 text-sky-400" />
-              Choose file
-            </div>
-          )}
+          <Button
+            onClick={() => void createResume("download")}
+            disabled={actionState !== "idle"}
+            className="hidden rounded-xl bg-slate-900 text-white shadow-[0_20px_45px_-30px_rgba(15,23,42,0.8)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_28px_52px_-30px_rgba(15,23,42,0.84)] lg:inline-flex"
+          >
+            {actionState === "downloading" ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Preparing
+              </>
+            ) : (
+              <>
+                <Download className="size-4" />
+                Download PDF
+              </>
+            )}
+          </Button>
         </div>
 
-        {/* Animated loading bar */}
-        {importState === "loading" && (
-          <div className="absolute bottom-0 left-0 h-0.5 w-full overflow-hidden">
-            <div className="h-full w-1/3 animate-[slide_1.4s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+        <div className="mx-auto grid w-full max-w-[1600px] gap-3 px-4 pb-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:px-6">
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Resume Title</p>
+            <Input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Product Designer Resume"
+              className="h-11 rounded-xl border-slate-200 bg-white text-[15px] transition-all duration-200 focus-visible:border-sky-400 focus-visible:ring-sky-100"
+            />
           </div>
-        )}
-      </div>
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Template</p>
+            <select
+              value={templateId}
+              onChange={(event) => setTemplateId(event.target.value)}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-[15px] text-slate-900 shadow-sm outline-none transition-all duration-200 focus-visible:border-sky-400 focus-visible:ring-3 focus-visible:ring-sky-100"
+            >
+              {TEMPLATES.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </header>
 
-      {/* â”€â”€ Main columns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="flex min-h-0 flex-1">
-        {/* Left: Editor panel */}
-        <aside className="flex w-[42%] min-w-[320px] flex-col border-r border-white/8 bg-slate-900/40">
-          <div className="flex shrink-0 items-center gap-2 border-b border-white/8 bg-white/[0.02] px-4 py-2">
-            <FileText className="h-3.5 w-3.5 text-slate-400" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Content</span>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            <ResumeEditor data={data} onChange={setData} dark />
-          </div>
-        </aside>
-
-        {/* Right: Preview panel */}
-        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950">
-          <div className="flex shrink-0 items-center justify-between border-b border-white/8 bg-white/[0.02] px-4 py-2">
-            <div className="flex items-center gap-2">
-              <Eye className="h-3.5 w-3.5 text-slate-400" />
-              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Live Preview</span>
-            </div>
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-300">
-              Matches PDF
-            </span>
-          </div>
-          <div className="flex-1 overflow-auto p-4">
-            <ResumePreviewFrame templateId={templateId} data={data} />
-          </div>
-        </main>
-      </div>
-
-      {/* â”€â”€ Auth modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {showAuthModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setShowAuthModal(false)}
+      <main className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col gap-5 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+5.8rem)] lg:px-6 lg:pb-4">
+        <section
+          role="button"
+          tabIndex={0}
+          aria-label="Upload existing resume to auto-fill with AI"
+          onClick={() => importState === "idle" && importInputRef.current?.click()}
+          onKeyDown={(event) => {
+            if ((event.key === "Enter" || event.key === " ") && importState === "idle") {
+              event.preventDefault();
+              importInputRef.current?.click();
+            }
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setDragActive(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragActive(false);
+            const file = event.dataTransfer.files?.[0];
+            if (file && importState === "idle") {
+              void importResumeFile(file);
+            }
+          }}
+          className={`editor-fade-rise editor-fade-rise-delay-1 relative overflow-hidden rounded-2xl border px-4 py-3 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.55)] transition-all duration-300 ease-out ${
+            dragActive
+              ? "border-sky-300 bg-sky-50 ring-2 ring-sky-100"
+              : importState === "loading"
+                ? "border-amber-300 bg-amber-50 ring-2 ring-amber-100"
+                : importState === "success"
+                  ? "border-emerald-300 bg-emerald-50 ring-2 ring-emerald-100"
+                  : importState === "error"
+                    ? "border-red-300 bg-red-50 ring-2 ring-red-100"
+                    : "border-slate-200 bg-white/80 hover:-translate-y-[1px] hover:border-slate-300 hover:bg-white hover:shadow-[0_24px_52px_-34px_rgba(15,23,42,0.66)]"
+          }`}
         >
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-8 shadow-2xl shadow-black/50 animate-in fade-in zoom-in-95 duration-200">
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500/10 ring-1 ring-sky-500/20">
-                <Download className="h-7 w-7 text-sky-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-white">Sign in to download</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                Create a free account to download your resume as a polished PDF.
-              </p>
-              <div className="mt-6 space-y-3">
-                <Link
-                  href="/signup"
-                  className="block w-full rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-3 text-center font-semibold text-slate-950 transition hover:brightness-110"
-                >
-                  Create Free Account
-                </Link>
-                <Link
-                  href="/login"
-                  className="block w-full rounded-xl border border-white/10 px-4 py-3 text-center font-semibold text-slate-100 transition hover:bg-white/5"
-                >
-                  Sign In
-                </Link>
-              </div>
-              <button
-                onClick={() => setShowAuthModal(false)}
-                className="mt-4 w-full px-4 py-2 text-sm text-slate-500 transition hover:text-white"
-              >
-                Cancel
-              </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) {
+                void importResumeFile(file);
+              }
+            }}
+          />
+
+          <div className="flex items-center gap-3">
+            <div
+              className={`flex size-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
+                importState === "loading"
+                  ? "bg-amber-100 text-amber-600"
+                  : importState === "success"
+                    ? "bg-emerald-100 text-emerald-600"
+                    : importState === "error"
+                      ? "bg-red-100 text-red-600"
+                      : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {importState === "loading" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : importState === "success" ? (
+                <Check className="size-4" />
+              ) : importState === "error" ? (
+                <X className="size-4" />
+              ) : (
+                <UploadCloud className="size-4" />
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              {importState === "loading" ? (
+                <p className="text-sm font-semibold text-amber-700">Extracting resume with AI...</p>
+              ) : importState === "success" ? (
+                <p className="text-sm font-semibold text-emerald-700">Resume imported and fields were filled.</p>
+              ) : importState === "error" ? (
+                <p className="text-sm font-semibold text-red-700">{importError || "Import failed."}</p>
+              ) : dragActive ? (
+                <p className="text-sm font-semibold text-sky-700">Drop file to auto-fill your resume.</p>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-slate-800">Import an existing resume</p>
+                  <p className="text-xs text-slate-500">
+                    Drop PDF, DOCX, TXT, or Markdown and let AI extract your sections.
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="hidden items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100 sm:flex">
+              <Bot className="size-3.5" />
+              AI Assist
+            </div>
+            <div className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm md:flex">
+              <Sparkles className="size-3.5" />
+              Choose File
             </div>
           </div>
+        </section>
+
+        <EditorLayout
+          editor={<ResumeEditor data={data} onChange={setData} />}
+          preview={<PreviewPanel templateId={templateId} data={data} />}
+        />
+      </main>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/90 bg-white/92 px-3 pb-[calc(env(safe-area-inset-bottom)+0.7rem)] pt-3 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto flex w-full max-w-[1600px] gap-2">
+          <Button
+            variant="outline"
+            onClick={() => void createResume("save")}
+            disabled={actionState !== "idle"}
+            className="h-12 flex-1 rounded-xl border-slate-300 bg-white text-slate-700 shadow-sm"
+          >
+            {actionState === "saving" ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Saving
+              </>
+            ) : (
+              <>
+                <Save className="size-4" />
+                Save
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={() => void createResume("download")}
+            disabled={actionState !== "idle"}
+            className="h-12 flex-1 rounded-xl bg-slate-900 text-white shadow-[0_18px_32px_-24px_rgba(15,23,42,0.8)]"
+          >
+            {actionState === "downloading" ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Preparing
+              </>
+            ) : (
+              <>
+                <Download className="size-4" />
+                Download PDF
+              </>
+            )}
+          </Button>
         </div>
-      )}
+      </div>
+
+      <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
+        <DialogContent className="max-w-md rounded-2xl p-0">
+          <div className="p-6">
+            <DialogHeader>
+              <DialogTitle>Sign in to save and download</DialogTitle>
+              <DialogDescription>
+                Create a free account and we will continue right where you left off.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="grid gap-2 border-t border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+            <Button asChild>
+              <Link href="/signup">Create account</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/login">Sign in</Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
