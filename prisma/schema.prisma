@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
- 
 }
 
 enum Plan {
@@ -13,27 +12,27 @@ enum Plan {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String            @id @default(cuid())
+  email        String            @unique
   passwordHash String?
   name         String?
-  plan         Plan     @default(FREE)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  plan         Plan              @default(FREE)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
   resumes      Resume[]
   downloads    DownloadHistory[]
 }
 
 model Resume {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String   @default("Untitled resume")
-  templateId  String
-  data        Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  downloads   DownloadHistory[]
+  id         String            @id @default(cuid())
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String            @default("Untitled resume")
+  templateId String
+  data       Json
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  downloads  DownloadHistory[]
 
   @@index([userId])
 }
@@ -51,5 +50,13 @@ model DownloadHistory {
   @@index([resumeId])
 }
 
+model ExtractedResume {
+  id             String   @id @default(cuid())
+  extractedData  Json     @map("extracted_data") @db.JsonB
+  sourceFileName String   @map("source_file_name") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
 
-
+  @@index([createdAt], map: "extracted_resumes_created_at_idx")
+  @@index([sourceFileName], map: "extracted_resumes_source_file_name_idx")
+  @@map("extracted_resumes")
+}

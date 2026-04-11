@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { TEMPLATES } from "@/lib/templates/registry";
+import { parseResumePdf } from "@/lib/resumeParser";
 import {
   demoResumeData,
   isResumeDataEmpty,
@@ -218,56 +219,24 @@ export function EditorClient({ resumeId }: Props) {
     setImportState("loading");
     setImportError("");
 
-    const formData = new FormData();
-    formData.set("file", file);
+    try {
+      const payload = await parseResumePdf(file);
+      setData(payload.data);
+      if (payload.titleSuggestion) {
+        setTitle(payload.titleSuggestion);
+      }
 
-    const response = await fetch("/api/resumes/import", {
-      method: "POST",
-      body: formData,
-    });
-
-    const responseText = await response.text();
-    const payload = safeJsonParse(responseText) as
-      | {
-          data?: ResumeData;
-          titleSuggestion?: string;
-          mode?: "ai" | "heuristic";
-          warning?: string;
-          error?: string;
-        }
-      | null;
-
-    if (!response.ok || !payload?.data) {
-      const message =
-        payload?.error ??
-        extractImportErrorMessage(responseText) ??
-        `Could not import that file. Server returned ${response.status}.`;
+      setImportState("success");
+      setImportError("");
+      toast.success("Resume extracted with AI and fields were auto-filled.");
+      window.setTimeout(() => setImportState("idle"), 2200);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not import that PDF.";
       setImportState("error");
       setImportError(message);
       toast.error(message);
       window.setTimeout(() => setImportState("idle"), 2800);
-      return;
     }
-
-    setData(payload.data);
-    if (payload.titleSuggestion) {
-      setTitle(payload.titleSuggestion);
-    }
-
-    setImportState("success");
-    setImportError("");
-
-    if (payload.warning) {
-      toast.warning(payload.warning);
-    }
-
-    toast.success(
-      payload.mode === "ai"
-        ? "Resume extracted with AI and fields were auto-filled."
-        : "Resume imported successfully.",
-    );
-
-    window.setTimeout(() => setImportState("idle"), 2200);
   }, []);
 
   if (status === "loading" || loading) {
@@ -453,7 +422,7 @@ export function EditorClient({ resumeId }: Props) {
           <input
             ref={importInputRef}
             type="file"
-            accept=".pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".pdf,application/pdf"
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -500,7 +469,7 @@ export function EditorClient({ resumeId }: Props) {
                 <>
                   <p className="text-sm font-semibold text-slate-800">Import an existing resume</p>
                   <p className="text-xs text-slate-500">
-                    Drop PDF, DOCX, TXT, or Markdown and let AI extract your sections.
+                    Drop a PDF and let AI extract your sections.
                   </p>
                 </>
               )}
@@ -577,20 +546,4 @@ export function EditorClient({ resumeId }: Props) {
       </Dialog>
     </div>
   );
-}
-
-function safeJsonParse(value: string) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
-function extractImportErrorMessage(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html")) {
-    return null;
-  }
-  return trimmed.slice(0, 240);
 }
