@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -18,7 +18,53 @@ type ExtractedResume = {
 const MAX_RESUME_BYTES = 3 * 1024 * 1024;
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_GEMINI_TIMEOUT_MS = 20000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 1200;
+const DEFAULT_MAX_OUTPUT_TOKENS = 2400;
+
+const RESUME_RESPONSE_SCHEMA: ResponseSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    fullName: { type: SchemaType.STRING },
+    email: { type: SchemaType.STRING },
+    phone: { type: SchemaType.STRING },
+    photoUrl: { type: SchemaType.STRING },
+    summary: { type: SchemaType.STRING },
+    skills: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+    },
+    education: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          school: { type: SchemaType.STRING, nullable: true },
+          degree: { type: SchemaType.STRING, nullable: true },
+          start: { type: SchemaType.STRING, nullable: true },
+          end: { type: SchemaType.STRING, nullable: true },
+          details: { type: SchemaType.STRING, nullable: true },
+        },
+      },
+    },
+    workExperience: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          company: { type: SchemaType.STRING, nullable: true },
+          role: { type: SchemaType.STRING, nullable: true },
+          start: { type: SchemaType.STRING, nullable: true },
+          end: { type: SchemaType.STRING, nullable: true },
+          bullets: {
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
+            nullable: true,
+          },
+        },
+      },
+    },
+  },
+  required: ["fullName", "email", "phone", "photoUrl", "summary", "skills", "education", "workExperience"],
+};
 
 const EXTRACTION_PROMPT = [
   "Extract resume information from this PDF and return JSON only.",
@@ -108,6 +154,7 @@ export async function POST(req: Request) {
         ],
         generationConfig: {
           responseMimeType: "application/json",
+          responseSchema: RESUME_RESPONSE_SCHEMA,
           temperature: 0,
           maxOutputTokens,
         },
@@ -259,29 +306,109 @@ function safeJsonParse(value: string): unknown | null {
 }
 
 function parseGeminiJson(value: string): unknown | null {
-  const direct = safeJsonParse(value);
-  if (direct) {
-    return direct;
+  const cleaned = stripCodeFences(value);
+  const candidates = new Set<string>();
+
+  if (cleaned) {
+    candidates.add(cleaned);
   }
 
-  const cleaned = stripCodeFences(value);
   const objectCandidate = extractJsonCandidate(cleaned, "{", "}");
   if (objectCandidate) {
-    const parsedObject = safeJsonParse(objectCandidate);
-    if (parsedObject) {
-      return parsedObject;
-    }
+    candidates.add(objectCandidate);
   }
 
   const arrayCandidate = extractJsonCandidate(cleaned, "[", "]");
   if (arrayCandidate) {
-    const parsedArray = safeJsonParse(arrayCandidate);
-    if (parsedArray) {
-      return parsedArray;
+    candidates.add(arrayCandidate);
+  }
+
+  for (const candidate of extractBalancedJsonCandidates(cleaned)) {
+    candidates.add(candidate);
+  }
+
+  for (const candidate of candidates) {
+    const parsed = safeJsonParse(candidate);
+    if (parsed !== null) {
+      return parsed;
+    }
+
+    const sanitized = stripTrailingCommas(candidate);
+    if (sanitized !== candidate) {
+      const parsedSanitized = safeJsonParse(sanitized);
+      if (parsedSanitized !== null) {
+        return parsedSanitized;
+      }
     }
   }
 
   return null;
+}
+
+function extractBalancedJsonCandidates(value: string): string[] {
+  const out: string[] = [];
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char !== "{" && char !== "[") {
+      continue;
+    }
+
+    const end = findBalancedJsonEnd(value, index);
+    if (end <= index) {
+      continue;
+    }
+
+    out.push(value.slice(index, end + 1).trim());
+  }
+
+  return out;
+}
+
+function findBalancedJsonEnd(value: string, startIndex: number) {
+  const openChar = value[startIndex];
+  const closeChar = openChar === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escaping = false;
+
+  for (let index = startIndex; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (inString) {
+      if (escaping) {
+        escaping = false;
+      } else if (char === "\\") {
+        escaping = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === openChar) {
+      depth += 1;
+      continue;
+    }
+
+    if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
+}
+
+function stripTrailingCommas(value: string) {
+  return value.replace(/,\s*([}\]])/g, "$1");
 }
 
 function extractJsonCandidate(value: string, openChar: "{" | "[", closeChar: "}" | "]") {
@@ -295,7 +422,10 @@ function extractJsonCandidate(value: string, openChar: "{" | "[", closeChar: "}"
 }
 
 function stripCodeFences(value: string) {
-  return value.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/, "").trim();
+  return value
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
