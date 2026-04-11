@@ -113,9 +113,17 @@ export async function POST(req: Request) {
       },
     });
 
+    const insertId = createExtractedResumeId();
+
     const primaryInsert = await supabase
       .from("extracted_resumes")
-      .insert([{ extracted_data: extractedResume, source_file_name: resume.name }]);
+      .insert([
+        {
+          id: insertId,
+          extracted_data: extractedResume,
+          source_file_name: resume.name,
+        },
+      ]);
 
     if (primaryInsert.error) {
       throw primaryInsert.error;
@@ -227,4 +235,12 @@ function getErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function createExtractedResumeId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `er-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
