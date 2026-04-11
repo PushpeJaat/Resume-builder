@@ -112,27 +112,13 @@ async function extractResumeText(file: File): Promise<string> {
   const extension = getFileExtension(file.name);
 
   if (extension === "pdf") {
-    const PDFParseCtor = await loadPdfParserCtor();
-    if (!PDFParseCtor) {
-      throw new Error("PDF parser is unavailable on this server runtime.");
-    }
-
-    await configurePdfParserWorker(PDFParseCtor);
-
-    let parser: PdfParserInstance | null = null;
     try {
-      parser = new PDFParseCtor({ data: buffer });
-      const result = await parser.getText();
-      return result.text ?? "";
+      return await extractPdfTextWithPdfJs(buffer);
     } catch (error) {
       console.error("PDF text extraction failed", error);
       throw new Error(
         "Could not read text from that PDF. If it is scanned or password-protected, upload DOCX/TXT/MD or export a text-based PDF.",
       );
-    } finally {
-      if (parser) {
-        await parser.destroy().catch(() => undefined);
-      }
     }
   }
 
@@ -148,67 +134,104 @@ async function extractResumeText(file: File): Promise<string> {
   return buffer.toString("utf8");
 }
 
-type PdfParserInstance = {
-  getText: () => Promise<{ text?: string | null }>;
+type PdfJsTextItem = { str?: string };
+
+type PdfJsTextContent = {
+  items: PdfJsTextItem[];
+};
+
+type PdfJsPage = {
+  getTextContent: () => Promise<PdfJsTextContent>;
+};
+
+type PdfJsDocument = {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<PdfJsPage>;
   destroy: () => Promise<void>;
 };
 
-type PdfParserCtor = {
-  new (args: { data: Buffer }): PdfParserInstance;
-  setWorker?: (workerSrc?: string) => string;
+type PdfJsLoadingTask = {
+  promise: Promise<PdfJsDocument>;
+  destroy?: () => void;
 };
 
-let cachedPdfWorkerSrc: string | null | undefined;
+type PdfJsModule = {
+  getDocument: (src: { data: Uint8Array }) => PdfJsLoadingTask;
+  GlobalWorkerOptions: {
+    workerSrc: string;
+  };
+};
 
-async function configurePdfParserWorker(PDFParseCtor: PdfParserCtor) {
-  if (typeof PDFParseCtor.setWorker !== "function") {
-    return;
+let cachedPdfJsModule: PdfJsModule | null | undefined;
+let cachedPdfJsWorkerSrc: string | null | undefined;
+
+async function extractPdfTextWithPdfJs(buffer: Buffer): Promise<string> {
+  const pdfjs = await loadPdfJsModule();
+  if (!pdfjs) {
+    throw new Error("Could not initialize PDF text extraction on this server runtime.");
   }
 
-  const workerSrc = await loadPdfWorkerSrc();
+  await configurePdfJsWorker(pdfjs);
+
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+  const document = await loadingTask.promise;
+
+  try {
+    const pageTexts: string[] = [];
+
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const joined = textContent.items.map((item) => cleanText(item.str)).filter(Boolean).join(" ").trim();
+
+      if (joined) {
+        pageTexts.push(joined);
+      }
+    }
+
+    return pageTexts.join("\n\n");
+  } finally {
+    await document.destroy().catch(() => undefined);
+    loadingTask.destroy?.();
+  }
+}
+
+async function loadPdfJsModule(): Promise<PdfJsModule | null> {
+  if (cachedPdfJsModule !== undefined) {
+    return cachedPdfJsModule;
+  }
+
+  try {
+    const pdfJsModule = (await import("pdfjs-dist/legacy/build/pdf.mjs")) as unknown as PdfJsModule;
+    cachedPdfJsModule = pdfJsModule;
+    return cachedPdfJsModule;
+  } catch {
+    cachedPdfJsModule = null;
+    return null;
+  }
+}
+
+async function configurePdfJsWorker(pdfjs: PdfJsModule) {
+  const workerSrc = await loadPdfJsWorkerSrc();
   if (!workerSrc) {
     return;
   }
 
-  try {
-    PDFParseCtor.setWorker(workerSrc);
-  } catch {
-    // Keep default worker behavior if explicit worker setup fails.
-  }
+  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 }
 
-async function loadPdfWorkerSrc(): Promise<string | null> {
-  if (cachedPdfWorkerSrc !== undefined) {
-    return cachedPdfWorkerSrc;
+async function loadPdfJsWorkerSrc(): Promise<string | null> {
+  if (cachedPdfJsWorkerSrc !== undefined) {
+    return cachedPdfJsWorkerSrc;
   }
 
   try {
     const require = createRequire(import.meta.url);
     const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
-    cachedPdfWorkerSrc = pathToFileURL(workerPath).href;
-    return cachedPdfWorkerSrc;
+    cachedPdfJsWorkerSrc = pathToFileURL(workerPath).href;
+    return cachedPdfJsWorkerSrc;
   } catch {
-    cachedPdfWorkerSrc = null;
-    return null;
-  }
-}
-
-async function loadPdfParserCtor(): Promise<PdfParserCtor | null> {
-  // Prefer CommonJS loading first so Next server runtime uses the Node-targeted export.
-  try {
-    const require = createRequire(import.meta.url);
-    const required = require("pdf-parse") as { PDFParse?: PdfParserCtor };
-    if (required.PDFParse) {
-      return required.PDFParse;
-    }
-  } catch {
-    // Fall back to ESM import below.
-  }
-
-  try {
-    const imported = (await import("pdf-parse")) as { PDFParse?: PdfParserCtor };
-    return imported.PDFParse ?? null;
-  } catch {
+    cachedPdfJsWorkerSrc = null;
     return null;
   }
 }
