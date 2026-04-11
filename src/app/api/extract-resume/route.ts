@@ -21,6 +21,8 @@ const DEFAULT_GEMINI_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 2400;
 const RETRY_MIN_OUTPUT_TOKENS = 3800;
 const RETRY_TIMEOUT_BONUS_MS = 10000;
+const MEANINGFUL_DATA_ERROR =
+  "Could not extract meaningful data from this PDF. Try a cleaner text-based PDF or an OCR-enabled export.";
 
 const RESUME_RESPONSE_SCHEMA: ResponseSchema = {
   type: SchemaType.OBJECT,
@@ -110,6 +112,25 @@ const COMPACT_EXTRACTION_PROMPT = [
   "- Prefer the most recent and most relevant entries when trimming.",
 ].join("\n");
 
+const SALVAGE_EXTRACTION_PROMPT = [
+  "Extract resume information from this PDF and return JSON only.",
+  "Important: prioritize finding any real fields instead of returning empty values.",
+  "Required fields:",
+  "- fullName: string",
+  "- email: string",
+  "- phone: string",
+  "- photoUrl: string",
+  "- summary: string",
+  "- skills: string[]",
+  "- education: object[]",
+  "- workExperience: object[]",
+  "Rules:",
+  "- Do not include markdown or code fences.",
+  "- If at least one contact/detail is visible, include it.",
+  "- Use concise values and avoid long prose.",
+  "- If truly unavailable, return empty string or empty array.",
+].join("\n");
+
 export async function POST(req: Request) {
   const formData = await req.formData().catch(() => null);
   const resume = formData?.get("resume");
@@ -152,7 +173,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to read uploaded resume file." }, { status: 400 });
   }
 
-  let extractedResume: ExtractedResume;
+  let extractedResume: ExtractedResume | null = null;
   try {
     const modelName = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
     const geminiTimeoutMs = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, DEFAULT_GEMINI_TIMEOUT_MS);
@@ -175,9 +196,14 @@ export async function POST(req: Request) {
         timeoutMs: geminiTimeoutMs + RETRY_TIMEOUT_BONUS_MS,
         timeoutMessage: "Gemini extraction timed out while retrying a compact pass.",
       },
+      {
+        prompt: SALVAGE_EXTRACTION_PROMPT,
+        outputTokens: retryOutputTokens,
+        timeoutMs: geminiTimeoutMs + RETRY_TIMEOUT_BONUS_MS,
+        timeoutMessage: "Gemini extraction timed out while retrying a salvage pass.",
+      },
     ] as const;
 
-    let parsed: unknown | null = null;
     let lastAttemptMessage = "Gemini returned invalid JSON.";
 
     for (const attempt of attempts) {
@@ -215,36 +241,38 @@ export async function POST(req: Request) {
           continue;
         }
 
-        parsed = parseGeminiJson(rawText);
-        if (parsed) {
+        const parsed = parseGeminiJson(rawText);
+        if (!parsed) {
+          lastAttemptMessage = "Gemini returned invalid JSON.";
+          continue;
+        }
+
+        const candidate = normalizeExtractedResume(parsed);
+        if (hasMeaningfulExtraction(candidate)) {
+          extractedResume = candidate;
           break;
         }
 
-        lastAttemptMessage = "Gemini returned invalid JSON.";
+        lastAttemptMessage = "Gemini returned empty structured resume data.";
       } catch (error) {
         lastAttemptMessage = error instanceof Error ? error.message : "Gemini extraction failed.";
       }
     }
 
-    if (!parsed) {
+    if (!extractedResume) {
       if (/timed out/i.test(lastAttemptMessage)) {
         throw new Error(lastAttemptMessage);
       }
 
-      throw new Error("Gemini could not format this multi-page resume as valid JSON. Please retry with a cleaner text-based PDF.");
-    }
-
-    extractedResume = normalizeExtractedResume(parsed);
-
-    if (!hasMeaningfulExtraction(extractedResume)) {
-      return NextResponse.json(
-        { error: "Could not extract meaningful data from this PDF. Try a cleaner text-based PDF." },
-        { status: 422 },
-      );
+      return NextResponse.json({ error: MEANINGFUL_DATA_ERROR }, { status: 422 });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gemini extraction failed.";
     return NextResponse.json({ error: message }, { status: 500 });
+  }
+
+  if (!extractedResume) {
+    return NextResponse.json({ error: MEANINGFUL_DATA_ERROR }, { status: 422 });
   }
 
   try {
@@ -302,7 +330,28 @@ function normalizeExtractedResume(payload: unknown): ExtractedResume {
 
 function normalizeSkills(value: unknown): string[] {
   if (Array.isArray(value)) {
-    return value.map((item) => asString(item)).filter(Boolean);
+    const tokens = value
+      .flatMap((item) => {
+        if (typeof item === "string" || typeof item === "number") {
+          return [asString(item)];
+        }
+
+        if (typeof item !== "object" || item === null) {
+          return [];
+        }
+
+        const record = item as Record<string, unknown>;
+        const direct = asString(record.skill ?? record.name ?? record.value ?? record.category);
+        if (direct) {
+          return [direct];
+        }
+
+        const nested = normalizeSkills(record.items ?? record.skills ?? record.keywords);
+        return nested;
+      })
+      .filter(Boolean);
+
+    return Array.from(new Set(tokens));
   }
 
   if (typeof value === "string") {
@@ -494,7 +543,15 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function asString(value: unknown) {
-  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  if (typeof value === "string") {
+    return value.replace(/\s+/g, " ").trim();
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "";
+  }
+
+  return "";
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
