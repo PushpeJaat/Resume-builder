@@ -8,6 +8,7 @@ type ExtractedResume = {
   fullName: string;
   email: string;
   phone: string;
+  summary: string;
   skills: string[];
   education: Array<Record<string, unknown>>;
   workExperience: Array<Record<string, unknown>>;
@@ -19,6 +20,7 @@ const EXTRACTION_PROMPT = [
   "- fullName: string",
   "- email: string",
   "- phone: string",
+  "- summary: string",
   "- skills: string[]",
   "- education: object[]",
   "- workExperience: object[]",
@@ -143,6 +145,7 @@ function normalizeExtractedResume(payload: unknown): ExtractedResume {
     fullName: readText(record, ["fullName", "name"]),
     email: readText(record, ["email"]),
     phone: readText(record, ["phone", "phoneNumber"]),
+    summary: readText(record, ["summary", "professionalSummary", "profile", "objective"]),
     skills: normalizeSkills(record.skills),
     education: normalizeRecordArray(record.education),
     workExperience: normalizeRecordArray(record.workExperience ?? record.experience),
