@@ -16,11 +16,12 @@ type ExtractedResume = {
 };
 
 const MAX_RESUME_BYTES = 3 * 1024 * 1024;
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
-const DEFAULT_GEMINI_TIMEOUT_MS = 20000;
+const DEFAULT_GEMINI_MODEL = "gemini-1.5-flash";
+const DEFAULT_GEMINI_TIMEOUT_MS = 8000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 2400;
 const RETRY_MIN_OUTPUT_TOKENS = 3800;
 const RETRY_TIMEOUT_BONUS_MS = 10000;
+const HOBBY_TIER_SAFE_TIMEOUT_MS = 8000;
 const MEANINGFUL_DATA_ERROR =
   "Could not extract meaningful data from this PDF. Try a cleaner text-based PDF or an OCR-enabled export.";
 
@@ -179,11 +180,12 @@ export async function POST(req: Request) {
     const geminiTimeoutMs = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, DEFAULT_GEMINI_TIMEOUT_MS);
     const maxOutputTokens = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS);
     const retryOutputTokens = Math.max(maxOutputTokens, RETRY_MIN_OUTPUT_TOKENS);
+    const isTightTimeoutBudget = geminiTimeoutMs <= HOBBY_TIER_SAFE_TIMEOUT_MS;
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: modelName });
 
-    const attempts = [
+    const allAttempts = [
       {
         prompt: EXTRACTION_PROMPT,
         outputTokens: maxOutputTokens,
@@ -203,6 +205,10 @@ export async function POST(req: Request) {
         timeoutMessage: "Gemini extraction timed out while retrying a salvage pass.",
       },
     ] as const;
+
+    // On tight budgets (e.g. Vercel Hobby), use a single compact pass so we can
+    // return gracefully before platform execution limits terminate the function.
+    const attempts = isTightTimeoutBudget ? [allAttempts[1]] : allAttempts;
 
     let lastAttemptMessage = "Gemini returned invalid JSON.";
 
