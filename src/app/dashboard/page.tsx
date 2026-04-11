@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { getTemplateMeta } from "@/lib/templates/registry";
 
@@ -36,6 +37,8 @@ export default function DashboardPage() {
   const [downloads, setDownloads] = useState<DownloadRow[]>([]);
   const [adminPayments, setAdminPayments] = useState<AdminPaymentRow[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creatingResume, setCreatingResume] = useState(false);
+  const [deletingResumeId, setDeletingResumeId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -66,16 +69,26 @@ export default function DashboardPage() {
   }, [refresh]);
 
   async function createResume() {
-    const res = await fetch("/api/resumes", { method: "POST" });
-    if (!res.ok) return;
-    const { id } = await res.json();
-    window.location.href = `/editor/${id}`;
+    setCreatingResume(true);
+    try {
+      const res = await fetch("/api/resumes", { method: "POST" });
+      if (!res.ok) return;
+      const { id } = await res.json();
+      window.location.href = `/editor/${id}`;
+    } finally {
+      setCreatingResume(false);
+    }
   }
 
   async function deleteResume(id: string) {
     if (!confirm("Delete this resume?")) return;
-    await fetch(`/api/resumes/${id}`, { method: "DELETE" });
-    void refresh();
+    setDeletingResumeId(id);
+    try {
+      await fetch(`/api/resumes/${id}`, { method: "DELETE" });
+      void refresh();
+    } finally {
+      setDeletingResumeId(null);
+    }
   }
 
   const recentActivityLabel = useMemo(() => {
@@ -117,9 +130,11 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => void createResume()}
-                className="rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/25 transition hover:brightness-105"
+                disabled={creatingResume}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/25 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Create new resume
+                {creatingResume ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {creatingResume ? "Creating..." : "Create new resume"}
               </button>
             </div>
           </div>
@@ -164,9 +179,11 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       onClick={() => void createResume()}
-                      className="rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105"
+                      disabled={creatingResume}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                      Create your first resume
+                      {creatingResume ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {creatingResume ? "Creating..." : "Create your first resume"}
                     </button>
                     <Link
                       href="/dashboard/templates"
@@ -200,9 +217,11 @@ export default function DashboardPage() {
                         <button
                           type="button"
                           onClick={() => void deleteResume(resume.id)}
-                          className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/5"
+                          disabled={deletingResumeId === resume.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Delete
+                          {deletingResumeId === resume.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                          {deletingResumeId === resume.id ? "Deleting..." : "Delete"}
                         </button>
                       </div>
                     </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
+import { Loader2 } from "lucide-react";
 
 type DownloadItem = {
   id: string;
@@ -175,9 +176,18 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:text-slate-200"
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:text-slate-200"
             >
-              {submitting ? "Saving..." : hasPassword ? "Change password" : "Set password"}
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : hasPassword ? (
+                "Change password"
+              ) : (
+                "Set password"
+              )}
             </button>
           </div>
         </form>

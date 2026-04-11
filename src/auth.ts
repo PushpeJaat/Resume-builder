@@ -92,27 +92,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // On sign in, set the token.sub to the database user ID
       if (user?.email && account?.provider === "google") {
         try {
-          console.log("JWT callback: looking up user by email:", user.email);
           const dbUser = await prisma.user.findUnique({
             where: { email: user.email.toLowerCase() },
           });
           if (dbUser) {
             token.sub = dbUser.id;
-            console.log("JWT callback: found user ID:", dbUser.id);
-          } else {
-            console.error("JWT callback: user not found in database");
           }
         } catch (error) {
           console.error("JWT callback error:", error);
         }
       }
 
-      // Always preserve token.sub on subsequent calls
-      console.log("JWT callback: current token.sub:", token.sub);
       return token;
     },
     async session({ session, token }) {
-      console.log("Session callback: token.sub:", token.sub);
       if (session.user && token.sub) {
         session.user.id = token.sub;
         const dbUser = await prisma.user.findUnique({
@@ -120,9 +113,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           select: { plan: true },
         });
         session.user.plan = dbUser?.plan === "PREMIUM" ? "PREMIUM" : "FREE";
-        console.log("Session callback: set user ID and plan");
-      } else {
-        console.log("Session callback: no token.sub or session.user");
       }
       return session;
     },
