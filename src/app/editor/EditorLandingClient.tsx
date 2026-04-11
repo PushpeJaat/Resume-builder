@@ -40,6 +40,17 @@ import { demoResumeData, type ResumeData } from "@/types/resume";
 type ImportState = "idle" | "loading" | "success" | "error";
 type ActionState = "idle" | "saving" | "downloading";
 
+type CashfreeCheckoutMode = "sandbox" | "production";
+type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
+  checkout: (payload: { paymentSessionId: string; redirectTarget?: "_self" | "_blank" | "_modal" }) => Promise<unknown>;
+};
+
+declare global {
+  interface Window {
+    Cashfree?: CashfreeCheckoutFactory;
+  }
+}
+
 export default function EditorLandingClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -97,6 +108,139 @@ export default function EditorLandingClient() {
     }
   }, []);
 
+  const loadCashfreeSdk = useCallback(async (): Promise<CashfreeCheckoutFactory> => {
+    if (typeof window === "undefined") {
+      throw new Error("Cashfree checkout is only available in browser.");
+    }
+
+    if (window.Cashfree) {
+      return window.Cashfree;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector<HTMLScriptElement>("script[data-cashfree-sdk='true']");
+
+      if (existing) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Could not load Cashfree SDK.")), {
+          once: true,
+        });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+      script.async = true;
+      script.dataset.cashfreeSdk = "true";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Could not load Cashfree SDK."));
+      document.body.appendChild(script);
+    });
+
+    if (!window.Cashfree) {
+      throw new Error("Cashfree SDK is unavailable.");
+    }
+
+    return window.Cashfree;
+  }, []);
+
+  const downloadResumePdf = useCallback(async (resumeId: string, fallbackTitle: string) => {
+    const response = await fetch(`/api/resumes/${resumeId}/pdf`, { method: "POST" });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      toast.error((payload?.error as string) || "Could not generate PDF.");
+      return false;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${fallbackTitle.replace(/[^\w\s-]/g, "").trim() || "resume"}.pdf`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+    toast.success("Resume downloaded.");
+    return true;
+  }, []);
+
+  const runPaidDownload = useCallback(
+    async (resumeId: string, fallbackTitle: string) => {
+      type CreateOrderResponse = {
+        alreadyPaid?: boolean;
+        orderId?: string;
+        paymentSessionId?: string;
+        mode?: CashfreeCheckoutMode;
+        error?: string;
+      };
+
+      type VerifyOrderResponse = {
+        paid?: boolean;
+        error?: string;
+      };
+
+      try {
+        const orderResponse = await fetch("/api/payments/cashfree/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resumeId }),
+        });
+
+        const orderPayload = (await orderResponse.json().catch(() => null)) as CreateOrderResponse | null;
+
+        if (!orderResponse.ok) {
+          toast.error(orderPayload?.error || "Could not create payment order.");
+          return false;
+        }
+
+        if (orderPayload?.alreadyPaid) {
+          return downloadResumePdf(resumeId, fallbackTitle);
+        }
+
+        if (!orderPayload?.paymentSessionId || !orderPayload.orderId) {
+          toast.error("Payment session is missing. Please try again.");
+          return false;
+        }
+
+        const mode = orderPayload.mode === "production" ? "production" : "sandbox";
+        const cashfreeFactory = await loadCashfreeSdk();
+        const cashfree = cashfreeFactory({ mode });
+
+        await cashfree.checkout({
+          paymentSessionId: orderPayload.paymentSessionId,
+          redirectTarget: "_modal",
+        });
+
+        const verifyResponse = await fetch("/api/payments/cashfree/verify-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resumeId, orderId: orderPayload.orderId }),
+        });
+
+        const verifyPayload = (await verifyResponse.json().catch(() => null)) as VerifyOrderResponse | null;
+
+        if (!verifyResponse.ok) {
+          toast.error(verifyPayload?.error || "Could not verify payment.");
+          return false;
+        }
+
+        if (!verifyPayload?.paid) {
+          toast.info("Payment is not completed yet. Please complete checkout to download.");
+          return false;
+        }
+
+        toast.success("Payment successful. Preparing your PDF...");
+        return downloadResumePdf(resumeId, fallbackTitle);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Payment failed. Please try again.";
+        toast.error(message);
+        return false;
+      }
+    },
+    [downloadResumePdf, loadCashfreeSdk],
+  );
+
   const createResume = useCallback(
     async (mode: "save" | "download") => {
       if (!session?.user?.id) {
@@ -119,31 +263,35 @@ export default function EditorLandingClient() {
       }
 
       setActionState(mode === "save" ? "saving" : "downloading");
-      const response = await fetch("/api/resumes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          templateId,
-          data,
-          title: title.trim() || `My ${currentTemplate?.name ?? "Resume"}`,
-        }),
-      });
+      try {
+        const resumeTitle = title.trim() || `My ${currentTemplate?.name ?? "Resume"}`;
+        const response = await fetch("/api/resumes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            templateId,
+            data,
+            title: resumeTitle,
+          }),
+        });
 
-      if (!response.ok) {
+        if (!response.ok) {
+          toast.error("Could not create resume right now.");
+          return;
+        }
+
+        const payload = (await response.json()) as { id: string };
+        if (mode === "download") {
+          await runPaidDownload(payload.id, resumeTitle);
+          return;
+        }
+
+        router.push(`/editor/${payload.id}`);
+      } finally {
         setActionState("idle");
-        toast.error("Could not create resume right now.");
-        return;
       }
-
-      const payload = (await response.json()) as { id: string };
-      if (mode === "download") {
-        router.push(`/editor/${payload.id}?autoDownload=1`);
-        return;
-      }
-
-      router.push(`/editor/${payload.id}`);
     },
-    [currentTemplate?.name, data, router, session?.user?.id, templateId, title],
+    [currentTemplate?.name, data, router, runPaidDownload, session?.user?.id, templateId, title],
   );
 
   return (
