@@ -1,4 +1,8 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  GoogleGenerativeAI,
+  SchemaType,
+  type ResponseSchema,
+} from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -19,6 +23,35 @@ const MAX_RESUME_BYTES = 3 * 1024 * 1024;
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_GEMINI_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1200;
+
+const EXTRACTED_RESUME_RESPONSE_SCHEMA: ResponseSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    fullName: { type: SchemaType.STRING },
+    email: { type: SchemaType.STRING },
+    phone: { type: SchemaType.STRING },
+    photoUrl: { type: SchemaType.STRING },
+    summary: { type: SchemaType.STRING },
+    skills: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+    },
+    education: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {},
+      },
+    },
+    workExperience: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {},
+      },
+    },
+  },
+};
 
 const EXTRACTION_PROMPT = [
   "Extract resume information from this PDF and return JSON only.",
@@ -107,6 +140,7 @@ export async function POST(req: Request) {
         ],
         generationConfig: {
           responseMimeType: "application/json",
+          responseSchema: EXTRACTED_RESUME_RESPONSE_SCHEMA,
           temperature: 0,
           maxOutputTokens,
         },
@@ -120,9 +154,9 @@ export async function POST(req: Request) {
       throw new Error("Gemini returned an empty response.");
     }
 
-    const parsed = safeJsonParse(rawText);
+    const parsed = parseGeminiJson(rawText);
     if (!parsed) {
-      throw new Error("Gemini returned invalid JSON.");
+      throw new Error("Gemini returned invalid JSON. Please retry with a smaller/cleaner PDF.");
     }
 
     extractedResume = normalizeExtractedResume(parsed);
@@ -232,6 +266,42 @@ function safeJsonParse(value: string): unknown | null {
   } catch {
     return null;
   }
+}
+
+function parseGeminiJson(value: string): unknown | null {
+  const direct = safeJsonParse(value);
+  if (direct) {
+    return direct;
+  }
+
+  const cleaned = stripCodeFences(value);
+  const objectCandidate = extractJsonCandidate(cleaned, "{", "}");
+  if (objectCandidate) {
+    const parsedObject = safeJsonParse(objectCandidate);
+    if (parsedObject) {
+      return parsedObject;
+    }
+  }
+
+  const arrayCandidate = extractJsonCandidate(cleaned, "[", "]");
+  if (arrayCandidate) {
+    const parsedArray = safeJsonParse(arrayCandidate);
+    if (parsedArray) {
+      return parsedArray;
+    }
+  }
+
+  return null;
+}
+
+function extractJsonCandidate(value: string, openChar: "{" | "[", closeChar: "}" | "]") {
+  const start = value.indexOf(openChar);
+  const end = value.lastIndexOf(closeChar);
+  if (start < 0 || end <= start) {
+    return "";
+  }
+
+  return value.slice(start, end + 1).trim();
 }
 
 function stripCodeFences(value: string) {
