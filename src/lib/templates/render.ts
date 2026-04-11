@@ -52,6 +52,21 @@ section, article, .job, .edu, .skill-cat, .skill-row, .skill-block, .side-block,
 }
 `;
 
+const FALLBACK_RESUME_DATA: ResumeData = {
+  personal: {
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    photoUrl: "",
+    links: [],
+  },
+  summary: "",
+  experience: [],
+  education: [],
+  skills: [],
+};
+
 const compilers: Record<string, { compile: Handlebars.TemplateDelegate; css: string }> = {
   "modern-professional": {
     compile: Handlebars.compile(modernProfessionalBody),
@@ -92,14 +107,39 @@ export function listTemplateIds(): string[] {
 }
 
 export function renderResumeBody(templateId: string, data: ResumeData): string {
-  const id = compilers[templateId] ? templateId : DEFAULT_TEMPLATE_ID;
-  const ctx = toTemplateContext(data);
-  return compilers[id].compile(ctx);
+  const id = resolveTemplateId(templateId);
+  const ctx = safeTemplateContext(data);
+
+  try {
+    return compilers[id].compile(ctx);
+  } catch {
+    if (id !== DEFAULT_TEMPLATE_ID) {
+      try {
+        return compilers[DEFAULT_TEMPLATE_ID].compile(ctx);
+      } catch {
+        // Fallback to static placeholder below.
+      }
+    }
+
+    return `<main style="padding:24px;font-family:Inter,sans-serif;color:#0f172a"><h1 style="margin:0 0 8px;font-size:22px;">Resume preview unavailable</h1><p style="margin:0;font-size:14px;color:#475569;">Try switching templates or simplifying imported content.</p></main>`;
+  }
 }
 
 export function renderResumeStyles(templateId: string): string {
-  const id = compilers[templateId] ? templateId : DEFAULT_TEMPLATE_ID;
-  return compilers[id].css;
+  const id = resolveTemplateId(templateId);
+  return compilers[id]?.css ?? compilers[DEFAULT_TEMPLATE_ID].css;
+}
+
+function resolveTemplateId(templateId: string) {
+  return compilers[templateId] ? templateId : DEFAULT_TEMPLATE_ID;
+}
+
+function safeTemplateContext(data: ResumeData) {
+  try {
+    return toTemplateContext(data);
+  } catch {
+    return toTemplateContext(FALLBACK_RESUME_DATA);
+  }
 }
 
 /**

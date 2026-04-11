@@ -5,7 +5,7 @@ export const slateSidebarBody = `
   <div class="sidebar">
 
     {{#if personal.hasPhoto}}
-      <img src="{{personal.photo}}" class="profile-img" />
+      <img src="{{personal.photoUrl}}" class="profile-img" alt="Profile photo for {{personal.fullName}}" />
     {{/if}}
 
     <h1>{{personal.fullName}}</h1>
