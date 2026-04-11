@@ -1,7 +1,7 @@
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { emptyResumeData, type ResumeData } from "@/types/resume";
 
-const MAX_PDF_BYTES = 5 * 1024 * 1024;
+const MAX_PDF_BYTES = 3 * 1024 * 1024;
 const STORAGE_KEY = "resumeBuilder:parsedResume";
 
 export type ResumeParseResult = {
@@ -14,6 +14,7 @@ type ParsedPersonalInfo = {
   fullName?: unknown;
   email?: unknown;
   phone?: unknown;
+  photoUrl?: unknown;
   location?: unknown;
   links?: unknown;
 };
@@ -44,6 +45,7 @@ type ParsedResumePayload = {
   fullName?: unknown;
   email?: unknown;
   phone?: unknown;
+  photoUrl?: unknown;
   summary?: unknown;
   experience?: ParsedExperience[];
   workExperience?: ParsedExperience[];
@@ -101,7 +103,7 @@ function validatePdf(file: File) {
   }
 
   if (file.size > MAX_PDF_BYTES) {
-    throw new Error("Resume upload must be 5 MB or smaller.");
+    throw new Error("Resume upload must be 3 MB or smaller for fast extraction.");
   }
 
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -147,6 +149,7 @@ function normalizeParsedResume(parsed: ParsedResumePayload): ResumeData {
       fullName: parsed.fullName,
       email: parsed.email,
       phone: parsed.phone,
+      photoUrl: parsed.photoUrl,
     };
 
   const experienceSource = parsed.experience ?? parsed.workExperience;
@@ -157,6 +160,7 @@ function normalizeParsedResume(parsed: ParsedResumePayload): ResumeData {
       fullName: toText(personal.fullName),
       email: toText(personal.email),
       phone: toText(personal.phone),
+      photoUrl: normalizePhotoUrl(toText(personal.photoUrl)),
       location: toText(personal.location),
       links: normalizeLinks(personal.links),
     },
@@ -287,6 +291,18 @@ function toStringArray(value: unknown): string[] {
   }
 
   return [];
+}
+
+function normalizePhotoUrl(value: string) {
+  if (!value) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(value) || /^data:image\//i.test(value)) {
+    return value;
+  }
+
+  return "";
 }
 
 function persistParsedResumeDraft(value: {

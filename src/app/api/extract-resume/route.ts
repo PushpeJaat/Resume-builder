@@ -8,11 +8,17 @@ type ExtractedResume = {
   fullName: string;
   email: string;
   phone: string;
+  photoUrl: string;
   summary: string;
   skills: string[];
   education: Array<Record<string, unknown>>;
   workExperience: Array<Record<string, unknown>>;
 };
+
+const MAX_RESUME_BYTES = 3 * 1024 * 1024;
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const DEFAULT_GEMINI_TIMEOUT_MS = 20000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 1200;
 
 const EXTRACTION_PROMPT = [
   "Extract resume information from this PDF and return JSON only.",
@@ -20,6 +26,7 @@ const EXTRACTION_PROMPT = [
   "- fullName: string",
   "- email: string",
   "- phone: string",
+  "- photoUrl: string",
   "- summary: string",
   "- skills: string[]",
   "- education: object[]",
@@ -27,6 +34,7 @@ const EXTRACTION_PROMPT = [
   "Rules:",
   "- Do not include markdown or code fences.",
   "- If a value is missing, return empty string or empty array.",
+  "- photoUrl must be a real http(s) URL or data:image URL if explicitly present; otherwise return empty string.",
   "- Keep education and workExperience as arrays of objects.",
 ].join("\n");
 
@@ -40,6 +48,13 @@ export async function POST(req: Request) {
 
   if (resume.size <= 0) {
     return NextResponse.json({ error: "Uploaded resume file is empty." }, { status: 400 });
+  }
+
+  if (resume.size > MAX_RESUME_BYTES) {
+    return NextResponse.json(
+      { error: "Resume PDF is too large for fast AI extraction. Please upload a file up to 3 MB." },
+      { status: 400 },
+    );
   }
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -67,29 +82,38 @@ export async function POST(req: Request) {
 
   let extractedResume: ExtractedResume;
   try {
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const modelName = DEFAULT_GEMINI_MODEL;
+    const geminiTimeoutMs = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, DEFAULT_GEMINI_TIMEOUT_MS);
+    const maxOutputTokens = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS);
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: EXTRACTION_PROMPT },
-            {
-              inlineData: {
-                data: base64Pdf,
-                mimeType: "application/pdf",
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const model = genAI.getGenerativeModel({ model: modelName });
+
+    const result = await withTimeout(
+      model.generateContent({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: EXTRACTION_PROMPT },
+              {
+                inlineData: {
+                  data: base64Pdf,
+                  mimeType: "application/pdf",
+                },
               },
-            },
-          ],
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0,
+          maxOutputTokens,
         },
-      ],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0,
-      },
-    });
+      }),
+      geminiTimeoutMs,
+      "Gemini extraction timed out. Try a smaller file.",
+    );
 
     const rawText = result.response.text();
     if (!rawText) {
@@ -145,6 +169,7 @@ function normalizeExtractedResume(payload: unknown): ExtractedResume {
     fullName: readText(record, ["fullName", "name"]),
     email: readText(record, ["email"]),
     phone: readText(record, ["phone", "phoneNumber"]),
+    photoUrl: normalizePhotoUrl(readText(record, ["photoUrl", "profilePhotoUrl", "photo", "avatarUrl"])),
     summary: readText(record, ["summary", "professionalSummary", "profile", "objective"]),
     skills: normalizeSkills(record.skills),
     education: normalizeRecordArray(record.education),
@@ -246,4 +271,40 @@ function createExtractedResumeId() {
   }
 
   return `er-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizePhotoUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(trimmed) || /^data:image\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return "";
+}
+
+function parsePositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt((value ?? "").trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
 }
