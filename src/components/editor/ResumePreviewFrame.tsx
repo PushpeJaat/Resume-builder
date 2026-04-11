@@ -30,8 +30,6 @@ export function ResumePreviewFrame({ templateId, data }: Props) {
     return Math.min(1, Math.max(0.42, Math.min(horizontalFit, verticalFit)));
   }, [viewportSize.height, viewportSize.width]);
 
-  const zoomLabel = `${Math.round(zoom * 100)}%`;
-
   useEffect(() => {
     const viewportElement = viewportRef.current;
     if (!viewportElement) {
@@ -80,10 +78,6 @@ export function ResumePreviewFrame({ templateId, data }: Props) {
 
   return (
     <div className="relative h-full min-h-0">
-      <div className="pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white/95 backdrop-blur sm:right-3 sm:top-3">
-        {zoomLabel}
-      </div>
-
       <div ref={viewportRef} className="h-full min-h-0 overflow-auto px-2 py-2 sm:px-3 sm:py-3">
         <div className="flex min-h-full w-full items-start justify-center sm:items-center">
           <div

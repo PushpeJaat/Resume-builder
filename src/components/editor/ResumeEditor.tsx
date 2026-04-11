@@ -67,7 +67,7 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className={`min-h-28 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[15px] leading-relaxed text-slate-900 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-sky-100 ${props.className ?? ""}`}
+      className={`min-h-20 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 ${props.className ?? ""}`}
     />
   );
 }
@@ -84,7 +84,7 @@ function ArrayEmptyState({
   onAction: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-5 text-center transition-all duration-300 ease-out hover:border-sky-200 hover:bg-sky-50/55">
+    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/80 p-4 text-center transition-all duration-300 ease-out hover:border-sky-200 hover:bg-sky-50/60">
       <p className="text-sm font-semibold tracking-tight text-slate-800">{title}</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-500">{description}</p>
       <Button type="button" variant="outline" size="sm" className="mt-3 transition-all duration-200 hover:-translate-y-0.5" onClick={onAction}>
@@ -446,9 +446,9 @@ function ResumeEditorComponent({ data, onChange }: Props) {
   const stepContent = useMemo(() => {
     if (currentStep === 0) {
       return (
-        <div className="space-y-4">
-          <div className="grid gap-4 xl:grid-cols-[116px_minmax(0,1fr)]">
-            <div className="space-y-3">
+        <div className="space-y-3">
+          <div className="grid gap-3 xl:grid-cols-[108px_minmax(0,1fr)]">
+            <div className="space-y-2">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                 {data.personal.photoUrl ? (
                   <div className="relative aspect-square w-full">
@@ -466,7 +466,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                   </div>
                 )}
               </div>
-              <label className="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50">
+              <label className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-700 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50">
                 <Upload className="size-3.5" />
                 Upload
                 <input
@@ -492,14 +492,14 @@ function ResumeEditorComponent({ data, onChange }: Props) {
               ) : null}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2 space-y-1.5">
                 <FieldLabel>Full Name</FieldLabel>
                 <Input
                   value={data.personal.fullName}
                   onChange={(event) => setPersonal({ fullName: event.target.value })}
                   placeholder="Jordan Lee"
-                  className="h-11 rounded-xl border-slate-200 bg-white text-[15px]"
+                  className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                 />
               </div>
               <div className="space-y-1.5">
@@ -509,7 +509,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                   value={data.personal.email}
                   onChange={(event) => setPersonal({ email: event.target.value })}
                   placeholder="you@email.com"
-                  className="h-11 rounded-xl border-slate-200 bg-white text-[15px]"
+                  className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                 />
               </div>
               <div className="space-y-1.5">
@@ -518,7 +518,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                   value={data.personal.phone}
                   onChange={(event) => setPersonal({ phone: event.target.value })}
                   placeholder="+1 555 0100"
-                  className="h-11 rounded-xl border-slate-200 bg-white text-[15px]"
+                  className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                 />
               </div>
               <div className="sm:col-span-2 space-y-1.5">
@@ -527,13 +527,13 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                   value={data.personal.location}
                   onChange={(event) => setPersonal({ location: event.target.value })}
                   placeholder="San Francisco, CA"
-                  className="h-11 rounded-xl border-slate-200 bg-white text-[15px]"
+                  className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                 />
               </div>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <FieldLabel>Links</FieldLabel>
               <Button type="button" variant="ghost" size="sm" onClick={addLink}>
@@ -550,30 +550,33 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                 onAction={addLink}
               />
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {data.personal.links.map((link, index) => (
-                  <div key={`${link.label}-${index}`} className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:grid-cols-[1fr_1.5fr_auto]">
+                  <div
+                    key={`${link.label}-${index}`}
+                    className="grid items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/90 p-2 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)_auto]"
+                  >
                     <Input
                       value={link.label}
                       placeholder="LinkedIn"
                       onChange={(event) => updateLink(index, { label: event.target.value })}
-                      className="h-10 rounded-lg border-slate-200 bg-white"
+                      className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                     />
                     <Input
                       value={link.url}
                       placeholder="https://..."
                       onChange={(event) => updateLink(index, { url: event.target.value })}
-                      className="h-10 rounded-lg border-slate-200 bg-white"
+                      className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="justify-center text-slate-500 hover:bg-red-50 hover:text-red-600"
+                      className="h-9 w-9 justify-center self-center p-0 text-slate-500 hover:bg-red-50 hover:text-red-600"
                       onClick={() => removeLink(index)}
                     >
                       <Trash2 className="size-3.5" />
-                      Remove
+                      <span className="sr-only">Remove link</span>
                     </Button>
                   </div>
                 ))}
@@ -589,7 +592,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
         <div className="space-y-1.5">
           <FieldLabel>Professional Summary</FieldLabel>
           <TextArea
-            rows={7}
+            rows={5}
             value={data.summary}
             onChange={(event) => setSummary(event.target.value)}
             placeholder="Two to three sentences that capture your strengths, expertise, and what roles you are targeting."
@@ -600,7 +603,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
 
     if (currentStep === 2) {
       return (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-end">
             <Button type="button" variant="outline" size="sm" onClick={addExperience}>
               <Plus className="size-3.5" />
@@ -616,11 +619,11 @@ function ResumeEditorComponent({ data, onChange }: Props) {
               onAction={addExperience}
             />
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {data.experience.map((job, experienceIndex) => (
                 <div
                   key={job.id ?? `experience-${experienceIndex}`}
-                  className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+                  className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/85 p-3"
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold tracking-tight text-slate-800">
@@ -645,7 +648,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                         value={job.role}
                         onChange={(event) => updateExperience(experienceIndex, { role: event.target.value })}
                         placeholder="Senior Product Designer"
-                        className="h-11 rounded-xl border-slate-200 bg-white"
+                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                       />
                     </div>
                     <div className="sm:col-span-2 space-y-1.5">
@@ -654,7 +657,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                         value={job.company}
                         onChange={(event) => updateExperience(experienceIndex, { company: event.target.value })}
                         placeholder="Acme Inc."
-                        className="h-11 rounded-xl border-slate-200 bg-white"
+                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -663,7 +666,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                         value={job.start}
                         onChange={(event) => updateExperience(experienceIndex, { start: event.target.value })}
                         placeholder="2022"
-                        className="h-11 rounded-xl border-slate-200 bg-white"
+                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -672,7 +675,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                         value={job.end}
                         onChange={(event) => updateExperience(experienceIndex, { end: event.target.value })}
                         placeholder="Present"
-                        className="h-11 rounded-xl border-slate-200 bg-white"
+                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                       />
                     </div>
                   </div>
@@ -692,12 +695,12 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                     </div>
                     <div className="space-y-2">
                       {job.bullets.map((bullet, bulletIndex) => (
-                        <div key={`${job.id ?? experienceIndex}-bullet-${bulletIndex}`} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <div key={`${job.id ?? experienceIndex}-bullet-${bulletIndex}`} className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto]">
                           <TextArea
                             rows={2}
                             value={bullet}
                             onChange={(event) => updateBullet(experienceIndex, bulletIndex, event.target.value)}
-                            className="min-h-20 rounded-lg"
+                            className="min-h-16 rounded-lg"
                             placeholder="Improved conversion by 28% by redesigning onboarding and reducing friction in first-run tasks."
                           />
                           <Button
@@ -724,7 +727,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
 
     if (currentStep === 3) {
       return (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-end">
             <Button type="button" variant="outline" size="sm" onClick={addEducation}>
               <Plus className="size-3.5" />
@@ -740,11 +743,11 @@ function ResumeEditorComponent({ data, onChange }: Props) {
               onAction={addEducation}
             />
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {data.education.map((entry, educationIndex) => (
                 <div
                   key={entry.id ?? `education-${educationIndex}`}
-                  className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+                  className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/85 p-3"
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold tracking-tight text-slate-800">
@@ -769,7 +772,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                         value={entry.school}
                         onChange={(event) => updateEducation(educationIndex, { school: event.target.value })}
                         placeholder="University of California, Berkeley"
-                        className="h-11 rounded-xl border-slate-200 bg-white"
+                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                       />
                     </div>
                     <div className="sm:col-span-2 space-y-1.5">
@@ -778,7 +781,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                         value={entry.degree}
                         onChange={(event) => updateEducation(educationIndex, { degree: event.target.value })}
                         placeholder="B.S. Computer Science"
-                        className="h-11 rounded-xl border-slate-200 bg-white"
+                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -787,7 +790,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                         value={entry.start}
                         onChange={(event) => updateEducation(educationIndex, { start: event.target.value })}
                         placeholder="2018"
-                        className="h-11 rounded-xl border-slate-200 bg-white"
+                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -796,7 +799,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                         value={entry.end}
                         onChange={(event) => updateEducation(educationIndex, { end: event.target.value })}
                         placeholder="2022"
-                        className="h-11 rounded-xl border-slate-200 bg-white"
+                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                       />
                     </div>
                   </div>
@@ -809,7 +812,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center justify-end">
           <Button type="button" variant="outline" size="sm" onClick={addSkillCategory}>
             <Plus className="size-3.5" />
@@ -825,11 +828,11 @@ function ResumeEditorComponent({ data, onChange }: Props) {
             onAction={addSkillCategory}
           />
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {data.skills.map((category, categoryIndex) => (
               <div
                 key={category.id ?? `skills-${categoryIndex}`}
-                className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+                className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/85 p-3"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold tracking-tight text-slate-800">
@@ -853,7 +856,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                     value={category.category}
                     onChange={(event) => updateSkillCategory(categoryIndex, { category: event.target.value })}
                     placeholder="Frontend"
-                    className="h-11 rounded-xl border-slate-200 bg-white"
+                    className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                   />
                 </div>
 
@@ -880,7 +883,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                           value={item}
                           onChange={(event) => updateSkillItem(categoryIndex, itemIndex, event.target.value)}
                           placeholder="TypeScript"
-                          className="h-10 rounded-lg border-slate-200 bg-white"
+                          className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                         />
                         <Button
                           type="button"
@@ -933,8 +936,8 @@ function ResumeEditorComponent({ data, onChange }: Props) {
   ]);
 
   return (
-    <div className="space-y-4 pb-8 [&_[data-slot=button][data-size=sm]]:h-10 [&_[data-slot=button][data-size=sm]]:px-3.5 [&_[data-slot=button][data-size=sm]]:text-[13px] lg:[&_[data-slot=button][data-size=sm]]:h-7 lg:[&_[data-slot=button][data-size=sm]]:px-2.5 lg:[&_[data-slot=button][data-size=sm]]:text-[0.8rem]">
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="space-y-3 pb-5 [&_[data-slot=button][data-size=sm]]:h-9 [&_[data-slot=button][data-size=sm]]:px-3 [&_[data-slot=button][data-size=sm]]:text-[12px] lg:[&_[data-slot=button][data-size=sm]]:h-7 lg:[&_[data-slot=button][data-size=sm]]:px-2.5 lg:[&_[data-slot=button][data-size=sm]]:text-[0.8rem]">
+      <section className="rounded-2xl border border-slate-200/90 bg-slate-50/85 p-3.5 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
             Step {currentStep + 1} of {STEP_COUNT}
@@ -956,7 +959,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                 key={step.id}
                 type="button"
                 onClick={() => goToCompletedStep(index)}
-                className={`h-10 rounded-lg border text-center text-[11px] font-semibold transition ${
+                className={`h-9 rounded-lg border text-center text-[10px] font-semibold transition ${
                   isCurrent
                     ? "border-sky-300 bg-sky-50 text-sky-700"
                     : isDone
@@ -974,28 +977,28 @@ function ResumeEditorComponent({ data, onChange }: Props) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_22px_50px_-40px_rgba(15,23,42,0.68)]">
-        <div className="mb-5 flex items-start gap-3">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_18px_44px_-36px_rgba(15,23,42,0.68)]">
+        <div className="mb-4 flex items-start gap-2.5">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-700">
             <currentStepMeta.icon className="size-4" />
           </div>
           <div>
-            <h2 className="text-base font-semibold tracking-tight text-slate-900">{currentStepMeta.title}</h2>
-            <p className="mt-1 text-sm text-slate-500">{currentStepMeta.description}</p>
+            <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">{currentStepMeta.title}</h2>
+            <p className="mt-0.5 text-sm text-slate-500">{currentStepMeta.description}</p>
           </div>
         </div>
 
         {stepContent}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm">
         <div className="flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="outline"
             onClick={goBack}
             disabled={currentStep === 0}
-            className="h-11 min-w-24 rounded-xl"
+            className="h-10 min-w-24 rounded-xl"
           >
             <ArrowLeft className="size-4" />
             Back
@@ -1008,7 +1011,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
           <Button
             type="button"
             onClick={goNext}
-            className="h-11 min-w-24 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+            className="h-10 min-w-24 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
           >
             {currentStep === STEP_COUNT - 1 ? "Finish" : "Next"}
             {currentStep < STEP_COUNT - 1 ? <ArrowRight className="size-4" /> : null}

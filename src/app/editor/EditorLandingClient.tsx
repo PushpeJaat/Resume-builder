@@ -34,7 +34,7 @@ import {
   getTemplateMeta,
   TEMPLATES,
 } from "@/lib/templates/registry";
-import { emptyResumeData, type ResumeData } from "@/types/resume";
+import { demoResumeData, type ResumeData } from "@/types/resume";
 
 type ImportState = "idle" | "loading" | "success" | "error";
 type ActionState = "idle" | "saving" | "downloading";
@@ -48,8 +48,8 @@ export default function EditorLandingClient() {
   const initialTemplate = getTemplateMeta(rawTemplate) ? rawTemplate : DEFAULT_TEMPLATE_ID;
 
   const [templateId, setTemplateId] = useState(initialTemplate);
-  const [title, setTitle] = useState("My Resume");
-  const [data, setData] = useState<ResumeData>(emptyResumeData());
+  const [title, setTitle] = useState("Senior Product Designer Resume");
+  const [data, setData] = useState<ResumeData>(demoResumeData());
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [actionState, setActionState] = useState<ActionState>("idle");
@@ -248,7 +248,7 @@ export default function EditorLandingClient() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col gap-5 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+5.8rem)] lg:px-6 lg:pb-4">
+      <main className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col gap-4 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+5.8rem)] lg:px-6 lg:pb-4">
         <section
           role="button"
           tabIndex={0}
@@ -280,7 +280,7 @@ export default function EditorLandingClient() {
               void importResumeFile(file);
             }
           }}
-          className={`editor-fade-rise editor-fade-rise-delay-1 relative overflow-hidden rounded-2xl border px-4 py-3 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.55)] transition-all duration-300 ease-out ${
+          className={`editor-fade-rise editor-fade-rise-delay-1 relative overflow-hidden rounded-2xl border px-3.5 py-2.5 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.55)] transition-all duration-300 ease-out ${
             dragActive
               ? "border-sky-300 bg-sky-50 ring-2 ring-sky-100"
               : importState === "loading"

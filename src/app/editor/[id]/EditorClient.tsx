@@ -30,7 +30,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { TEMPLATES } from "@/lib/templates/registry";
-import { emptyResumeData, resumeDataSchema, type ResumeData } from "@/types/resume";
+import {
+  demoResumeData,
+  isResumeDataEmpty,
+  resumeDataSchema,
+  type ResumeData,
+} from "@/types/resume";
 
 type Props = { resumeId: string };
 
@@ -44,9 +49,9 @@ export function EditorClient({ resumeId }: Props) {
   const router = useRouter();
   const autoDownload = searchParams.get("autoDownload") === "1";
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState("Senior Product Designer Resume");
   const [templateId, setTemplateId] = useState("modern-professional");
-  const [data, setData] = useState<ResumeData>(emptyResumeData());
+  const [data, setData] = useState<ResumeData>(demoResumeData());
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -78,11 +83,17 @@ export function EditorClient({ resumeId }: Props) {
 
     const payload = await response.json();
     const resume = payload.resume;
-    setTitle(resume.title);
+    setTitle(
+      typeof resume.title === "string" && resume.title.trim().length > 0
+        ? resume.title
+        : "Senior Product Designer Resume",
+    );
     setTemplateId(resume.templateId);
 
     const parsed = resumeDataSchema.safeParse(resume.data);
-    setData(parsed.success ? parsed.data : emptyResumeData());
+    const nextData = parsed.success ? parsed.data : demoResumeData();
+    const shouldPrefillDemo = isResumeDataEmpty(nextData);
+    setData(shouldPrefillDemo ? demoResumeData() : nextData);
     setLoading(false);
   }, [resumeId]);
 
@@ -395,7 +406,7 @@ export function EditorClient({ resumeId }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col gap-5 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+5.8rem)] lg:px-6 lg:pb-4">
+      <main className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col gap-4 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+5.8rem)] lg:px-6 lg:pb-4">
         <section
           role="button"
           tabIndex={0}
@@ -427,7 +438,7 @@ export function EditorClient({ resumeId }: Props) {
               void importResumeFile(file);
             }
           }}
-          className={`editor-fade-rise editor-fade-rise-delay-1 relative overflow-hidden rounded-2xl border px-4 py-3 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.55)] transition-all duration-300 ease-out ${
+          className={`editor-fade-rise editor-fade-rise-delay-1 relative overflow-hidden rounded-2xl border px-3.5 py-2.5 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.55)] transition-all duration-300 ease-out ${
             dragActive
               ? "border-sky-300 bg-sky-50 ring-2 ring-sky-100"
               : importState === "loading"
