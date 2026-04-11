@@ -19,6 +19,8 @@ const MAX_RESUME_BYTES = 3 * 1024 * 1024;
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_GEMINI_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 2400;
+const RETRY_MIN_OUTPUT_TOKENS = 3800;
+const RETRY_TIMEOUT_BONUS_MS = 10000;
 
 const RESUME_RESPONSE_SCHEMA: ResponseSchema = {
   type: SchemaType.OBJECT,
@@ -85,6 +87,29 @@ const EXTRACTION_PROMPT = [
   "- Keep education and workExperience as arrays of objects.",
 ].join("\n");
 
+const COMPACT_EXTRACTION_PROMPT = [
+  "Extract resume information from this PDF and return JSON only.",
+  "Required fields:",
+  "- fullName: string",
+  "- email: string",
+  "- phone: string",
+  "- photoUrl: string",
+  "- summary: string",
+  "- skills: string[]",
+  "- education: object[]",
+  "- workExperience: object[]",
+  "Rules:",
+  "- Do not include markdown or code fences.",
+  "- If a value is missing, return empty string or empty array.",
+  "- Keep output compact for multi-page resumes:",
+  "  - summary max 90 words.",
+  "  - skills max 20 items.",
+  "  - education max 8 objects.",
+  "  - workExperience max 8 objects.",
+  "  - bullets max 4 items per role and 20 words per bullet.",
+  "- Prefer the most recent and most relevant entries when trimming.",
+].join("\n");
+
 export async function POST(req: Request) {
   const formData = await req.formData().catch(() => null);
   const resume = formData?.get("resume");
@@ -132,45 +157,81 @@ export async function POST(req: Request) {
     const modelName = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
     const geminiTimeoutMs = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, DEFAULT_GEMINI_TIMEOUT_MS);
     const maxOutputTokens = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS);
+    const retryOutputTokens = Math.max(maxOutputTokens, RETRY_MIN_OUTPUT_TOKENS);
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: modelName });
 
-    const result = await withTimeout(
-      model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: EXTRACTION_PROMPT },
+    const attempts = [
+      {
+        prompt: EXTRACTION_PROMPT,
+        outputTokens: maxOutputTokens,
+        timeoutMs: geminiTimeoutMs,
+        timeoutMessage: "Gemini extraction timed out. Try a smaller file.",
+      },
+      {
+        prompt: COMPACT_EXTRACTION_PROMPT,
+        outputTokens: retryOutputTokens,
+        timeoutMs: geminiTimeoutMs + RETRY_TIMEOUT_BONUS_MS,
+        timeoutMessage: "Gemini extraction timed out while retrying a compact pass.",
+      },
+    ] as const;
+
+    let parsed: unknown | null = null;
+    let lastAttemptMessage = "Gemini returned invalid JSON.";
+
+    for (const attempt of attempts) {
+      try {
+        const result = await withTimeout(
+          model.generateContent({
+            contents: [
               {
-                inlineData: {
-                  data: base64Pdf,
-                  mimeType: "application/pdf",
-                },
+                role: "user",
+                parts: [
+                  { text: attempt.prompt },
+                  {
+                    inlineData: {
+                      data: base64Pdf,
+                      mimeType: "application/pdf",
+                    },
+                  },
+                ],
               },
             ],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: RESUME_RESPONSE_SCHEMA,
-          temperature: 0,
-          maxOutputTokens,
-        },
-      }),
-      geminiTimeoutMs,
-      "Gemini extraction timed out. Try a smaller file.",
-    );
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: RESUME_RESPONSE_SCHEMA,
+              temperature: 0,
+              maxOutputTokens: attempt.outputTokens,
+            },
+          }),
+          attempt.timeoutMs,
+          attempt.timeoutMessage,
+        );
 
-    const rawText = result.response.text();
-    if (!rawText) {
-      throw new Error("Gemini returned an empty response.");
+        const rawText = result.response.text();
+        if (!rawText) {
+          lastAttemptMessage = "Gemini returned an empty response.";
+          continue;
+        }
+
+        parsed = parseGeminiJson(rawText);
+        if (parsed) {
+          break;
+        }
+
+        lastAttemptMessage = "Gemini returned invalid JSON.";
+      } catch (error) {
+        lastAttemptMessage = error instanceof Error ? error.message : "Gemini extraction failed.";
+      }
     }
 
-    const parsed = parseGeminiJson(rawText);
     if (!parsed) {
-      throw new Error("Gemini returned invalid JSON. Please retry with a smaller/cleaner PDF.");
+      if (/timed out/i.test(lastAttemptMessage)) {
+        throw new Error(lastAttemptMessage);
+      }
+
+      throw new Error("Gemini could not format this multi-page resume as valid JSON. Please retry with a cleaner text-based PDF.");
     }
 
     extractedResume = normalizeExtractedResume(parsed);
