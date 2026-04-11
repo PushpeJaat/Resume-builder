@@ -36,13 +36,18 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
-  await prisma.downloadHistory.create({
-    data: {
-      userId: session.user.id,
-      resumeId: id,
-      templateId: resume.templateId,
-    },
-  });
+  try {
+    await prisma.downloadHistory.create({
+      data: {
+        userId: session.user.id,
+        resumeId: id,
+        templateId: resume.templateId,
+      },
+    });
+  } catch (error) {
+    // Download should still succeed even if analytics/history persistence fails.
+    console.error("Failed to record download history", error);
+  }
 
   const safeName = resume.title.replace(/[^\w\s-]/g, "").trim().slice(0, 80) || "resume";
 

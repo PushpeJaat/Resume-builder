@@ -1,5 +1,4 @@
 import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
 import { z } from "zod";
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { emptyResumeData, type ResumeData } from "@/types/resume";
@@ -111,9 +110,23 @@ async function extractResumeText(file: File): Promise<string> {
   const extension = getFileExtension(file.name);
 
   if (extension === "pdf") {
-    let parser: PDFParse | null = null;
+    type PdfParserInstance = {
+      getText: () => Promise<{ text?: string | null }>;
+      destroy: () => Promise<void>;
+    };
+
+    let parser: PdfParserInstance | null = null;
     try {
-      parser = new PDFParse({ data: buffer });
+      // Load only when needed so non-PDF imports avoid initializing the parser.
+      const pdfParseModule = await import("pdf-parse");
+      const PDFParseCtor = (pdfParseModule as { PDFParse?: new (args: { data: Buffer }) => PdfParserInstance })
+        .PDFParse;
+
+      if (!PDFParseCtor) {
+        throw new Error("PDF parser is unavailable on this server runtime.");
+      }
+
+      parser = new PDFParseCtor({ data: buffer });
       const result = await parser.getText();
       return result.text ?? "";
     } catch {
