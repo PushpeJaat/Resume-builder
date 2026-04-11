@@ -138,14 +138,14 @@ export default function HomePage() {
             <p className="mt-1 text-sm text-slate-500">Modern resume building for fast-moving careers.</p>
           </div>
           <div className="flex flex-wrap gap-6 text-sm text-slate-500">
-            <Link href="/about" className="transition hover:text-slate-950">
-              About
+            <Link href="/contact-us" className="transition hover:text-slate-950">
+              Contact Us
             </Link>
-            <Link href="/contact" className="transition hover:text-slate-950">
-              Contact
+            <Link href="/terms-and-conditions" className="transition hover:text-slate-950">
+              Terms &amp; Conditions
             </Link>
-            <Link href="/privacy" className="transition hover:text-slate-950">
-              Privacy
+            <Link href="/refunds-cancellations" className="transition hover:text-slate-950">
+              Refunds &amp; Cancellations
             </Link>
           </div>
         </div>

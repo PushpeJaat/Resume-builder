@@ -13,15 +13,37 @@ type DownloadRow = {
   resumeTitle: string;
   resumeId: string;
 };
+type AdminPaymentRow = {
+  id: string;
+  provider: string;
+  orderId: string;
+  status: "CREATED" | "PAID" | "FAILED" | "CANCELLED" | "EXPIRED";
+  providerStatus: string | null;
+  amountInPaise: number;
+  currency: string;
+  createdAt: string;
+  paymentConfirmedAt: string | null;
+  resumeId: string;
+  resumeTitle: string;
+  resumeTemplateId: string;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+};
 
 export default function DashboardPage() {
   const [resumes, setResumes] = useState<ResumeRow[]>([]);
   const [downloads, setDownloads] = useState<DownloadRow[]>([]);
+  const [adminPayments, setAdminPayments] = useState<AdminPaymentRow[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [r1, r2] = await Promise.all([fetch("/api/resumes"), fetch("/api/downloads")]);
+    const [r1, r2, r3] = await Promise.all([
+      fetch("/api/resumes"),
+      fetch("/api/downloads"),
+      fetch("/api/admin/payments", { cache: "no-store" }),
+    ]);
     if (r1.ok) {
       const j = await r1.json();
       setResumes(j.resumes);
@@ -29,6 +51,12 @@ export default function DashboardPage() {
     if (r2.ok) {
       const j = await r2.json();
       setDownloads(j.downloads);
+    }
+    if (r3.ok) {
+      const j = await r3.json();
+      setAdminPayments(j.payments as AdminPaymentRow[]);
+    } else {
+      setAdminPayments(null);
     }
     setLoading(false);
   }, []);
@@ -57,6 +85,14 @@ export default function DashboardPage() {
       .sort((a, b) => b - a)[0];
     return new Date(latest).toLocaleDateString();
   }, [resumes]);
+
+  function statusBadgeClass(status: AdminPaymentRow["status"]): string {
+    if (status === "PAID") return "border-emerald-300/40 bg-emerald-500/15 text-emerald-200";
+    if (status === "FAILED") return "border-red-300/35 bg-red-500/15 text-red-200";
+    if (status === "CANCELLED") return "border-rose-300/35 bg-rose-500/15 text-rose-200";
+    if (status === "EXPIRED") return "border-amber-300/35 bg-amber-500/15 text-amber-200";
+    return "border-sky-300/35 bg-sky-500/15 text-sky-200";
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -209,6 +245,85 @@ export default function DashboardPage() {
             )}
           </section>
         </div>
+
+        {adminPayments !== null ? (
+          <section className="mt-8 rounded-[24px] border border-cyan-300/20 bg-white/[0.04] shadow-2xl shadow-black/20">
+            <div className="border-b border-cyan-200/15 px-5 py-4 sm:px-6">
+              <p className="inline-flex rounded-full border border-cyan-300/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
+                Admin
+              </p>
+              <h2 className="mt-3 text-base font-semibold text-white">Payment orders</h2>
+              <p className="mt-1 text-sm text-slate-400">Status by resume and customer (latest 120 orders).</p>
+            </div>
+
+            {adminPayments.length === 0 ? (
+              <div className="p-6">
+                <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-6 text-center">
+                  <p className="text-sm font-medium text-white">No payment orders yet</p>
+                  <p className="mt-1 text-xs text-slate-400">Orders will appear here after checkout is started.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm text-slate-200">
+                  <thead className="border-b border-white/10 bg-white/[0.03] text-[11px] uppercase tracking-[0.15em] text-slate-400">
+                    <tr>
+                      <th className="px-5 py-3 font-semibold">Order</th>
+                      <th className="px-5 py-3 font-semibold">Customer</th>
+                      <th className="px-5 py-3 font-semibold">Resume</th>
+                      <th className="px-5 py-3 font-semibold">Amount</th>
+                      <th className="px-5 py-3 font-semibold">Status</th>
+                      <th className="px-5 py-3 font-semibold">Created</th>
+                      <th className="px-5 py-3 font-semibold">Paid at</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    {adminPayments.map((payment) => (
+                      <tr key={payment.id}>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <p className="font-semibold text-white">{payment.orderId}</p>
+                          <p className="mt-1 text-xs text-slate-400">{payment.provider.toUpperCase()}</p>
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <p className="text-sm text-white">{payment.userName || "-"}</p>
+                          <p className="mt-1 text-xs text-slate-400">{payment.userEmail}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <Link href={`/editor/${payment.resumeId}`} className="font-semibold text-sky-300 transition hover:text-sky-200">
+                            {payment.resumeTitle}
+                          </Link>
+                          <p className="mt-1 text-xs text-slate-400">{payment.resumeTemplateId}</p>
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          {(payment.amountInPaise / 100).toLocaleString("en-IN", {
+                            style: "currency",
+                            currency: payment.currency,
+                          })}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${statusBadgeClass(payment.status)}`}>
+                            {payment.status}
+                          </span>
+                          {payment.providerStatus ? (
+                            <p className="mt-1 text-[11px] text-slate-400">Gateway: {payment.providerStatus}</p>
+                          ) : null}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-300">
+                          {new Date(payment.createdAt).toLocaleString()}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-300">
+                          {payment.paymentConfirmedAt
+                            ? new Date(payment.paymentConfirmedAt).toLocaleString()
+                            : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        ) : null}
       </main>
     </div>
   );

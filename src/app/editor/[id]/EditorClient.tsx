@@ -43,6 +43,18 @@ type Props = { resumeId: string };
 type SaveState = "idle" | "saving" | "saved" | "error";
 type PdfState = "idle" | "loading" | "error";
 type ImportState = "idle" | "loading" | "success" | "error";
+type PaymentState = "idle" | "creating-order" | "checkout" | "verifying";
+
+type CashfreeCheckoutMode = "sandbox" | "production";
+type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
+  checkout: (payload: { paymentSessionId: string; redirectTarget?: "_self" | "_blank" | "_modal" }) => Promise<unknown>;
+};
+
+declare global {
+  interface Window {
+    Cashfree?: CashfreeCheckoutFactory;
+  }
+}
 
 export function EditorClient({ resumeId }: Props) {
   const { data: session, status } = useSession();
@@ -59,6 +71,7 @@ export function EditorClient({ resumeId }: Props) {
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [pdfState, setPdfState] = useState<PdfState>("idle");
+  const [paymentState, setPaymentState] = useState<PaymentState>("idle");
 
   const [importState, setImportState] = useState<ImportState>("idle");
   const [importError, setImportError] = useState("");
@@ -68,6 +81,23 @@ export function EditorClient({ resumeId }: Props) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const isLoggedIn = Boolean(session?.user?.id);
+  const showDevBypass = process.env.NODE_ENV !== "production";
+  const isDownloadBusy =
+    pdfState === "loading" ||
+    paymentState === "creating-order" ||
+    paymentState === "checkout" ||
+    paymentState === "verifying";
+
+  const downloadLabel =
+    paymentState === "creating-order"
+      ? "Starting payment"
+      : paymentState === "checkout"
+        ? "Opening payment"
+        : paymentState === "verifying"
+          ? "Verifying payment"
+          : pdfState === "loading"
+            ? "Generating"
+            : "Download PDF";
 
   const loadResume = useCallback(async () => {
     setLoading(true);
@@ -170,33 +200,179 @@ export function EditorClient({ resumeId }: Props) {
     toast.success("Changes saved.");
   }, [data, isLoggedIn, persist, templateId, title]);
 
+  const loadCashfreeSdk = useCallback(async (): Promise<CashfreeCheckoutFactory> => {
+    if (typeof window === "undefined") {
+      throw new Error("Cashfree checkout is only available in browser.");
+    }
+
+    if (window.Cashfree) {
+      return window.Cashfree;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector<HTMLScriptElement>("script[data-cashfree-sdk='true']");
+
+      if (existing) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Could not load Cashfree SDK.")), {
+          once: true,
+        });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+      script.async = true;
+      script.dataset.cashfreeSdk = "true";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Could not load Cashfree SDK."));
+      document.body.appendChild(script);
+    });
+
+    if (!window.Cashfree) {
+      throw new Error("Cashfree SDK is unavailable.");
+    }
+
+    return window.Cashfree;
+  }, []);
+
+  const generatePdf = useCallback(
+    async (devBypass = false) => {
+      setPdfState("loading");
+
+      const endpoint = devBypass
+        ? `/api/resumes/${resumeId}/pdf?devBypass=1`
+        : `/api/resumes/${resumeId}/pdf`;
+      const response = await fetch(endpoint, { method: "POST" });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        setPdfState("error");
+        toast.error((payload?.error as string) || "Could not generate PDF.");
+        return false;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${title.replace(/[^\w\s-]/g, "").trim() || "resume"}.pdf`;
+      anchor.click();
+
+      URL.revokeObjectURL(url);
+      setPdfState("idle");
+      toast.success("Resume downloaded.");
+      return true;
+    },
+    [resumeId, title],
+  );
+
   const downloadPdf = useCallback(async () => {
     if (!isLoggedIn) {
       setShowAuthModal(true);
       return;
     }
 
-    setPdfState("loading");
-    const response = await fetch(`/api/resumes/${resumeId}/pdf`, { method: "POST" });
+    setPaymentState("creating-order");
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      setPdfState("error");
-      toast.error((payload?.error as string) || "Could not generate PDF.");
+    type CreateOrderResponse = {
+      alreadyPaid?: boolean;
+      orderId?: string;
+      paymentSessionId?: string;
+      mode?: CashfreeCheckoutMode;
+      error?: string;
+    };
+
+    type VerifyOrderResponse = {
+      paid?: boolean;
+      orderStatus?: string;
+      error?: string;
+    };
+
+    try {
+      const orderResponse = await fetch("/api/payments/cashfree/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeId }),
+      });
+
+      const orderPayload = (await orderResponse.json().catch(() => null)) as CreateOrderResponse | null;
+
+      if (!orderResponse.ok) {
+        setPaymentState("idle");
+        toast.error(orderPayload?.error || "Could not create payment order.");
+        return;
+      }
+
+      if (orderPayload?.alreadyPaid) {
+        setPaymentState("idle");
+        void generatePdf(false);
+        return;
+      }
+
+      if (!orderPayload?.paymentSessionId || !orderPayload.orderId) {
+        setPaymentState("idle");
+        toast.error("Payment session is missing. Please try again.");
+        return;
+      }
+
+      const mode = orderPayload.mode === "production" ? "production" : "sandbox";
+      const cashfreeFactory = await loadCashfreeSdk();
+      const cashfree = cashfreeFactory({ mode });
+
+      setPaymentState("checkout");
+      await cashfree.checkout({
+        paymentSessionId: orderPayload.paymentSessionId,
+        redirectTarget: "_modal",
+      });
+
+      setPaymentState("verifying");
+
+      const verifyResponse = await fetch("/api/payments/cashfree/verify-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resumeId,
+          orderId: orderPayload.orderId,
+        }),
+      });
+
+      const verifyPayload = (await verifyResponse.json().catch(() => null)) as VerifyOrderResponse | null;
+
+      if (!verifyResponse.ok) {
+        setPaymentState("idle");
+        toast.error(verifyPayload?.error || "Could not verify payment.");
+        return;
+      }
+
+      if (!verifyPayload?.paid) {
+        setPaymentState("idle");
+        toast.info("Payment is not completed yet. Please complete the checkout to download.");
+        return;
+      }
+
+      toast.success("Payment successful. Preparing your PDF...");
+      setPaymentState("idle");
+      void generatePdf(false);
+    } catch (error) {
+      setPaymentState("idle");
+      const message = error instanceof Error ? error.message : "Payment failed. Please try again.";
+      toast.error(message);
+    }
+  }, [generatePdf, isLoggedIn, loadCashfreeSdk, resumeId]);
+
+  const downloadPdfDevBypass = useCallback(async () => {
+    if (!isLoggedIn) {
+      setShowAuthModal(true);
       return;
     }
 
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${title.replace(/[^\w\s-]/g, "").trim() || "resume"}.pdf`;
-    anchor.click();
+    if (!showDevBypass) {
+      return;
+    }
 
-    URL.revokeObjectURL(url);
-    setPdfState("idle");
-    toast.success("Resume downloaded.");
-  }, [isLoggedIn, resumeId, title]);
+    void generatePdf(true);
+  }, [generatePdf, isLoggedIn, showDevBypass]);
 
   const autoDownloadFiredRef = useRef(false);
 
@@ -331,13 +507,13 @@ export function EditorClient({ resumeId }: Props) {
 
           <Button
             onClick={() => void downloadPdf()}
-            disabled={pdfState === "loading"}
+            disabled={isDownloadBusy}
             className="hidden rounded-xl bg-slate-900 text-white shadow-[0_20px_45px_-30px_rgba(15,23,42,0.8)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_28px_52px_-30px_rgba(15,23,42,0.84)] lg:inline-flex"
           >
-            {pdfState === "loading" ? (
+            {isDownloadBusy ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Generating
+                {downloadLabel}
               </>
             ) : (
               <>
@@ -346,6 +522,17 @@ export function EditorClient({ resumeId }: Props) {
               </>
             )}
           </Button>
+
+          {showDevBypass ? (
+            <Button
+              variant="outline"
+              onClick={() => void downloadPdfDevBypass()}
+              disabled={isDownloadBusy}
+              className="hidden rounded-xl border-amber-300 bg-amber-50 text-amber-800 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-400 hover:bg-amber-100 lg:inline-flex"
+            >
+              Direct Download (Dev)
+            </Button>
+          ) : null}
         </div>
 
         <div className="mx-auto grid w-full max-w-[1600px] gap-3 px-4 pb-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:px-6">
@@ -506,13 +693,13 @@ export function EditorClient({ resumeId }: Props) {
           ) : null}
           <Button
             onClick={() => void downloadPdf()}
-            disabled={pdfState === "loading"}
+            disabled={isDownloadBusy}
             className="h-12 flex-1 rounded-xl bg-slate-900 text-white shadow-[0_18px_32px_-24px_rgba(15,23,42,0.8)]"
           >
-            {pdfState === "loading" ? (
+            {isDownloadBusy ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Generating
+                {downloadLabel}
               </>
             ) : (
               <>
@@ -522,6 +709,16 @@ export function EditorClient({ resumeId }: Props) {
             )}
           </Button>
         </div>
+        {showDevBypass ? (
+          <Button
+            variant="outline"
+            onClick={() => void downloadPdfDevBypass()}
+            disabled={isDownloadBusy}
+            className="mt-2 h-10 w-full rounded-xl border-amber-300 bg-amber-50 text-amber-800"
+          >
+            Direct Download (Dev)
+          </Button>
+        ) : null}
       </div>
 
       <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
@@ -530,7 +727,7 @@ export function EditorClient({ resumeId }: Props) {
             <DialogHeader>
               <DialogTitle>Sign in to download PDF</DialogTitle>
               <DialogDescription>
-                Create a free account to export and keep your resume synced.
+                Create a free account to export, complete secure payment, and keep your resume synced.
               </DialogDescription>
             </DialogHeader>
           </div>

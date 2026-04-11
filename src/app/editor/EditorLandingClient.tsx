@@ -114,7 +114,7 @@ export default function EditorLandingClient() {
         }
 
         setShowAuthModal(true);
-        toast.info("Create a free account to save and download.");
+        toast.info("Create a free account to save and proceed to secure payment for download.");
         return;
       }
 

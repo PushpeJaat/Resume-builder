@@ -244,7 +244,15 @@ export default function SignupPage() {
                   className="mt-0.5 h-4 w-4 rounded border-slate-300 bg-white text-indigo-600"
                 />
                 <span>
-                  I agree to the terms and privacy policy. By creating an account, I can access resume history and account settings.
+                  I agree to the{" "}
+                  <Link href="/terms-and-conditions" className="font-semibold text-indigo-600 hover:text-indigo-500">
+                    Terms &amp; Conditions
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/refunds-cancellations" className="font-semibold text-indigo-600 hover:text-indigo-500">
+                    Refunds &amp; Cancellations
+                  </Link>
+                  . By creating an account, I can access resume history and account settings.
                 </span>
               </label>
 

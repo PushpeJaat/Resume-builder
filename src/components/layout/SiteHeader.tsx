@@ -31,6 +31,7 @@ export function SiteHeader({ theme = "light" }: Props) {
           <Link href="/" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60")}>Home</Link>
           <Link href="/dashboard/templates" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60")}>Templates</Link>
           <Link href="/blog" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60")}>Blog</Link>
+          <Link href="/contact-us" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60")}>Contact</Link>
           <div className={cn("h-6 w-px", dark ? "bg-white/12" : "bg-slate-200")} />
           {status === "loading" ? (
             <div className="h-9 w-20 animate-pulse rounded-lg bg-current opacity-10" />
@@ -83,6 +84,7 @@ export function SiteHeader({ theme = "light" }: Props) {
             <Link href="/" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Home</Link>
             <Link href="/dashboard/templates" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Templates</Link>
             <Link href="/blog" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Blog</Link>
+            <Link href="/contact-us" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Contact</Link>
             <div className={cn("my-1 h-px", dark ? "bg-white/10" : "bg-slate-200")} />
             {isLoggedIn ? (
               <>

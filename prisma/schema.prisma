@@ -11,6 +11,14 @@ enum Plan {
   PREMIUM
 }
 
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
 model User {
   id           String            @id @default(cuid())
   email        String            @unique
@@ -21,6 +29,7 @@ model User {
   updatedAt    DateTime          @updatedAt
   resumes      Resume[]
   downloads    DownloadHistory[]
+  payments     PaymentOrder[]
 }
 
 model Resume {
@@ -33,6 +42,7 @@ model Resume {
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
   downloads  DownloadHistory[]
+  payments   PaymentOrder[]
 
   @@index([userId])
 }
@@ -48,6 +58,29 @@ model DownloadHistory {
 
   @@index([userId])
   @@index([resumeId])
+}
+
+model PaymentOrder {
+  id                    String        @id @default(cuid())
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeId              String
+  resume                Resume        @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  provider              String        @default("cashfree")
+  providerOrderId       String        @unique
+  paymentSessionId      String
+  amountInPaise         Int
+  currency              String        @default("INR")
+  status                PaymentStatus @default(CREATED)
+  cashfreeOrderStatus   String?
+  paymentConfirmedAt    DateTime?
+  metadata              Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([resumeId])
+  @@index([status])
 }
 
 model ExtractedResume {

@@ -151,7 +151,8 @@ export default async function TemplatePreviewPage({
 
               <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-6">
                 <p className="text-sm text-sky-100">
-                  <strong>Note:</strong> You can start editing immediately. Create a free account only when you want to download the PDF and store it in your workspace.
+                  <strong>Note:</strong> You can start editing immediately. Create a free account when you want to
+                  export the PDF, then complete secure payment to download.
                 </p>
               </div>
             </section>

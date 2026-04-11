@@ -9,7 +9,7 @@ import { assertResumeOwner } from "@/lib/resume-access";
 
 export const runtime = "nodejs";
 
-export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -18,6 +18,28 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const { error, resume } = await assertResumeOwner(id, session.user.id);
   if (error || !resume) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const reqUrl = new URL(req.url);
+  const devBypass =
+    process.env.NODE_ENV !== "production" && reqUrl.searchParams.get("devBypass") === "1";
+
+  if (!devBypass) {
+    const paidOrder = await prisma.paymentOrder.findFirst({
+      where: {
+        userId: session.user.id,
+        resumeId: id,
+        status: "PAID",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!paidOrder) {
+      return NextResponse.json(
+        { error: "Payment required. Complete payment to download this resume." },
+        { status: 402 },
+      );
+    }
   }
 
   const parsed = resumeDataSchema.safeParse(resume.data);

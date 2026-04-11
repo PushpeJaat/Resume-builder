@@ -87,7 +87,7 @@ export function TemplatePreviewClient({
               </div>
               <h2 className="text-2xl font-bold text-slate-900 mb-2">Sign In to Download</h2>
               <p className="text-slate-600 mb-6">
-                Create a free account to download your resume as PDF and save your data securely.
+                Create a free account, then complete secure payment to download your resume PDF and save your data.
               </p>
               <div className="space-y-3">
                 <Link

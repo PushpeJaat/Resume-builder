@@ -13,10 +13,10 @@ export default function PricingPage() {
               Simple pricing
             </p>
             <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
-              Completely Free
+              Transparent Download Pricing
             </h1>
             <p className="mx-auto max-w-2xl text-lg text-slate-300">
-              Build, edit, and download professional resumes at no cost. Just create a free account to export your PDF.
+              Build and edit your resume for free. Secure payment is requested only when you export the final PDF.
             </p>
           </div>
 
@@ -24,7 +24,8 @@ export default function PricingPage() {
             <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/25">
               <h2 className="text-2xl font-semibold text-white">Everything included</h2>
               <p className="mt-2 max-w-2xl text-sm text-slate-300">
-                CVpilot keeps the product simple: one free workspace, all templates unlocked, and account creation only when you want secure exports and saved history.
+                CVpilot keeps the product simple: one workspace, all templates unlocked, and account creation only when
+                you want secure exports and saved history.
               </p>
               <ul className="mt-8 grid gap-3 sm:grid-cols-2">
                 {[
@@ -51,13 +52,14 @@ export default function PricingPage() {
               <div className="text-center">
                 <h3 className="text-xl font-semibold text-white mb-2">Free Plan</h3>
                 <div className="text-4xl font-bold text-white mb-4">$0</div>
-                <p className="text-slate-300 mb-6">Everything you need to build a great resume</p>
+                <p className="text-slate-300 mb-6">Build and edit at no charge</p>
               </div>
               <ul className="space-y-3 mb-8">
                 {[
                   "Start editing without sign in",
-                  "Create account only to export",
+                  "Create account to save and export",
                   "Save resumes to your workspace",
+                  "Secure payment before PDF download",
                   "Modern ATS-ready designs",
                 ].map((feature) => (
                   <li key={feature} className="flex items-center gap-3">
