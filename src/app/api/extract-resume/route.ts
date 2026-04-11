@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   }
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!geminiApiKey) {
@@ -118,13 +118,10 @@ export async function POST(req: Request) {
       .insert([{ extracted_data: extractedResume, source_file_name: resume.name }]);
 
     if (primaryInsert.error) {
-      const fallbackInsert = await supabase.from("extracted_resumes").insert([extractedResume]);
-      if (fallbackInsert.error) {
-        throw fallbackInsert.error;
-      }
+      throw primaryInsert.error;
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to save extracted resume.";
+    const message = getErrorMessage(error, "Failed to save extracted resume.");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
@@ -211,4 +208,23 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asString(value: unknown) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const record = error as Record<string, unknown>;
+    const parts = [record.message, record.details, record.hint]
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .filter(Boolean);
+
+    if (parts.length > 0) {
+      return parts.join(" ");
+    }
+  }
+
+  return fallback;
 }
