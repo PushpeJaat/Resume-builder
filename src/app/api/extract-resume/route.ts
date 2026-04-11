@@ -1,8 +1,4 @@
-import {
-  GoogleGenerativeAI,
-  SchemaType,
-  type ResponseSchema,
-} from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -24,35 +20,6 @@ const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_GEMINI_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1200;
 
-const EXTRACTED_RESUME_RESPONSE_SCHEMA: ResponseSchema = {
-  type: SchemaType.OBJECT,
-  properties: {
-    fullName: { type: SchemaType.STRING },
-    email: { type: SchemaType.STRING },
-    phone: { type: SchemaType.STRING },
-    photoUrl: { type: SchemaType.STRING },
-    summary: { type: SchemaType.STRING },
-    skills: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
-    },
-    education: {
-      type: SchemaType.ARRAY,
-      items: {
-        type: SchemaType.OBJECT,
-        properties: {},
-      },
-    },
-    workExperience: {
-      type: SchemaType.ARRAY,
-      items: {
-        type: SchemaType.OBJECT,
-        properties: {},
-      },
-    },
-  },
-};
-
 const EXTRACTION_PROMPT = [
   "Extract resume information from this PDF and return JSON only.",
   "Required fields:",
@@ -67,6 +34,7 @@ const EXTRACTION_PROMPT = [
   "Rules:",
   "- Do not include markdown or code fences.",
   "- If a value is missing, return empty string or empty array.",
+  "- If a value is clearly present in the PDF, do not leave it empty.",
   "- photoUrl must be a real http(s) URL or data:image URL if explicitly present; otherwise return empty string.",
   "- Keep education and workExperience as arrays of objects.",
 ].join("\n");
@@ -115,7 +83,7 @@ export async function POST(req: Request) {
 
   let extractedResume: ExtractedResume;
   try {
-    const modelName = DEFAULT_GEMINI_MODEL;
+    const modelName = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
     const geminiTimeoutMs = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, DEFAULT_GEMINI_TIMEOUT_MS);
     const maxOutputTokens = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS);
 
@@ -140,7 +108,6 @@ export async function POST(req: Request) {
         ],
         generationConfig: {
           responseMimeType: "application/json",
-          responseSchema: EXTRACTED_RESUME_RESPONSE_SCHEMA,
           temperature: 0,
           maxOutputTokens,
         },
@@ -160,6 +127,13 @@ export async function POST(req: Request) {
     }
 
     extractedResume = normalizeExtractedResume(parsed);
+
+    if (!hasMeaningfulExtraction(extractedResume)) {
+      return NextResponse.json(
+        { error: "Could not extract meaningful data from this PDF. Try a cleaner text-based PDF." },
+        { status: 422 },
+      );
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gemini extraction failed.";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -198,16 +172,21 @@ export async function POST(req: Request) {
 
 function normalizeExtractedResume(payload: unknown): ExtractedResume {
   const record = asRecord(payload);
+  const personalInfo = asRecord(record.personalInfo ?? record.personal);
 
   const normalized: ExtractedResume = {
-    fullName: readText(record, ["fullName", "name"]),
-    email: readText(record, ["email"]),
-    phone: readText(record, ["phone", "phoneNumber"]),
-    photoUrl: normalizePhotoUrl(readText(record, ["photoUrl", "profilePhotoUrl", "photo", "avatarUrl"])),
-    summary: readText(record, ["summary", "professionalSummary", "profile", "objective"]),
-    skills: normalizeSkills(record.skills),
-    education: normalizeRecordArray(record.education),
-    workExperience: normalizeRecordArray(record.workExperience ?? record.experience),
+    fullName: readTextFromRecords([record, personalInfo], ["fullName", "name"]),
+    email: readTextFromRecords([record, personalInfo], ["email"]),
+    phone: readTextFromRecords([record, personalInfo], ["phone", "phoneNumber"]),
+    photoUrl: normalizePhotoUrl(
+      readTextFromRecords([record, personalInfo], ["photoUrl", "profilePhotoUrl", "photo", "avatarUrl"]),
+    ),
+    summary: readTextFromRecords([record, personalInfo], ["summary", "professionalSummary", "profile", "objective"]),
+    skills: normalizeSkills(record.skills ?? personalInfo.skills),
+    education: normalizeRecordArray(record.education ?? personalInfo.education),
+    workExperience: normalizeRecordArray(
+      record.workExperience ?? record.experience ?? personalInfo.workExperience ?? personalInfo.experience,
+    ),
   };
 
   return normalized;
@@ -241,6 +220,17 @@ function normalizeRecordArray(value: unknown): Array<Record<string, unknown>> {
 function readText(record: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
     const value = asString(record[key]);
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function readTextFromRecords(records: Array<Record<string, unknown>>, keys: string[]) {
+  for (const record of records) {
+    const value = readText(record, keys);
     if (value) {
       return value;
     }
@@ -341,6 +331,19 @@ function createExtractedResumeId() {
   }
 
   return `er-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function hasMeaningfulExtraction(data: ExtractedResume) {
+  return Boolean(
+    data.fullName ||
+      data.email ||
+      data.phone ||
+      data.photoUrl ||
+      data.summary ||
+      data.skills.length > 0 ||
+      data.education.length > 0 ||
+      data.workExperience.length > 0,
+  );
 }
 
 function normalizePhotoUrl(value: string) {
