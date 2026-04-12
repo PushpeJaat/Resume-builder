@@ -1,7 +1,7 @@
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { emptyResumeData, type ResumeData } from "@/types/resume";
 
-const MAX_PDF_BYTES = 3 * 1024 * 1024;
+const MAX_PDF_BYTES = 6 * 1024 * 1024;
 const STORAGE_KEY = "resumeBuilder:parsedResume";
 
 export type ResumeParseResult = {
@@ -51,6 +51,13 @@ type ParsedResumePayload = {
   workExperience?: ParsedExperience[];
   education?: ParsedEducation[];
   skills?: Array<ParsedSkillGroup | string>;
+};
+
+type ParseResumeApiPayload = {
+  raw_text?: unknown;
+  meta?: unknown;
+  parsed_resume?: unknown;
+  [key: string]: unknown;
 };
 
 export async function parseResumePdf(file: File): Promise<ResumeParseResult> {
@@ -103,7 +110,7 @@ function validatePdf(file: File) {
   }
 
   if (file.size > MAX_PDF_BYTES) {
-    throw new Error("Resume upload must be 3 MB or smaller for fast extraction.");
+    throw new Error("Resume upload must be 6 MB or smaller for fast extraction.");
   }
 
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -117,7 +124,7 @@ async function requestParseResume(file: File): Promise<ParsedResumePayload> {
   const formData = new FormData();
   formData.set("resume", file);
 
-  const response = await fetch("/api/extract-resume", {
+  const response = await fetch("/api/parse-resume", {
     method: "POST",
     body: formData,
   });
@@ -137,7 +144,123 @@ async function requestParseResume(file: File): Promise<ParsedResumePayload> {
     throw new Error("Resume parser returned an invalid response.");
   }
 
-  return parsed as ParsedResumePayload;
+  const structured = extractStructuredPayload(parsed as ParseResumeApiPayload);
+  if (structured) {
+    return structured;
+  }
+
+  if (typeof parsed.raw_text === "string" && parsed.raw_text.trim()) {
+    return buildPayloadFromRawText(parsed.raw_text);
+  }
+
+  throw new Error("Resume parser returned an invalid response payload.");
+}
+
+function extractStructuredPayload(payload: ParseResumeApiPayload): ParsedResumePayload | null {
+  if (isRecord(payload.parsed_resume)) {
+    return payload.parsed_resume as ParsedResumePayload;
+  }
+
+  const structuredKeys = [
+    "personalInfo",
+    "personal",
+    "fullName",
+    "email",
+    "phone",
+    "summary",
+    "experience",
+    "workExperience",
+    "education",
+    "skills",
+  ];
+
+  if (structuredKeys.some((key) => key in payload)) {
+    return payload as ParsedResumePayload;
+  }
+
+  return null;
+}
+
+function buildPayloadFromRawText(rawText: string): ParsedResumePayload {
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const email = rawText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? "";
+  const phone = rawText.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0] ?? "";
+  const skills = extractSkillsFromRawText(rawText);
+
+  return {
+    fullName: detectNameFromLines(lines),
+    email,
+    phone,
+    summary: lines.slice(0, 12).join(" ").slice(0, 900),
+    skills,
+  };
+}
+
+function extractSkillsFromRawText(rawText: string): string[] {
+  const section = extractSection(rawText, ["skills", "technical skills", "core skills"], [
+    "experience",
+    "education",
+    "projects",
+  ]);
+
+  if (!section) {
+    return [];
+  }
+
+  return toStringArray(section).slice(0, 40);
+}
+
+function extractSection(rawText: string, starts: string[], stops: string[]): string {
+  const lines = rawText.split(/\r?\n/);
+  let collecting = false;
+  const out: string[] = [];
+
+  for (const line of lines) {
+    const normalized = line.trim().toLowerCase().replace(/[\s:_-]+$/g, "");
+
+    if (!collecting && starts.some((start) => normalized === start)) {
+      collecting = true;
+      continue;
+    }
+
+    if (collecting && stops.some((stop) => normalized === stop)) {
+      break;
+    }
+
+    if (collecting) {
+      out.push(line.trim());
+    }
+  }
+
+  return out.join("\n").trim();
+}
+
+function detectNameFromLines(lines: string[]): string {
+  for (const line of lines.slice(0, 8)) {
+    const clean = line.replace(/\s+/g, " ").trim();
+    if (!clean) {
+      continue;
+    }
+
+    if (clean.length > 60) {
+      continue;
+    }
+
+    if (/@/.test(clean) || /\d{3,}/.test(clean)) {
+      continue;
+    }
+
+    const words = clean.split(" ").filter(Boolean);
+    if (words.length >= 2 && words.length <= 5) {
+      return clean;
+    }
+  }
+
+  return "";
 }
 
 function normalizeParsedResume(parsed: ParsedResumePayload): ResumeData {
