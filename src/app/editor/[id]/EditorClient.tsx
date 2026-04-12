@@ -407,7 +407,7 @@ export function EditorClient({ resumeId }: Props) {
       toast.success("Resume extracted with AI and fields were auto-filled.");
       window.setTimeout(() => setImportState("idle"), 2200);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not import that PDF.";
+      const message = error instanceof Error ? error.message : "Could not import that file.";
       setImportState("error");
       setImportError(message);
       toast.error(message);
@@ -609,7 +609,7 @@ export function EditorClient({ resumeId }: Props) {
           <input
             ref={importInputRef}
             type="file"
-            accept=".pdf,application/pdf"
+            accept=".pdf,.docx,.jpg,.jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/jpg"
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -656,7 +656,7 @@ export function EditorClient({ resumeId }: Props) {
                 <>
                   <p className="text-sm font-semibold text-slate-800">Import an existing resume</p>
                   <p className="text-xs text-slate-500">
-                    Drop a PDF and let AI extract your sections.
+                    Drop a PDF, DOCX, or JPG/JPEG and let AI extract your sections.
                   </p>
                 </>
               )}

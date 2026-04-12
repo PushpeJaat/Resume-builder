@@ -1,7 +1,7 @@
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { emptyResumeData, type ResumeData } from "@/types/resume";
 
-const MAX_PDF_BYTES = 6 * 1024 * 1024;
+const MAX_RESUME_UPLOAD_BYTES = 6 * 1024 * 1024;
 const STORAGE_KEY = "resumeBuilder:parsedResume";
 
 export type ResumeParseResult = {
@@ -61,7 +61,7 @@ type ParseResumeApiPayload = {
 };
 
 export async function parseResumePdf(file: File): Promise<ResumeParseResult> {
-  validatePdf(file);
+  validateResumeUpload(file);
 
   const payload = await requestParseResume(file);
   const data = normalizeParsedResume(payload);
@@ -104,19 +104,26 @@ export function readParsedResumeDraft() {
   };
 }
 
-function validatePdf(file: File) {
+function validateResumeUpload(file: File) {
   if (!file || file.size === 0) {
-    throw new Error("Please choose a PDF resume to import.");
+    throw new Error("Please choose a PDF, DOCX, or JPG/JPEG resume to import.");
   }
 
-  if (file.size > MAX_PDF_BYTES) {
+  if (file.size > MAX_RESUME_UPLOAD_BYTES) {
     throw new Error("Resume upload must be 6 MB or smaller for fast extraction.");
   }
 
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-  const isPdfMime = (file.type || "").toLowerCase().includes("pdf");
-  if (extension !== "pdf" && !isPdfMime) {
-    throw new Error("Only PDF files are supported for AI resume import.");
+  const mime = (file.type || "").toLowerCase();
+  const isPdfMime = mime.includes("pdf");
+  const isDocxMime = mime.includes("officedocument.wordprocessingml.document");
+  const isJpegMime = mime.includes("image/jpeg") || mime.includes("image/jpg");
+  const isPdfExtension = extension === "pdf";
+  const isDocxExtension = extension === "docx";
+  const isJpegExtension = extension === "jpg" || extension === "jpeg";
+
+  if (!isPdfMime && !isDocxMime && !isJpegMime && !isPdfExtension && !isDocxExtension && !isJpegExtension) {
+    throw new Error("Only PDF, DOCX, or JPG/JPEG files are supported for AI resume import.");
   }
 }
 
@@ -136,7 +143,7 @@ async function requestParseResume(file: File): Promise<ParsedResumePayload> {
     const message =
       isRecord(parsed) && typeof parsed.error === "string"
         ? parsed.error
-        : `Could not parse that PDF. Server returned ${response.status}.`;
+        : `Could not parse that file. Server returned ${response.status}.`;
     throw new Error(message);
   }
 

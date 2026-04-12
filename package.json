@@ -22,6 +22,7 @@
     "clsx": "^2.1.1",
     "handlebars": "^4.7.8",
     "lucide-react": "^1.7.0",
+    "mammoth": "^1.12.0",
     "next": "^15.2.4",
     "next-auth": "^5.0.0-beta.29",
     "pg": "^8.20.0",
