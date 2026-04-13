@@ -417,120 +417,56 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
     };
   }
 
-  const configuredModel = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
-  const configuredModelDeprecated = isDeprecatedGeminiModelName(configuredModel);
-
-  const configuredApiVersion = (process.env.GEMINI_API_VERSION ?? "").trim();
-  const baseApiVersionCandidates = uniqueStrings([
-    configuredApiVersion,
-    "v1",
-    "v1beta",
-  ]).filter((version) => version === "v1" || version === "v1beta");
-
-  const modelCandidates = uniqueStrings([
-    ...(configuredModelDeprecated ? [] : [configuredModel]),
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    DEFAULT_GEMINI_MODEL,
-  ]);
-
+  const modelName = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
   const prompt = `${GEMINI_PROMPT}\n\nResume text:\n${text.slice(0, 45_000)}`;
   const genAI = new GoogleGenerativeAI(geminiApiKey);
 
-  const attemptErrors: string[] = [];
-
-  for (const modelName of modelCandidates) {
-    const apiVersionCandidates = isPreviewGeminiModel(modelName)
-      ? uniqueStrings([configuredApiVersion, "v1beta"])
-      : baseApiVersionCandidates;
-
-    for (const apiVersion of apiVersionCandidates) {
-      const model = genAI.getGenerativeModel(
-        { model: modelName },
-        {
-          apiVersion,
+  try {
+    const model = genAI.getGenerativeModel({ model: modelName });
+    
+    const result = await withTimeout(
+      model.generateContent({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0,
+          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
         },
-      );
+      }),
+      clampTimeoutToDeadline(
+        GEMINI_TIMEOUT_MS,
+        deadline,
+        "Gemini structured extraction timed out.",
+      ),
+      "Gemini structured extraction timed out.",
+    );
 
-      const generationConfigs =
-        apiVersion === "v1"
-          ? [
-              {
-                temperature: 0,
-                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-              },
-            ]
-          : [
-              {
-                responseMimeType: "application/json",
-                temperature: 0,
-                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-              },
-            ];
-
-      for (const generationConfig of generationConfigs) {
-        try {
-          const result = await withTimeout(
-            model.generateContent({
-              contents: [
-                {
-                  role: "user",
-                  parts: [{ text: prompt }],
-                },
-              ],
-              generationConfig,
-            }),
-            clampTimeoutToDeadline(
-              GEMINI_TIMEOUT_MS,
-              deadline,
-              "Gemini structured extraction timed out.",
-            ),
-            "Gemini structured extraction timed out.",
-          );
-
-          const raw = typeof result.response?.text === "function" ? result.response.text() : "";
-          const parsed = parseGeminiJson(raw);
-          if (!parsed) {
-            attemptErrors.push(`${modelName} (${apiVersion}) returned non-JSON output.`);
-            continue;
-          }
-
-          const normalized = normalizeExtractedResume(parsed);
-          if (hasMeaningfulExtraction(normalized)) {
-            return {
-              parsedResume: normalized,
-            };
-          }
-
-          attemptErrors.push(`${modelName} (${apiVersion}) returned empty structured fields.`);
-        } catch (error) {
-          attemptErrors.push(`${modelName} (${apiVersion}): ${sanitizeErrorMessage(
-            getErrorMessage(error, "Gemini structured extraction failed."),
-          )}`);
-        }
-      }
+    const raw = typeof result.response?.text === "function" ? result.response.text() : "";
+    const parsed = parseGeminiJson(raw);
+    if (!parsed) {
+      return { error: `${modelName} returned non-JSON output.` };
     }
+
+    const normalized = normalizeExtractedResume(parsed);
+    if (hasMeaningfulExtraction(normalized)) {
+      return {
+        parsedResume: normalized,
+      };
+    }
+
+    return { error: `${modelName} returned empty structured fields.` };
+  } catch (error) {
+    return {
+      error: `${modelName}: ${sanitizeErrorMessage(
+        getErrorMessage(error, "Gemini structured extraction failed."),
+      )}`,
+    };
   }
-
-  const nonDeprecatedErrors = attemptErrors.filter((entry) => !isDeprecatedModelError(entry));
-  const nonCompatibilityErrors = nonDeprecatedErrors.filter(
-    (entry) =>
-      !isGenerationConfigCompatibilityError(entry) &&
-      !isModelVersionCompatibilityError(entry),
-  );
-  const baseError =
-    nonCompatibilityErrors[0] ??
-    nonDeprecatedErrors[0] ??
-    attemptErrors[0] ??
-    "Gemini returned no structured data.";
-
-  const prefixedError = configuredModelDeprecated
-    ? `Configured GEMINI_MODEL '${configuredModel}' is deprecated. ${baseError}`
-    : baseError;
-
-  return {
-    error: prefixedError,
-  };
 }
 
 function normalizeExtractedResume(payload: unknown): ExtractedResume {
