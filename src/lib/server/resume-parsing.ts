@@ -102,14 +102,17 @@ type SupabaseStorageResult = {
   signedUrl: string;
 };
 
+type PdfBytesSourceResult = {
+  pdfBytes: Uint8Array;
+  storagePath: string;
+};
+
 export async function parseResumeFile(file: File): Promise<ParseResumePipelineResult> {
   const deadline = Date.now() + TOTAL_PIPELINE_TIMEOUT_MS;
 
   validateUploadedPdf(file);
 
-  const supabase = createServerSupabaseClient();
-  const { path, signedUrl } = await uploadAndSignPdf(supabase, file);
-  const pdfBytes = await fetchSignedPdfBytes(signedUrl, deadline);
+  const { pdfBytes, storagePath } = await resolvePdfBytes(file, deadline);
 
   const unpdfText = await extractWithUnpdf(pdfBytes, deadline);
   const shouldUseOcr = !unpdfText || unpdfText.trim().length < MIN_EXTRACTED_TEXT_CHARS;
@@ -131,10 +134,38 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
     meta: {
       source: shouldUseOcr ? "ocr" : "unpdf",
       length: cleanedText.length,
-      storage_path: path,
+      storage_path: storagePath,
     },
     parsedResume,
   };
+}
+
+async function resolvePdfBytes(file: File, deadline: number): Promise<PdfBytesSourceResult> {
+  if (hasSupabaseStorageConfig()) {
+    const supabase = createServerSupabaseClient();
+    const { path, signedUrl } = await uploadAndSignPdf(supabase, file);
+    const pdfBytes = await fetchSignedPdfBytes(signedUrl, deadline);
+    return {
+      pdfBytes,
+      storagePath: path,
+    };
+  }
+
+  const directBytes = new Uint8Array(await file.arrayBuffer());
+  if (directBytes.byteLength === 0) {
+    throw new ResumePipelineError("Uploaded resume file is empty.", 400);
+  }
+
+  return {
+    pdfBytes: directBytes,
+    storagePath: "direct-upload",
+  };
+}
+
+function hasSupabaseStorageConfig() {
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return Boolean(supabaseUrl && supabaseServiceRoleKey);
 }
 
 function validateUploadedPdf(file: File) {
@@ -351,7 +382,7 @@ function normalizeSectionHeading(line: string): string {
 }
 
 async function parseWithGeminiFromText(text: string, deadline: number): Promise<ExtractedResume | undefined> {
-  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const geminiApiKey = (process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? "").trim();
   if (!geminiApiKey) {
     return undefined;
   }

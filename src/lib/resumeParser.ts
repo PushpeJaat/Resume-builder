@@ -179,9 +179,7 @@ function validateResumeUpload(file: File) {
 }
 
 async function requestParseResume(file: File): Promise<ParsedResumePayload> {
-  const endpoints = isLikelyPdf(file)
-    ? ["/api/extract-resume", "/api/parse-resume"]
-    : ["/api/parse-resume"];
+  const endpoints = isLikelyPdf(file) ? ["/api/extract-resume"] : ["/api/parse-resume"];
 
   let lastError = "";
 
@@ -198,10 +196,15 @@ async function requestParseResume(file: File): Promise<ParsedResumePayload> {
     const parsed = safeJsonParse(responseText);
 
     if (!response.ok) {
-      lastError =
+      const message =
         isRecord(parsed) && typeof parsed.error === "string"
           ? parsed.error
           : `Could not parse that file. Server returned ${response.status}.`;
+
+      lastError =
+        endpoint === "/api/extract-resume"
+          ? `AI structured parsing failed: ${message}`
+          : message;
       continue;
     }
 
