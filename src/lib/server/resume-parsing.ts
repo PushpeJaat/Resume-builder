@@ -41,15 +41,15 @@ const SIGNED_URL_TTL_SECONDS = parsePositiveInt(process.env.SUPABASE_SIGNED_URL_
 const MIN_EXTRACTED_TEXT_CHARS = parsePositiveInt(process.env.PDF_MIN_TEXT_CHARS, 500);
 const FETCH_TIMEOUT_MS = parsePositiveInt(process.env.PDF_FETCH_TIMEOUT_MS, 8_000);
 const UNPDF_TIMEOUT_MS = parsePositiveInt(process.env.UNPDF_TIMEOUT_MS, 8_000);
-const OCR_TIMEOUT_MS = parsePositiveInt(process.env.OCR_TIMEOUT_MS, 8_000);
+const OCR_TIMEOUT_MS = parsePositiveInt(process.env.OCR_TIMEOUT_MS, 15_000);
 const OCR_MAX_RETRIES = parsePositiveInt(process.env.OCR_MAX_RETRIES, 1);
 const OCR_MAX_PAGES = parsePositiveInt(process.env.OCR_MAX_PAGES, 5);
 const OCR_RETRY_DELAY_MS = parsePositiveInt(process.env.OCR_RETRY_DELAY_MS, 300);
-const GEMINI_TIMEOUT_MS = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, 30_000);
-const GEMINI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 2_200);
+const GEMINI_TIMEOUT_MS = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, 45_000);
+const GEMINI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 8_192);
 const TOTAL_PIPELINE_TIMEOUT_MS = parsePositiveInt(process.env.PARSE_RESUME_TOTAL_TIMEOUT_MS, 60_000);
 const MIN_STEP_TIMEOUT_MS = 1_200;
-const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
 const DEFAULT_STORAGE_BUCKET = "resume-uploads";
 
 const SECTION_PATTERNS = [
@@ -429,9 +429,7 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
 
   const modelCandidates = uniqueStrings([
     ...(configuredModelDeprecated ? [] : [configuredModel]),
-    "gemini-3-flash-preview",
-    "gemini-3-flash",
-    "gemini-3-flash-001",
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
     DEFAULT_GEMINI_MODEL,
@@ -455,25 +453,13 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
         },
       );
 
-      const generationConfigs =
-        apiVersion === "v1"
-          ? [
-              {
-                temperature: 0,
-                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-              },
-            ]
-          : [
-              {
-                responseMimeType: "application/json",
-                temperature: 0,
-                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-              },
-              {
-                temperature: 0,
-                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-              },
-            ];
+      const generationConfigs = [
+        {
+          responseMimeType: "application/json",
+          temperature: 0,
+          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+        },
+      ];
 
       for (const generationConfig of generationConfigs) {
         try {
