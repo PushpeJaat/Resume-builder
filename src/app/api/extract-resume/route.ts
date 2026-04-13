@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { parseResumeFile, ResumePipelineError } from "@/lib/server/resume-parsing";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const formData = await req.formData().catch(() => null);

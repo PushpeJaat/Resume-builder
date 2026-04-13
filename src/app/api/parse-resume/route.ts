@@ -3,6 +3,7 @@ import mammoth from "mammoth";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type SupportedFormat = "pdf" | "docx" | "jpeg";
 
