@@ -116,8 +116,19 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
 
   const unpdfText = await extractWithUnpdf(pdfBytes, deadline);
   const shouldUseOcr = !unpdfText || unpdfText.trim().length < MIN_EXTRACTED_TEXT_CHARS;
+  let usedOcr = false;
+  let rawTextCandidate = unpdfText;
 
-  const rawTextCandidate = shouldUseOcr ? await extractWithGoogleVision(pdfBytes, deadline) : unpdfText;
+  if (shouldUseOcr) {
+    try {
+      rawTextCandidate = await extractWithGoogleVision(pdfBytes, deadline);
+      usedOcr = true;
+    } catch {
+      // Fall back to unpdf text when OCR dependencies are unavailable.
+      rawTextCandidate = unpdfText;
+    }
+  }
+
   const cleanedText = cleanAndNormalizeText(rawTextCandidate);
 
   if (!cleanedText) {
@@ -132,7 +143,7 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
   return {
     rawText: cleanedText,
     meta: {
-      source: shouldUseOcr ? "ocr" : "unpdf",
+      source: usedOcr ? "ocr" : "unpdf",
       length: cleanedText.length,
       storage_path: storagePath,
     },
@@ -142,13 +153,17 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
 
 async function resolvePdfBytes(file: File, deadline: number): Promise<PdfBytesSourceResult> {
   if (hasSupabaseStorageConfig()) {
-    const supabase = createServerSupabaseClient();
-    const { path, signedUrl } = await uploadAndSignPdf(supabase, file);
-    const pdfBytes = await fetchSignedPdfBytes(signedUrl, deadline);
-    return {
-      pdfBytes,
-      storagePath: path,
-    };
+    try {
+      const supabase = createServerSupabaseClient();
+      const { path, signedUrl } = await uploadAndSignPdf(supabase, file);
+      const pdfBytes = await fetchSignedPdfBytes(signedUrl, deadline);
+      return {
+        pdfBytes,
+        storagePath: path,
+      };
+    } catch {
+      // If storage upload/sign fails, continue with direct bytes so extraction still works.
+    }
   }
 
   const directBytes = new Uint8Array(await file.arrayBuffer());
