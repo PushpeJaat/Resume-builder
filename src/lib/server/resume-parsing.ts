@@ -23,6 +23,7 @@ export type ParseResumePipelineResult = {
   rawText: string;
   meta: ParseResumeMeta;
   parsedResume?: ExtractedResume;
+  geminiError?: string;
 };
 
 export class ResumePipelineError extends Error {
@@ -107,6 +108,11 @@ type PdfBytesSourceResult = {
   storagePath: string;
 };
 
+type GeminiStructuredResult = {
+  parsedResume?: ExtractedResume;
+  error?: string;
+};
+
 export async function parseResumeFile(file: File): Promise<ParseResumePipelineResult> {
   const deadline = Date.now() + TOTAL_PIPELINE_TIMEOUT_MS;
 
@@ -138,7 +144,7 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
     );
   }
 
-  const parsedResume = await parseWithGeminiFromText(cleanedText, deadline);
+  const geminiResult = await parseWithGeminiFromText(cleanedText, deadline);
 
   return {
     rawText: cleanedText,
@@ -147,7 +153,8 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
       length: cleanedText.length,
       storage_path: storagePath,
     },
-    parsedResume,
+    parsedResume: geminiResult.parsedResume,
+    geminiError: geminiResult.error,
   };
 }
 
@@ -396,57 +403,95 @@ function normalizeSectionHeading(line: string): string {
   return line;
 }
 
-async function parseWithGeminiFromText(text: string, deadline: number): Promise<ExtractedResume | undefined> {
+async function parseWithGeminiFromText(text: string, deadline: number): Promise<GeminiStructuredResult> {
   const geminiApiKey = (process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? "").trim();
   if (!geminiApiKey) {
-    return undefined;
+    return {
+      error: "GEMINI_API_KEY is missing.",
+    };
   }
 
-  // Keep structured parsing opportunistic so text extraction can still succeed.
   if (getRemainingMs(deadline) < MIN_STEP_TIMEOUT_MS) {
-    return undefined;
+    return {
+      error: "Not enough time left for Gemini structured parsing.",
+    };
   }
 
-  const modelName = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
-  const prompt = `${GEMINI_PROMPT}\n\nResume text:\n${text.slice(0, 45_000)}`;
+  const configuredModel = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
+  const modelCandidates = uniqueStrings([
+    configuredModel,
+    DEFAULT_GEMINI_MODEL,
+    "gemini-1.5-flash-latest",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+  ]);
 
-  try {
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
+  const prompt = `${GEMINI_PROMPT}\n\nResume text:\n${text.slice(0, 45_000)}`;
+  const genAI = new GoogleGenerativeAI(geminiApiKey);
+
+  let lastError = "";
+
+  for (const modelName of modelCandidates) {
     const model = genAI.getGenerativeModel({ model: modelName });
 
-    const result = await withTimeout(
-      model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0,
-          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-        },
-      }),
-      clampTimeoutToDeadline(
-        GEMINI_TIMEOUT_MS,
-        deadline,
-        "Gemini structured extraction timed out.",
-      ),
-      "Gemini structured extraction timed out.",
-    );
+    const generationConfigs = [
+      {
+        responseMimeType: "application/json",
+        temperature: 0,
+        maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      },
+      {
+        temperature: 0,
+        maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      },
+    ];
 
-    const raw = result.response.text();
-    const parsed = parseGeminiJson(raw);
-    if (!parsed) {
-      return undefined;
+    for (const generationConfig of generationConfigs) {
+      try {
+        const result = await withTimeout(
+          model.generateContent({
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: prompt }],
+              },
+            ],
+            generationConfig,
+          }),
+          clampTimeoutToDeadline(
+            GEMINI_TIMEOUT_MS,
+            deadline,
+            "Gemini structured extraction timed out.",
+          ),
+          "Gemini structured extraction timed out.",
+        );
+
+        const raw = typeof result.response?.text === "function" ? result.response.text() : "";
+        const parsed = parseGeminiJson(raw);
+        if (!parsed) {
+          lastError = `${modelName} returned non-JSON output.`;
+          continue;
+        }
+
+        const normalized = normalizeExtractedResume(parsed);
+        if (hasMeaningfulExtraction(normalized)) {
+          return {
+            parsedResume: normalized,
+          };
+        }
+
+        lastError = `${modelName} returned empty structured fields.`;
+      } catch (error) {
+        lastError = `${modelName}: ${sanitizeErrorMessage(
+          getErrorMessage(error, "Gemini structured extraction failed."),
+        )}`;
+      }
     }
-
-    const normalized = normalizeExtractedResume(parsed);
-    return hasMeaningfulExtraction(normalized) ? normalized : undefined;
-  } catch {
-    return undefined;
   }
+
+  return {
+    error: lastError || "Gemini returned no structured data.",
+  };
 }
 
 function normalizeExtractedResume(payload: unknown): ExtractedResume {
@@ -577,6 +622,14 @@ function parseGeminiJson(value: string): unknown | null {
   }
 
   return null;
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function sanitizeErrorMessage(message: string) {
+  return message.replace(/\s+/g, " ").trim().slice(0, 260);
 }
 
 function extractJsonCandidate(value: string, openChar: "{" | "[", closeChar: "}" | "]") {
