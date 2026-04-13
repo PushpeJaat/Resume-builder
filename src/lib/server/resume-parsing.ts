@@ -49,7 +49,7 @@ const GEMINI_TIMEOUT_MS = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, 5_000)
 const GEMINI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 2_200);
 const TOTAL_PIPELINE_TIMEOUT_MS = parsePositiveInt(process.env.PARSE_RESUME_TOTAL_TIMEOUT_MS, 18_000);
 const MIN_STEP_TIMEOUT_MS = 1_200;
-const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEFAULT_STORAGE_BUCKET = "resume-uploads";
 
 const SECTION_PATTERNS = [
@@ -420,11 +420,19 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
   const configuredModel = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
   const configuredModelDeprecated = isDeprecatedGeminiModelName(configuredModel);
 
+  const configuredApiVersion = (process.env.GEMINI_API_VERSION ?? "").trim();
+  const apiVersionCandidates = uniqueStrings([
+    configuredApiVersion,
+    "v1",
+    "v1beta",
+  ]);
+
   const modelCandidates = uniqueStrings([
     ...(configuredModelDeprecated ? [] : [configuredModel]),
+    "gemini-3-flash-preview",
     "gemini-2.0-flash",
+    "gemini-1.5-flash",
     DEFAULT_GEMINI_MODEL,
-    "gemini-1.5-flash-latest",
   ]);
 
   const prompt = `${GEMINI_PROMPT}\n\nResume text:\n${text.slice(0, 45_000)}`;
@@ -433,59 +441,66 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
   const attemptErrors: string[] = [];
 
   for (const modelName of modelCandidates) {
-    const model = genAI.getGenerativeModel({ model: modelName });
+    for (const apiVersion of apiVersionCandidates) {
+      const model = genAI.getGenerativeModel(
+        { model: modelName },
+        {
+          apiVersion,
+        },
+      );
 
-    const generationConfigs = [
-      {
-        responseMimeType: "application/json",
-        temperature: 0,
-        maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-      },
-      {
-        temperature: 0,
-        maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-      },
-    ];
+      const generationConfigs = [
+        {
+          responseMimeType: "application/json",
+          temperature: 0,
+          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+        },
+        {
+          temperature: 0,
+          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+        },
+      ];
 
-    for (const generationConfig of generationConfigs) {
-      try {
-        const result = await withTimeout(
-          model.generateContent({
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: prompt }],
-              },
-            ],
-            generationConfig,
-          }),
-          clampTimeoutToDeadline(
-            GEMINI_TIMEOUT_MS,
-            deadline,
+      for (const generationConfig of generationConfigs) {
+        try {
+          const result = await withTimeout(
+            model.generateContent({
+              contents: [
+                {
+                  role: "user",
+                  parts: [{ text: prompt }],
+                },
+              ],
+              generationConfig,
+            }),
+            clampTimeoutToDeadline(
+              GEMINI_TIMEOUT_MS,
+              deadline,
+              "Gemini structured extraction timed out.",
+            ),
             "Gemini structured extraction timed out.",
-          ),
-          "Gemini structured extraction timed out.",
-        );
+          );
 
-        const raw = typeof result.response?.text === "function" ? result.response.text() : "";
-        const parsed = parseGeminiJson(raw);
-        if (!parsed) {
-          attemptErrors.push(`${modelName} returned non-JSON output.`);
-          continue;
+          const raw = typeof result.response?.text === "function" ? result.response.text() : "";
+          const parsed = parseGeminiJson(raw);
+          if (!parsed) {
+            attemptErrors.push(`${modelName} (${apiVersion}) returned non-JSON output.`);
+            continue;
+          }
+
+          const normalized = normalizeExtractedResume(parsed);
+          if (hasMeaningfulExtraction(normalized)) {
+            return {
+              parsedResume: normalized,
+            };
+          }
+
+          attemptErrors.push(`${modelName} (${apiVersion}) returned empty structured fields.`);
+        } catch (error) {
+          attemptErrors.push(`${modelName} (${apiVersion}): ${sanitizeErrorMessage(
+            getErrorMessage(error, "Gemini structured extraction failed."),
+          )}`);
         }
-
-        const normalized = normalizeExtractedResume(parsed);
-        if (hasMeaningfulExtraction(normalized)) {
-          return {
-            parsedResume: normalized,
-          };
-        }
-
-        attemptErrors.push(`${modelName} returned empty structured fields.`);
-      } catch (error) {
-        attemptErrors.push(`${modelName}: ${sanitizeErrorMessage(
-          getErrorMessage(error, "Gemini structured extraction failed."),
-        )}`);
       }
     }
   }
@@ -641,7 +656,10 @@ function isDeprecatedGeminiModelName(modelName: string) {
   return (
     normalized === "gemini-2.0-flash-lite" ||
     normalized === "models/gemini-2.0-flash-lite" ||
-    normalized.includes("gemini-2.0-flash-lite")
+    normalized.includes("gemini-2.0-flash-lite") ||
+    normalized === "gemini-1.5-flash-latest" ||
+    normalized === "models/gemini-1.5-flash-latest" ||
+    normalized.includes("gemini-1.5-flash-latest")
   );
 }
 
@@ -650,7 +668,9 @@ function isDeprecatedModelError(message: string) {
   return (
     normalized.includes("no longer available to new users") ||
     normalized.includes("model is no longer available") ||
-    normalized.includes("gemini-2.0-flash-lite")
+    normalized.includes("gemini-2.0-flash-lite") ||
+    normalized.includes("gemini-1.5-flash-latest") ||
+    normalized.includes("not found for api version v1beta")
   );
 }
 
