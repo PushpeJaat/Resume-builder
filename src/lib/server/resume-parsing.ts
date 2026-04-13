@@ -49,7 +49,7 @@ const GEMINI_TIMEOUT_MS = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, 5_000)
 const GEMINI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 2_200);
 const TOTAL_PIPELINE_TIMEOUT_MS = parsePositiveInt(process.env.PARSE_RESUME_TOTAL_TIMEOUT_MS, 18_000);
 const MIN_STEP_TIMEOUT_MS = 1_200;
-const DEFAULT_GEMINI_MODEL = "gemini-1.5-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
 const DEFAULT_STORAGE_BUCKET = "resume-uploads";
 
 const SECTION_PATTERNS = [
@@ -418,18 +418,19 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
   }
 
   const configuredModel = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
+  const configuredModelDeprecated = isDeprecatedGeminiModelName(configuredModel);
+
   const modelCandidates = uniqueStrings([
-    configuredModel,
+    ...(configuredModelDeprecated ? [] : [configuredModel]),
+    "gemini-2.0-flash",
     DEFAULT_GEMINI_MODEL,
     "gemini-1.5-flash-latest",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
   ]);
 
   const prompt = `${GEMINI_PROMPT}\n\nResume text:\n${text.slice(0, 45_000)}`;
   const genAI = new GoogleGenerativeAI(geminiApiKey);
 
-  let lastError = "";
+  const attemptErrors: string[] = [];
 
   for (const modelName of modelCandidates) {
     const model = genAI.getGenerativeModel({ model: modelName });
@@ -469,7 +470,7 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
         const raw = typeof result.response?.text === "function" ? result.response.text() : "";
         const parsed = parseGeminiJson(raw);
         if (!parsed) {
-          lastError = `${modelName} returned non-JSON output.`;
+          attemptErrors.push(`${modelName} returned non-JSON output.`);
           continue;
         }
 
@@ -480,17 +481,24 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
           };
         }
 
-        lastError = `${modelName} returned empty structured fields.`;
+        attemptErrors.push(`${modelName} returned empty structured fields.`);
       } catch (error) {
-        lastError = `${modelName}: ${sanitizeErrorMessage(
+        attemptErrors.push(`${modelName}: ${sanitizeErrorMessage(
           getErrorMessage(error, "Gemini structured extraction failed."),
-        )}`;
+        )}`);
       }
     }
   }
 
+  const nonDeprecatedErrors = attemptErrors.filter((entry) => !isDeprecatedModelError(entry));
+  const baseError = nonDeprecatedErrors[0] ?? attemptErrors[0] ?? "Gemini returned no structured data.";
+
+  const prefixedError = configuredModelDeprecated
+    ? `Configured GEMINI_MODEL '${configuredModel}' is deprecated. ${baseError}`
+    : baseError;
+
   return {
-    error: lastError || "Gemini returned no structured data.",
+    error: prefixedError,
   };
 }
 
@@ -626,6 +634,24 @@ function parseGeminiJson(value: string): unknown | null {
 
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function isDeprecatedGeminiModelName(modelName: string) {
+  const normalized = modelName.trim().toLowerCase();
+  return (
+    normalized === "gemini-2.0-flash-lite" ||
+    normalized === "models/gemini-2.0-flash-lite" ||
+    normalized.includes("gemini-2.0-flash-lite")
+  );
+}
+
+function isDeprecatedModelError(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("no longer available to new users") ||
+    normalized.includes("model is no longer available") ||
+    normalized.includes("gemini-2.0-flash-lite")
+  );
 }
 
 function sanitizeErrorMessage(message: string) {
