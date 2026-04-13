@@ -452,13 +452,21 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
         },
       );
 
-      const generationConfigs = [
-        {
-          responseMimeType: "application/json",
-          temperature: 0,
-          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-        },
-      ];
+      const generationConfigs =
+        apiVersion === "v1"
+          ? [
+              {
+                temperature: 0,
+                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+              },
+            ]
+          : [
+              {
+                responseMimeType: "application/json",
+                temperature: 0,
+                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+              },
+            ];
 
       for (const generationConfig of generationConfigs) {
         try {
