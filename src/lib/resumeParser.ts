@@ -12,11 +12,31 @@ export type ResumeParseResult = {
 
 type ParsedPersonalInfo = {
   fullName?: unknown;
+  name?: unknown;
+  firstName?: unknown;
+  lastName?: unknown;
   email?: unknown;
+  emailAddress?: unknown;
   phone?: unknown;
+  phoneNumber?: unknown;
+  mobile?: unknown;
   photoUrl?: unknown;
+  avatarUrl?: unknown;
+  image?: unknown;
   location?: unknown;
+  city?: unknown;
+  state?: unknown;
+  country?: unknown;
+  linkedin?: unknown;
+  github?: unknown;
+  portfolio?: unknown;
+  website?: unknown;
   links?: unknown;
+  socialLinks?: unknown;
+  summary?: unknown;
+  professionalSummary?: unknown;
+  profile?: unknown;
+  objective?: unknown;
 };
 
 type ParsedExperience = {
@@ -34,29 +54,57 @@ type ParsedEducation = {
   end?: unknown;
 };
 
-type ParsedSkillGroup = {
-  category?: unknown;
-  items?: unknown;
-};
-
 type ParsedResumePayload = {
   personalInfo?: ParsedPersonalInfo;
   personal?: ParsedPersonalInfo;
+  contact?: ParsedPersonalInfo;
+  basics?: ParsedPersonalInfo;
   fullName?: unknown;
+  name?: unknown;
+  firstName?: unknown;
+  lastName?: unknown;
   email?: unknown;
+  emailAddress?: unknown;
   phone?: unknown;
+  phoneNumber?: unknown;
+  mobile?: unknown;
   photoUrl?: unknown;
+  avatarUrl?: unknown;
+  image?: unknown;
+  location?: unknown;
+  city?: unknown;
+  state?: unknown;
+  country?: unknown;
   summary?: unknown;
+  professionalSummary?: unknown;
+  profile?: unknown;
+  objective?: unknown;
   experience?: ParsedExperience[];
   workExperience?: ParsedExperience[];
+  employmentHistory?: ParsedExperience[];
+  work_experience?: ParsedExperience[];
   education?: ParsedEducation[];
-  skills?: Array<ParsedSkillGroup | string>;
+  educations?: ParsedEducation[];
+  academicBackground?: ParsedEducation[];
+  skills?: unknown;
+  skillSet?: unknown;
+  technicalSkills?: unknown;
+  links?: unknown;
+  socialLinks?: unknown;
+  linkedin?: unknown;
+  github?: unknown;
+  portfolio?: unknown;
+  website?: unknown;
 };
 
 type ParseResumeApiPayload = {
   raw_text?: unknown;
   meta?: unknown;
   parsed_resume?: unknown;
+  parsedResume?: unknown;
+  data?: unknown;
+  result?: unknown;
+  resume?: unknown;
   [key: string]: unknown;
 };
 
@@ -164,28 +212,87 @@ async function requestParseResume(file: File): Promise<ParsedResumePayload> {
 }
 
 function extractStructuredPayload(payload: ParseResumeApiPayload): ParsedResumePayload | null {
-  if (isRecord(payload.parsed_resume)) {
-    return payload.parsed_resume as ParsedResumePayload;
+  const directParsed = parseStructuredCandidate(payload.parsed_resume ?? payload.parsedResume);
+  if (directParsed) {
+    return directParsed;
   }
 
-  const structuredKeys = [
-    "personalInfo",
-    "personal",
-    "fullName",
-    "email",
-    "phone",
-    "summary",
-    "experience",
-    "workExperience",
-    "education",
-    "skills",
-  ];
+  const wrappers = [payload.data, payload.result, payload.resume];
+  for (const wrapper of wrappers) {
+    const wrapperRecord = isRecord(wrapper) ? (wrapper as ParseResumeApiPayload) : null;
+    if (!wrapperRecord) {
+      continue;
+    }
 
-  if (structuredKeys.some((key) => key in payload)) {
+    const nestedParsed = parseStructuredCandidate(wrapperRecord.parsed_resume ?? wrapperRecord.parsedResume);
+    if (nestedParsed) {
+      return nestedParsed;
+    }
+
+    if (hasStructuredKeys(wrapperRecord)) {
+      return wrapperRecord as ParsedResumePayload;
+    }
+  }
+
+  if (hasStructuredKeys(payload)) {
     return payload as ParsedResumePayload;
   }
 
   return null;
+}
+
+function parseStructuredCandidate(value: unknown): ParsedResumePayload | null {
+  if (isRecord(value)) {
+    return value as ParsedResumePayload;
+  }
+
+  if (typeof value === "string") {
+    const parsed = safeJsonParse(value);
+    if (isRecord(parsed)) {
+      return parsed as ParsedResumePayload;
+    }
+  }
+
+  return null;
+}
+
+function hasStructuredKeys(payload: Record<string, unknown>) {
+  const structuredKeys = [
+    "personalInfo",
+    "personal",
+    "contact",
+    "basics",
+    "fullName",
+    "full_name",
+    "name",
+    "firstName",
+    "lastName",
+    "email",
+    "emailAddress",
+    "phone",
+    "phoneNumber",
+    "mobile",
+    "summary",
+    "professionalSummary",
+    "profile",
+    "objective",
+    "experience",
+    "workExperience",
+    "employmentHistory",
+    "work_experience",
+    "education",
+    "educations",
+    "academicBackground",
+    "skills",
+    "skillSet",
+    "technicalSkills",
+  ];
+
+  if (structuredKeys.some((key) => key in payload)) {
+    return true;
+  }
+
+  return false;
 }
 
 function buildPayloadFromRawText(rawText: string): ParsedResumePayload {
@@ -272,35 +379,136 @@ function detectNameFromLines(lines: string[]): string {
 
 function normalizeParsedResume(parsed: ParsedResumePayload): ResumeData {
   const base = emptyResumeData();
+
+  const root = parsed as unknown as Record<string, unknown>;
   const personal =
     (isRecord(parsed.personalInfo) ? parsed.personalInfo : null) ??
     (isRecord(parsed.personal) ? parsed.personal : null) ??
-    {
-      fullName: parsed.fullName,
-      email: parsed.email,
-      phone: parsed.phone,
-      photoUrl: parsed.photoUrl,
-    };
+    (isRecord(parsed.contact) ? parsed.contact : null) ??
+    (isRecord(parsed.basics) ? parsed.basics : null) ??
+    {};
 
-  const experienceSource = parsed.experience ?? parsed.workExperience;
+  const fullName = readTextFromRecords([personal, root], ["fullName", "full_name", "name"]);
+  const firstName = readTextFromRecords([personal, root], ["firstName", "first_name", "givenName"]);
+  const lastName = readTextFromRecords([personal, root], ["lastName", "last_name", "familyName", "surname"]);
+
+  const email = readTextFromRecords([personal, root], ["email", "emailAddress", "mail"]);
+  const phone = readTextFromRecords([personal, root], ["phone", "phoneNumber", "mobile", "contactNumber"]);
+  const photoUrl = normalizePhotoUrl(
+    readTextFromRecords([personal, root], [
+      "photoUrl",
+      "profilePhotoUrl",
+      "photo",
+      "avatarUrl",
+      "image",
+      "picture",
+    ]),
+  );
+
+  const summary = readTextFromRecords([root, personal], [
+    "summary",
+    "professionalSummary",
+    "profile",
+    "objective",
+    "about",
+  ]);
+
+  const location = buildLocationFromRecords([personal, root]);
+  const linksSource =
+    personal.links ??
+    personal.socialLinks ??
+    root.links ??
+    root.socialLinks ??
+    buildSocialLinkCandidates([personal, root]);
+
+  const experienceSource =
+    parsed.experience ??
+    parsed.workExperience ??
+    parsed.employmentHistory ??
+    parsed.work_experience ??
+    root.experience ??
+    root.workExperience ??
+    root.employmentHistory ??
+    root.work_experience;
+
+  const educationSource =
+    parsed.education ??
+    parsed.educations ??
+    parsed.academicBackground ??
+    root.education ??
+    root.educations ??
+    root.academicBackground;
+
+  const skillsSource = parsed.skills ?? parsed.skillSet ?? parsed.technicalSkills ?? root.skills ?? root.skillSet ?? root.technicalSkills;
 
   const normalized: ResumeData = {
     personal: {
       ...base.personal,
-      fullName: toText(personal.fullName),
-      email: toText(personal.email),
-      phone: toText(personal.phone),
-      photoUrl: normalizePhotoUrl(toText(personal.photoUrl)),
-      location: toText(personal.location),
-      links: normalizeLinks(personal.links),
+      fullName: fullName || [firstName, lastName].filter(Boolean).join(" ").trim(),
+      email,
+      phone,
+      photoUrl,
+      location,
+      links: normalizeLinks(linksSource),
     },
-    summary: toText(parsed.summary),
+    summary,
     experience: normalizeExperience(experienceSource),
-    education: normalizeEducation(parsed.education),
-    skills: normalizeSkills(parsed.skills),
+    education: normalizeEducation(educationSource),
+    skills: normalizeSkills(skillsSource),
   };
 
   return ensureResumeIds(normalized);
+}
+
+function buildLocationFromRecords(records: Array<Record<string, unknown>>) {
+  const direct = readTextFromRecords(records, ["location", "address", "cityState"]);
+  if (direct) {
+    return direct;
+  }
+
+  const city = readTextFromRecords(records, ["city", "town"]);
+  const state = readTextFromRecords(records, ["state", "region", "province"]);
+  const country = readTextFromRecords(records, ["country"]);
+
+  const parts = [city, state, country].filter(Boolean);
+  return parts.join(", ").trim();
+}
+
+function buildSocialLinkCandidates(records: Array<Record<string, unknown>>) {
+  const pairs = [
+    { label: "LinkedIn", keys: ["linkedin", "linkedIn", "linkedinUrl", "linkedinProfile"] },
+    { label: "GitHub", keys: ["github", "githubUrl", "githubProfile"] },
+    { label: "Portfolio", keys: ["portfolio", "portfolioUrl", "website", "site", "url"] },
+  ];
+
+  const links: Array<{ label: string; url: string }> = [];
+
+  for (const pair of pairs) {
+    const url = readTextFromRecords(records, pair.keys);
+    if (!url) {
+      continue;
+    }
+
+    links.push({
+      label: pair.label,
+      url,
+    });
+  }
+
+  return links;
+}
+
+function readTextFromRecords(records: Array<Record<string, unknown>>, keys: string[]) {
+  for (const record of records) {
+    for (const key of keys) {
+      const value = toText(record[key]);
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  return "";
 }
 
 function normalizeExperience(value: unknown): ResumeData["experience"] {
@@ -310,13 +518,19 @@ function normalizeExperience(value: unknown): ResumeData["experience"] {
 
   return value
     .map((item) => {
-      const row = isRecord(item) ? (item as ParsedExperience) : {};
-      const bullets = toStringArray((row as Record<string, unknown>).bullets ?? (row as Record<string, unknown>).highlights);
+      const row = isRecord(item) ? (item as Record<string, unknown>) : {};
+      const bullets = toStringArray(
+        row.bullets ?? row.highlights ?? row.responsibilities ?? row.achievements ?? row.description,
+      );
+
+      const end = toText(row.end ?? row.endDate ?? row.to ?? row.dateTo);
+      const isCurrent = row.current === true || toText(row.current).toLowerCase() === "true";
+
       return {
-        company: toText((row as Record<string, unknown>).company ?? (row as Record<string, unknown>).employer ?? (row as Record<string, unknown>).organization),
-        role: toText((row as Record<string, unknown>).role ?? (row as Record<string, unknown>).title ?? (row as Record<string, unknown>).position),
-        start: toText((row as Record<string, unknown>).start ?? (row as Record<string, unknown>).startDate ?? (row as Record<string, unknown>).from),
-        end: toText((row as Record<string, unknown>).end ?? (row as Record<string, unknown>).endDate ?? (row as Record<string, unknown>).to),
+        company: toText(row.company ?? row.companyName ?? row.employer ?? row.organization),
+        role: toText(row.role ?? row.title ?? row.position ?? row.jobTitle),
+        start: toText(row.start ?? row.startDate ?? row.from ?? row.dateFrom),
+        end: end || (isCurrent ? "Present" : ""),
         bullets,
       };
     })
@@ -330,70 +544,155 @@ function normalizeEducation(value: unknown): ResumeData["education"] {
 
   return value
     .map((item) => {
-      const row = isRecord(item) ? (item as ParsedEducation) : {};
+      const row = isRecord(item) ? (item as Record<string, unknown>) : {};
+
+      const degree = toText(
+        row.degree ??
+          row.degreeName ??
+          row.qualification ??
+          row.program ??
+          row.fieldOfStudy ??
+          row.specialization,
+      );
+
+      const end = toText(row.end ?? row.endDate ?? row.to ?? row.year ?? row.graduationYear);
+
       return {
-        school: toText((row as Record<string, unknown>).school ?? (row as Record<string, unknown>).institution ?? (row as Record<string, unknown>).college ?? (row as Record<string, unknown>).university),
-        degree: toText((row as Record<string, unknown>).degree ?? (row as Record<string, unknown>).qualification ?? (row as Record<string, unknown>).program),
-        start: toText((row as Record<string, unknown>).start ?? (row as Record<string, unknown>).startDate ?? (row as Record<string, unknown>).from),
-        end: toText((row as Record<string, unknown>).end ?? (row as Record<string, unknown>).endDate ?? (row as Record<string, unknown>).to),
+        school: toText(
+          row.school ?? row.schoolName ?? row.institution ?? row.institutionName ?? row.college ?? row.university,
+        ),
+        degree,
+        start: toText(row.start ?? row.startDate ?? row.from),
+        end,
       };
     })
     .filter((row) => row.school || row.degree);
 }
 
 function normalizeSkills(value: unknown): ResumeData["skills"] {
-  if (!Array.isArray(value)) {
-    return [];
+  const grouped: ResumeData["skills"] = [];
+  const coreSkills = new Set<string>();
+
+  const pushGroup = (categoryValue: unknown, itemsValue: unknown) => {
+    const category = toText(categoryValue) || "Core skills";
+    const items = Array.from(new Set(toStringArray(itemsValue)));
+
+    if (items.length === 0) {
+      return;
+    }
+
+    const existing = grouped.find((group) => group.category.toLowerCase() === category.toLowerCase());
+    if (existing) {
+      existing.items = Array.from(new Set([...existing.items, ...items]));
+      return;
+    }
+
+    grouped.push({
+      category,
+      items,
+    });
+  };
+
+  const absorbRecord = (record: Record<string, unknown>) => {
+    const explicitItems =
+      record.items ??
+      record.skills ??
+      record.keywords ??
+      record.values ??
+      record.technologies ??
+      record.tools;
+
+    if (explicitItems !== undefined) {
+      pushGroup(record.category ?? record.group ?? record.title ?? record.name, explicitItems);
+      return;
+    }
+
+    const singleSkill = toText(record.skill ?? record.value ?? record.label ?? record.name);
+    if (singleSkill) {
+      coreSkills.add(singleSkill);
+      return;
+    }
+
+    // Some Gemini payloads send category-keyed objects, for example: { technical: ["React", "Node"] }.
+    for (const [key, candidate] of Object.entries(record)) {
+      if (["category", "group", "title", "name"].includes(key)) {
+        continue;
+      }
+
+      if (Array.isArray(candidate) || typeof candidate === "string") {
+        pushGroup(key, candidate);
+      }
+    }
+  };
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (typeof item === "string" || typeof item === "number") {
+        const token = toText(item);
+        if (token) {
+          coreSkills.add(token);
+        }
+        continue;
+      }
+
+      if (isRecord(item)) {
+        absorbRecord(item as Record<string, unknown>);
+      }
+    }
+  } else if (isRecord(value)) {
+    absorbRecord(value as Record<string, unknown>);
+  } else if (typeof value === "string") {
+    for (const item of toStringArray(value)) {
+      coreSkills.add(item);
+    }
   }
 
-  const textSkills = value.filter((item) => typeof item === "string").map((item) => toText(item));
-
-  const grouped = value
-    .filter((item) => isRecord(item))
-    .map((item) => item as ParsedSkillGroup)
-    .map((item) => ({
-      category: toText(item.category) || "Core skills",
-      items: toStringArray(item.items),
-    }))
-    .filter((item) => item.items.length > 0 || item.category.length > 0);
-
-  if (textSkills.length > 0) {
-    grouped.unshift({
-      category: "Core skills",
-      items: textSkills,
-    });
+  if (coreSkills.size > 0) {
+    pushGroup("Core skills", Array.from(coreSkills));
   }
 
   return grouped.filter((item) => item.category || item.items.length > 0);
 }
 
 function normalizeLinks(value: unknown): ResumeData["personal"]["links"] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  const normalized: ResumeData["personal"]["links"] = [];
 
-  return value
-    .map((item) => {
+  const pushLink = (labelValue: unknown, urlValue: unknown) => {
+    const label = toText(labelValue);
+    const url = toText(urlValue);
+
+    if (!label && !url) {
+      return;
+    }
+
+    normalized.push({
+      label: label || deriveLinkLabel(url),
+      url,
+    });
+  };
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
       if (typeof item === "string") {
-        const url = toText(item);
-        return {
-          label: deriveLinkLabel(url),
-          url,
-        };
+        pushLink("", item);
+        continue;
       }
 
       if (!isRecord(item)) {
-        return { label: "", url: "" };
+        continue;
       }
 
-      const label = toText(item.label);
-      const url = toText(item.url);
-      return {
-        label: label || deriveLinkLabel(url),
-        url,
-      };
-    })
-    .filter((link) => link.label || link.url);
+      const record = item as Record<string, unknown>;
+      pushLink(record.label ?? record.name ?? record.platform ?? record.type, record.url ?? record.link ?? record.value);
+    }
+  } else if (isRecord(value)) {
+    const record = value as Record<string, unknown>;
+    for (const [label, url] of Object.entries(record)) {
+      pushLink(label, url);
+    }
+  }
+
+  return normalized.filter((link) => link.label || link.url);
 }
 
 function deriveLinkLabel(url: string) {
@@ -458,7 +757,15 @@ function buildTitleSuggestion(fullName: string) {
 }
 
 function toText(value: unknown) {
-  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  if (typeof value === "string") {
+    return value.replace(/\s+/g, " ").trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return "";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

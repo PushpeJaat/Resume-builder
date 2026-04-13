@@ -271,7 +271,15 @@ export default function DashboardPage() {
               <p className="inline-flex rounded-full border border-cyan-300/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
                 Admin
               </p>
-              <h2 className="mt-3 text-base font-semibold text-white">Payment orders</h2>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-base font-semibold text-white">Payment orders</h2>
+                <Link
+                  href="/dashboard/admin/extracted-resumes"
+                  className="rounded-lg border border-cyan-200/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:border-cyan-200/45 hover:bg-cyan-500/20"
+                >
+                  View extracted resumes
+                </Link>
+              </div>
               <p className="mt-1 text-sm text-slate-400">Status by resume and customer (latest 120 orders).</p>
             </div>
 
