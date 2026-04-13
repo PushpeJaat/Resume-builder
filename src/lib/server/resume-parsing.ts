@@ -49,7 +49,7 @@ const GEMINI_TIMEOUT_MS = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, 45_000
 const GEMINI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 8_192);
 const TOTAL_PIPELINE_TIMEOUT_MS = parsePositiveInt(process.env.PARSE_RESUME_TOTAL_TIMEOUT_MS, 60_000);
 const MIN_STEP_TIMEOUT_MS = 1_200;
-const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-3-flash";
 const DEFAULT_STORAGE_BUCKET = "resume-uploads";
 
 const SECTION_PATTERNS = [
