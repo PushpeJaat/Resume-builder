@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { extractText } from "unpdf";
 
@@ -23,7 +23,7 @@ export type ParseResumePipelineResult = {
   rawText: string;
   meta: ParseResumeMeta;
   parsedResume?: ExtractedResume;
-  geminiError?: string;
+  parserError?: string;
 };
 
 export class ResumePipelineError extends Error {
@@ -45,11 +45,11 @@ const OCR_TIMEOUT_MS = parsePositiveInt(process.env.OCR_TIMEOUT_MS, 15_000);
 const OCR_MAX_RETRIES = parsePositiveInt(process.env.OCR_MAX_RETRIES, 1);
 const OCR_MAX_PAGES = parsePositiveInt(process.env.OCR_MAX_PAGES, 5);
 const OCR_RETRY_DELAY_MS = parsePositiveInt(process.env.OCR_RETRY_DELAY_MS, 300);
-const GEMINI_TIMEOUT_MS = parsePositiveInt(process.env.GEMINI_TIMEOUT_MS, 45_000);
-const GEMINI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 8_192);
+const OPENAI_TIMEOUT_MS = parsePositiveInt(process.env.OPENAI_TIMEOUT_MS, 45_000);
+const OPENAI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.OPENAI_MAX_OUTPUT_TOKENS, 4_096);
 const TOTAL_PIPELINE_TIMEOUT_MS = parsePositiveInt(process.env.PARSE_RESUME_TOTAL_TIMEOUT_MS, 60_000);
 const MIN_STEP_TIMEOUT_MS = 1_200;
-const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const DEFAULT_STORAGE_BUCKET = "resume-uploads";
 
 const SECTION_PATTERNS = [
@@ -77,7 +77,7 @@ const SECTION_PATTERNS = [
   },
 ] as const;
 
-const GEMINI_PROMPT = [
+const OPENAI_PROMPT = [
   "You are a resume parser.",
   "Convert the resume text into valid JSON only.",
   "Required JSON shape:",
@@ -108,7 +108,7 @@ type PdfBytesSourceResult = {
   storagePath: string;
 };
 
-type GeminiStructuredResult = {
+type StructuredParsingResult = {
   parsedResume?: ExtractedResume;
   error?: string;
 };
@@ -144,7 +144,7 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
     );
   }
 
-  const geminiResult = await parseWithGeminiFromText(cleanedText, deadline);
+  const parsingResult = await parseWithOpenAiFromText(cleanedText, deadline);
 
   return {
     rawText: cleanedText,
@@ -153,8 +153,8 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
       length: cleanedText.length,
       storage_path: storagePath,
     },
-    parsedResume: geminiResult.parsedResume,
-    geminiError: geminiResult.error,
+    parsedResume: parsingResult.parsedResume,
+    parserError: parsingResult.error,
   };
 }
 
@@ -403,51 +403,27 @@ function normalizeSectionHeading(line: string): string {
   return line;
 }
 
-async function parseWithGeminiFromText(text: string, deadline: number): Promise<GeminiStructuredResult> {
-  const geminiApiKey = (process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? "").trim();
-  if (!geminiApiKey) {
+async function parseWithOpenAiFromText(text: string, deadline: number): Promise<StructuredParsingResult> {
+  const openAiApiKey = (process.env.OPENAI_API_KEY ?? "").trim();
+  if (!openAiApiKey) {
     return {
-      error: "GEMINI_API_KEY is missing.",
+      error: "OPENAI_API_KEY is missing.",
     };
   }
 
   if (getRemainingMs(deadline) < MIN_STEP_TIMEOUT_MS) {
     return {
-      error: "Not enough time left for Gemini structured parsing.",
+      error: "Not enough time left for AI structured parsing.",
     };
   }
 
-  const modelName = (process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
-  const prompt = `${GEMINI_PROMPT}\n\nResume text:\n${text.slice(0, 45_000)}`;
-  const genAI = new GoogleGenerativeAI(geminiApiKey);
+  const modelName = (process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL).trim() || DEFAULT_OPENAI_MODEL;
+  const prompt = `${OPENAI_PROMPT}\n\nResume text:\n${text.slice(0, 45_000)}`;
+  const client = new OpenAI({ apiKey: openAiApiKey });
 
   try {
-    const model = genAI.getGenerativeModel({ model: modelName });
-    
-    const result = await withTimeout(
-      model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0,
-          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-        },
-      }),
-      clampTimeoutToDeadline(
-        GEMINI_TIMEOUT_MS,
-        deadline,
-        "Gemini structured extraction timed out.",
-      ),
-      "Gemini structured extraction timed out.",
-    );
-
-    const raw = typeof result.response?.text === "function" ? result.response.text() : "";
-    const parsed = parseGeminiJson(raw);
+    const raw = await callOpenAiForStructuredResume(client, modelName, prompt, deadline);
+    const parsed = parseStructuredJson(raw);
     if (!parsed) {
       return { error: `${modelName} returned non-JSON output.` };
     }
@@ -463,9 +439,63 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
   } catch (error) {
     return {
       error: `${modelName}: ${sanitizeErrorMessage(
-        getErrorMessage(error, "Gemini structured extraction failed."),
+        getErrorMessage(error, "OpenAI structured extraction failed."),
       )}`,
     };
+  }
+}
+
+async function callOpenAiForStructuredResume(
+  client: OpenAI,
+  modelName: string,
+  prompt: string,
+  deadline: number,
+) {
+  const timeoutMs = clampTimeoutToDeadline(
+    OPENAI_TIMEOUT_MS,
+    deadline,
+    "OpenAI structured extraction timed out.",
+  );
+
+  const request = {
+    model: modelName,
+    temperature: 0,
+    max_tokens: OPENAI_MAX_OUTPUT_TOKENS,
+    messages: [
+      {
+        role: "system" as const,
+        content: "You convert resume text into JSON only.",
+      },
+      {
+        role: "user" as const,
+        content: prompt,
+      },
+    ],
+  };
+
+  try {
+    const response = await withTimeout(
+      client.chat.completions.create({
+        ...request,
+        response_format: { type: "json_object" },
+      }),
+      timeoutMs,
+      "OpenAI structured extraction timed out.",
+    );
+
+    return response.choices[0]?.message?.content ?? "";
+  } catch (error) {
+    if (!isResponseFormatCompatibilityError(error)) {
+      throw error;
+    }
+
+    const fallbackResponse = await withTimeout(
+      client.chat.completions.create(request),
+      timeoutMs,
+      "OpenAI structured extraction timed out.",
+    );
+
+    return fallbackResponse.choices[0]?.message?.content ?? "";
   }
 }
 
@@ -573,7 +603,7 @@ function hasMeaningfulExtraction(data: ExtractedResume) {
   );
 }
 
-function parseGeminiJson(value: string): unknown | null {
+function parseStructuredJson(value: string): unknown | null {
   const cleaned = stripCodeFences(value);
   const candidates = [
     cleaned,
@@ -599,52 +629,14 @@ function parseGeminiJson(value: string): unknown | null {
   return null;
 }
 
-function uniqueStrings(values: string[]) {
-  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
-}
-
-function isDeprecatedGeminiModelName(modelName: string) {
-  const normalized = modelName.trim().toLowerCase();
+function isResponseFormatCompatibilityError(error: unknown) {
+  const normalized = getErrorMessage(error, "").toLowerCase();
   return (
-    normalized === "gemini-2.0-flash-lite" ||
-    normalized === "models/gemini-2.0-flash-lite" ||
-    normalized.includes("gemini-2.0-flash-lite") ||
-    normalized === "gemini-1.5-flash-latest" ||
-    normalized === "models/gemini-1.5-flash-latest" ||
-    normalized.includes("gemini-1.5-flash-latest")
-  );
-}
-
-function isDeprecatedModelError(message: string) {
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes("no longer available to new users") ||
-    normalized.includes("model is no longer available") ||
-    normalized.includes("gemini-2.0-flash-lite") ||
-    normalized.includes("gemini-1.5-flash-latest") ||
-    normalized.includes("not found for api version v1beta")
-  );
-}
-
-function isGenerationConfigCompatibilityError(message: string) {
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes("responsemimetype") &&
-    (normalized.includes("unknown name") || normalized.includes("generation_config"))
-  );
-}
-
-function isPreviewGeminiModel(modelName: string) {
-  const normalized = modelName.toLowerCase();
-  return normalized.includes("preview") || normalized.includes("-latest");
-}
-
-function isModelVersionCompatibilityError(message: string) {
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes("not found for api version") ||
-    normalized.includes("is not found for api version") ||
-    (normalized.includes("api version") && normalized.includes("not supported for generatecontent"))
+    normalized.includes("response_format") &&
+    (normalized.includes("unsupported") ||
+      normalized.includes("not supported") ||
+      normalized.includes("unknown") ||
+      normalized.includes("invalid"))
   );
 }
 

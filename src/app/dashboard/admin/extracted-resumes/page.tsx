@@ -145,7 +145,7 @@ export default function AdminExtractedResumesPage() {
           <section className="mt-8 rounded-[24px] border border-cyan-300/20 bg-white/[0.04] shadow-2xl shadow-black/20">
             <div className="border-b border-cyan-200/15 px-5 py-4 sm:px-6">
               <h2 className="text-base font-semibold text-white">extracted_resumes</h2>
-              <p className="mt-1 text-sm text-slate-400">Latest 200 extracted records from Gemini/AI parsing.</p>
+              <p className="mt-1 text-sm text-slate-400">Latest 200 extracted records from AI parsing.</p>
             </div>
 
             {rows.length === 0 ? (

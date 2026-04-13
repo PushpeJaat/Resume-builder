@@ -22,12 +22,12 @@ export async function POST(req: Request) {
     const result = await parseResumeFile(resume);
 
     if (!result.parsedResume) {
-      const reason = result.geminiError?.trim();
+      const reason = result.parserError?.trim();
       return NextResponse.json(
         {
           error: reason
             ? `Structured AI parsing failed: ${reason}`
-            : "Structured AI parsing is unavailable. Configure GEMINI_API_KEY to return parsed resume JSON.",
+            : "Structured AI parsing is unavailable. Configure OPENAI_API_KEY to return parsed resume JSON.",
         },
         { status: 422 },
       );

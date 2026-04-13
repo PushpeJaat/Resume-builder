@@ -756,7 +756,7 @@ function normalizeSkills(value: unknown): ResumeData["skills"] {
       return;
     }
 
-    // Some Gemini payloads send category-keyed objects, for example: { technical: ["React", "Node"] }.
+    // Some AI payloads send category-keyed objects, for example: { technical: ["React", "Node"] }.
     for (const [key, candidate] of Object.entries(record)) {
       if (["category", "group", "title", "name"].includes(key)) {
         continue;

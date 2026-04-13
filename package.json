@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@google-cloud/vision": "^5.3.5",
-    "@google/generative-ai": "^0.24.1",
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
     "@supabase/supabase-js": "^2.103.0",
@@ -25,6 +24,7 @@
     "mammoth": "^1.12.0",
     "next": "^15.2.4",
     "next-auth": "^5.0.0-beta.29",
+    "openai": "^6.34.0",
     "pg": "^8.20.0",
     "radix-ui": "^1.4.3",
     "react": "^19.0.0",
