@@ -449,17 +449,25 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
         },
       );
 
-      const generationConfigs = [
-        {
-          responseMimeType: "application/json",
-          temperature: 0,
-          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-        },
-        {
-          temperature: 0,
-          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-        },
-      ];
+      const generationConfigs =
+        apiVersion === "v1"
+          ? [
+              {
+                temperature: 0,
+                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+              },
+            ]
+          : [
+              {
+                responseMimeType: "application/json",
+                temperature: 0,
+                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+              },
+              {
+                temperature: 0,
+                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+              },
+            ];
 
       for (const generationConfig of generationConfigs) {
         try {
@@ -506,7 +514,14 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
   }
 
   const nonDeprecatedErrors = attemptErrors.filter((entry) => !isDeprecatedModelError(entry));
-  const baseError = nonDeprecatedErrors[0] ?? attemptErrors[0] ?? "Gemini returned no structured data.";
+  const nonCompatibilityErrors = nonDeprecatedErrors.filter(
+    (entry) => !isGenerationConfigCompatibilityError(entry),
+  );
+  const baseError =
+    nonCompatibilityErrors[0] ??
+    nonDeprecatedErrors[0] ??
+    attemptErrors[0] ??
+    "Gemini returned no structured data.";
 
   const prefixedError = configuredModelDeprecated
     ? `Configured GEMINI_MODEL '${configuredModel}' is deprecated. ${baseError}`
@@ -671,6 +686,14 @@ function isDeprecatedModelError(message: string) {
     normalized.includes("gemini-2.0-flash-lite") ||
     normalized.includes("gemini-1.5-flash-latest") ||
     normalized.includes("not found for api version v1beta")
+  );
+}
+
+function isGenerationConfigCompatibilityError(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("responsemimetype") &&
+    (normalized.includes("unknown name") || normalized.includes("generation_config"))
   );
 }
 
