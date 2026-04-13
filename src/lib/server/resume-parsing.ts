@@ -421,15 +421,17 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
   const configuredModelDeprecated = isDeprecatedGeminiModelName(configuredModel);
 
   const configuredApiVersion = (process.env.GEMINI_API_VERSION ?? "").trim();
-  const apiVersionCandidates = uniqueStrings([
+  const baseApiVersionCandidates = uniqueStrings([
     configuredApiVersion,
     "v1",
     "v1beta",
-  ]);
+  ]).filter((version) => version === "v1" || version === "v1beta");
 
   const modelCandidates = uniqueStrings([
     ...(configuredModelDeprecated ? [] : [configuredModel]),
     "gemini-3-flash-preview",
+    "gemini-3-flash",
+    "gemini-3-flash-001",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
     DEFAULT_GEMINI_MODEL,
@@ -441,6 +443,10 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
   const attemptErrors: string[] = [];
 
   for (const modelName of modelCandidates) {
+    const apiVersionCandidates = isPreviewGeminiModel(modelName)
+      ? uniqueStrings([configuredApiVersion, "v1beta"])
+      : baseApiVersionCandidates;
+
     for (const apiVersion of apiVersionCandidates) {
       const model = genAI.getGenerativeModel(
         { model: modelName },
@@ -515,7 +521,9 @@ async function parseWithGeminiFromText(text: string, deadline: number): Promise<
 
   const nonDeprecatedErrors = attemptErrors.filter((entry) => !isDeprecatedModelError(entry));
   const nonCompatibilityErrors = nonDeprecatedErrors.filter(
-    (entry) => !isGenerationConfigCompatibilityError(entry),
+    (entry) =>
+      !isGenerationConfigCompatibilityError(entry) &&
+      !isModelVersionCompatibilityError(entry),
   );
   const baseError =
     nonCompatibilityErrors[0] ??
@@ -694,6 +702,20 @@ function isGenerationConfigCompatibilityError(message: string) {
   return (
     normalized.includes("responsemimetype") &&
     (normalized.includes("unknown name") || normalized.includes("generation_config"))
+  );
+}
+
+function isPreviewGeminiModel(modelName: string) {
+  const normalized = modelName.toLowerCase();
+  return normalized.includes("preview") || normalized.includes("-latest");
+}
+
+function isModelVersionCompatibilityError(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("not found for api version") ||
+    normalized.includes("is not found for api version") ||
+    (normalized.includes("api version") && normalized.includes("not supported for generatecontent"))
   );
 }
 
