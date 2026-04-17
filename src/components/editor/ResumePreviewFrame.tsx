@@ -77,34 +77,52 @@ export function ResumePreviewFrame({ templateId, data }: Props) {
   }, [documentHtml]);
 
   return (
-    <div
-      ref={viewportRef}
-      className="relative h-full min-h-0 w-full max-w-full sm:overflow-visible overflow-auto sm:flex block justify-center items-start"
-      style={{ WebkitOverflowScrolling: "touch" }}
-    >
-      <div
-        style={{
-          width: A4_WIDTH_PX,
-          minWidth: "100%",
-          transform: `scale(${zoom})`,
-          transformOrigin: "top center",
-          transition: "transform 0.2s cubic-bezier(.4,0,.2,1)",
-        }}
-      >
-        <iframe
-          ref={iframeRef}
-          srcDoc={documentHtml}
-          title="Resume preview"
-          style={{
-            width: "100%",
-            height: frameHeight,
-            border: "none",
-            background: "#fff",
-            borderRadius: 12,
-            boxShadow: "0 2px 16px 0 rgba(15,23,42,0.10)",
-          }}
-          className="block w-full rounded-xl shadow-md"
-        />
+    <div className="relative h-full min-h-0">
+      <div ref={viewportRef} className="h-full min-h-0 overflow-auto px-2 py-2 sm:px-3 sm:py-3">
+        <div className="flex min-h-full w-full items-start justify-center sm:items-center">
+          <div
+            className="transition-[width,min-height] duration-300 ease-out"
+            style={{
+              width: `${A4_WIDTH_PX * zoom}px`,
+              minHeight: `${A4_BASE_HEIGHT_PX * zoom}px`,
+            }}
+          >
+            <div
+              className="origin-top-left transition-transform duration-300 ease-out"
+              style={{
+                width: `${A4_WIDTH_PX}px`,
+                transform: `scale(${zoom})`,
+                transformOrigin: "top left",
+              }}
+            >
+              <iframe
+                ref={iframeRef}
+                title="Resume preview"
+                srcDoc={documentHtml}
+                className="block border-0 bg-white shadow-[0_22px_54px_-32px_rgba(15,23,42,0.55)]"
+                style={{
+                  width: `${A4_WIDTH_PX}px`,
+                  height: `${frameHeight}px`,
+                }}
+                sandbox="allow-same-origin allow-popups"
+                onLoad={() => {
+                  const iframe = iframeRef.current;
+                  const contentDocument = iframe?.contentDocument;
+                  if (!contentDocument) {
+                    return;
+                  }
+
+                  const nextHeight = Math.max(
+                    contentDocument.documentElement.scrollHeight,
+                    contentDocument.body.scrollHeight,
+                    A4_BASE_HEIGHT_PX,
+                  );
+                  setFrameHeight(nextHeight);
+                }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
