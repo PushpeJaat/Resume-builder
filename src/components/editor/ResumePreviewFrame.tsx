@@ -79,7 +79,7 @@ export function ResumePreviewFrame({ templateId, data }: Props) {
   return (
     <div
       ref={viewportRef}
-      className="relative h-full min-h-0 w-full max-w-full overflow-auto flex justify-center items-start"
+      className="relative h-full min-h-0 w-full max-w-full sm:overflow-visible overflow-auto sm:flex block justify-center items-start"
       style={{ WebkitOverflowScrolling: "touch" }}
     >
       <div
