@@ -10,33 +10,32 @@ export default function PricingPage() {
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-16">
             <p className="mb-4 inline-flex rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">
-              Simple pricing
+              One subscription
             </p>
             <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
-              Transparent Download Pricing
+              Simple pricing that stays simple
             </h1>
             <p className="mx-auto max-w-2xl text-lg text-slate-300">
-              Build and edit your resume for free. Secure payment is requested only when you export the final PDF.
+              One plan: INR 39 for 30 days. No credit card required, no recurring charges, one-time payment only.
             </p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
             <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/25">
-              <h2 className="text-2xl font-semibold text-white">Everything included</h2>
+              <h2 className="text-2xl font-semibold text-white">What you get</h2>
               <p className="mt-2 max-w-2xl text-sm text-slate-300">
-                CVpilot keeps the product simple: one workspace, all templates unlocked, and account creation only when
-                you want secure exports and saved history.
+                CVpilot gives you a full resume workflow with AI writing support, professional templates, and hassle-free PDF export.
               </p>
               <ul className="mt-8 grid gap-3 sm:grid-cols-2">
                 {[
-                  "All 6 professional templates",
-                  "Full customization",
-                  "Live preview",
-                  "PDF export",
-                  "Resume import (PDF, DOCX, TXT)",
-                  "Unlimited resumes",
-                  "Secure cloud storage",
-                  "Download history",
+                  "Unlimited resume builds",
+                  "Premium ATS-ready templates",
+                  "AI-guided content suggestions",
+                  "Resume import and export",
+                  "Saved history & cloud access",
+                  "Fast PDF download",
+                  "One workspace for all resumes",
+                  "Secure checkout with no surprises",
                 ].map((feature) => (
                   <li key={feature} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                     <svg className="h-5 w-5 text-cyan-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,23 +49,22 @@ export default function PricingPage() {
 
             <section className="mx-auto w-full max-w-md rounded-[28px] border border-sky-400/25 bg-gradient-to-b from-sky-500/10 to-cyan-400/5 p-8 shadow-2xl shadow-sky-500/10">
               <div className="text-center">
-                <h3 className="text-xl font-semibold text-white mb-2">Free Plan</h3>
-                <div className="text-4xl font-bold text-white mb-4">$0</div>
-                <p className="text-slate-300 mb-6">Build and edit at no charge</p>
+                <h3 className="text-xl font-semibold text-white mb-2">Single plan</h3>
+                <div className="text-5xl font-bold text-white mb-2">INR 39</div>
+                <p className="text-slate-300 mb-6">One-time payment · 30 days validity</p>
               </div>
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-4 mb-8 text-left">
                 {[
-                  "Start editing without sign in",
-                  "Create account to save and export",
-                  "Save resumes to your workspace",
-                  "Secure payment before PDF download",
-                  "Modern ATS-ready designs",
+                  "No credit card required",
+                  "No recurring payment",
+                  "One-time subscription",
+                  "Valid for 30 days",
                 ].map((feature) => (
                   <li key={feature} className="flex items-center gap-3">
                     <svg className="h-5 w-5 text-cyan-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-slate-200">{feature}</span>
+                    <span className="text-sm text-slate-200">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -74,7 +72,7 @@ export default function PricingPage() {
                 href="/signup"
                 className="block w-full rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-3 text-center font-semibold text-slate-950 transition hover:brightness-105"
               >
-                Get Started Free
+                Pay INR 39 and export
               </Link>
             </section>
           </div>

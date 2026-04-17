@@ -52,8 +52,8 @@ export default function Hero() {
               size="lg"
               className="h-11 rounded-full bg-slate-950 px-7 text-sm font-semibold text-white shadow-[0_18px_45px_-18px_rgba(15,23,42,0.7)] transition-transform hover:-translate-y-0.5 hover:bg-slate-800"
             >
-              <Link href="/signup">
-                Get Started
+              <Link href="/dashboard/templates">
+                Build your resume
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -64,7 +64,7 @@ export default function Hero() {
               size="lg"
               className="h-11 rounded-full border-slate-300 bg-white/85 px-7 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur transition-transform hover:-translate-y-0.5 hover:bg-white"
             >
-              <Link href="/dashboard/templates">View Templates</Link>
+              <Link href="/dashboard">Get your resume score</Link>
             </Button>
           </div>
         </div>

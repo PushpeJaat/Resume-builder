@@ -6,8 +6,7 @@ import {
   PencilRuler,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { BrandMark } from "@/components/BrandMark";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 import Hero from "@/components/Hero";
 import {
   Card,
@@ -43,32 +42,7 @@ const features = [
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_38%,#f8fafc_100%)] text-slate-950">
-      <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <BrandMark />
-
-          <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-            <a href="#features" className="transition hover:text-slate-950">
-              Features
-            </a>
-            <Link href="/dashboard/templates" className="transition hover:text-slate-950">
-              Templates
-            </Link>
-            <a href="#pricing" className="transition hover:text-slate-950">
-              Pricing
-            </a>
-          </nav>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Button asChild variant="ghost" className="hidden sm:inline-flex">
-              <Link href="/login">Login</Link>
-            </Button>
-            <Button asChild className="rounded-xl px-5 shadow-lg shadow-slate-950/10">
-              <Link href="/signup">Get Started</Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader theme="light" />
 
       <main>
         <Hero />
@@ -107,28 +81,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section id="pricing" className="px-4 py-20 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-4xl">
-            <Card className="rounded-[32px] border-slate-200/80 bg-[linear-gradient(135deg,#0f172a_0%,#111827_40%,#0ea5e9_120%)] text-white shadow-2xl shadow-slate-300/60">
-              <CardContent className="px-8 py-12 text-center sm:px-12">
-                <Badge className="rounded-full bg-white/10 px-3 py-1 text-white ring-1 ring-white/15">
-                  Get started free
-                </Badge>
-                <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
-                  Start building your resume today
-                </h2>
-                <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-200">
-                  Go from blank page to polished resume with AI support, premium-feeling templates, and fast export.
-                </p>
-                <div className="mt-8 flex justify-center">
-                  <Button asChild size="lg" variant="secondary" className="rounded-2xl px-6 text-slate-950">
-                    <Link href="/signup">Get Started Free</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
       </main>
 
       <footer className="border-t border-slate-200 bg-white px-4 py-10 sm:px-6 lg:px-8">

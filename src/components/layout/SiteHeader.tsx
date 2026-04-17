@@ -13,6 +13,9 @@ type Props = {
 export function SiteHeader({ theme = "light" }: Props) {
   const { data: session, status } = useSession();
   const isLoggedIn = status === "authenticated" && Boolean(session?.user?.id);
+  const firstName =
+    session?.user?.name?.trim().split(" ").filter(Boolean)[0] ??
+    session?.user?.email?.split("@")[0];
   const dark = theme === "dark";
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -30,6 +33,7 @@ export function SiteHeader({ theme = "light" }: Props) {
         <nav className="hidden items-center gap-2 text-sm font-medium md:flex md:gap-3">
           <Link href="/" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60")}>Home</Link>
           <Link href="/dashboard/templates" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60")}>Templates</Link>
+          <Link href="/pricing" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60")}>Pricing</Link>
           <Link href="/blog" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60")}>Blog</Link>
           <Link href="/contact-us" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60")}>Contact</Link>
           <div className={cn("h-6 w-px", dark ? "bg-white/12" : "bg-slate-200")} />
@@ -37,6 +41,7 @@ export function SiteHeader({ theme = "light" }: Props) {
             <div className="h-9 w-20 animate-pulse rounded-lg bg-current opacity-10" />
           ) : isLoggedIn ? (
             <>
+              <span className={cn("rounded-lg px-3 py-2 text-sm font-medium", dark ? "text-slate-200" : "text-slate-700")}>Hi, {firstName}</span>
               <Link href="/dashboard" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-200 hover:text-white hover:bg-white/8" : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/50")}>Dashboard</Link>
               <Link href="/account" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-200 hover:text-white hover:bg-white/8" : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/50")}>Profile</Link>
               <button
@@ -83,6 +88,7 @@ export function SiteHeader({ theme = "light" }: Props) {
           <nav className="flex flex-col gap-1 pt-2 text-sm font-medium">
             <Link href="/" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Home</Link>
             <Link href="/dashboard/templates" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Templates</Link>
+            <Link href="/pricing" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Pricing</Link>
             <Link href="/blog" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Blog</Link>
             <Link href="/contact-us" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Contact</Link>
             <div className={cn("my-1 h-px", dark ? "bg-white/10" : "bg-slate-200")} />
