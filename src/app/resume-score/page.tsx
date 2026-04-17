@@ -3,6 +3,17 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 
+function LoadingOverlay() {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-400 border-t-transparent" />
+        <div className="text-lg font-semibold text-indigo-700 animate-pulse">Extracting your resume with AI…</div>
+      </div>
+    </div>
+  );
+}
+
 export default function ResumeScorePage() {
   const [score, setScore] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string>("");
@@ -27,7 +38,7 @@ export default function ResumeScorePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950">
+    <div className="min-h-screen bg-slate-50 text-slate-950 relative">
       <SiteHeader theme="light" />
       <main className="mx-auto max-w-xl px-4 pb-16 pt-24 sm:px-6 lg:px-8">
         <div className="mb-10 text-center">
@@ -45,7 +56,6 @@ export default function ResumeScorePage() {
             className="mb-4 block w-full rounded border border-slate-200 px-4 py-2 text-sm"
             disabled={loading}
           />
-          {loading && <div className="text-center text-indigo-600">Scoring your resume...</div>}
           {score !== null && (
             <div className="mt-6 text-center">
               <div className="text-5xl font-bold text-indigo-700">{score}%</div>
@@ -54,6 +64,7 @@ export default function ResumeScorePage() {
           )}
         </div>
       </main>
+      {loading && <LoadingOverlay />}
     </div>
   );
 }
