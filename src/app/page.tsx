@@ -10,7 +10,6 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import Hero from "@/components/Hero";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,

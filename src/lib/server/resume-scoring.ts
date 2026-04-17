@@ -3,7 +3,7 @@
 
 export async function scoreResume(text: string): Promise<{ score: number; feedback: string }> {
   let score = 0;
-  let feedback: string[] = [];
+  const feedback: string[] = [];
   const lower = text.toLowerCase();
 
   // Section checks
