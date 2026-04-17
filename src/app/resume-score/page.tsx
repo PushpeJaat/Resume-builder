@@ -1,3 +1,4 @@
+"use client";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
