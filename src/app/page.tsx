@@ -82,23 +82,19 @@ export default function HomePage() {
 
       </main>
 
-      <footer className="border-t border-slate-200 bg-white px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <footer className="border-t border-slate-200 bg-white px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl flex flex-col items-center text-center gap-6">
           <div>
-            <p className="text-lg font-semibold tracking-tight text-slate-950">CVpilot</p>
-            <p className="mt-1 text-sm text-slate-500">Modern resume building for fast-moving careers.</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-950">CVpilot</p>
+            <p className="mt-2 text-base text-slate-500">Modern resume building for fast-moving careers.</p>
           </div>
-          <div className="flex flex-wrap gap-6 text-sm text-slate-500">
-            <Link href="/contact-us" className="transition hover:text-slate-950">
-              Contact Us
-            </Link>
-            <Link href="/terms-and-conditions" className="transition hover:text-slate-950">
-              Terms &amp; Conditions
-            </Link>
-            <Link href="/refunds-cancellations" className="transition hover:text-slate-950">
-              Refunds &amp; Cancellations
-            </Link>
-          </div>
+          <nav className="flex flex-col gap-3 text-base text-slate-600">
+            <Link href="/contact-us" className="transition hover:text-slate-950">Contact Us</Link>
+            <Link href="/privacy-policy" className="transition hover:text-slate-950">Privacy Policy</Link>
+            <Link href="/terms-and-conditions" className="transition hover:text-slate-950">Terms &amp; Conditions</Link>
+            <Link href="/refunds-cancellations" className="transition hover:text-slate-950">Refunds &amp; Cancellations</Link>
+          </nav>
+          <p className="mt-4 text-xs text-slate-400">&copy; {new Date().getFullYear()} CVpilot. All rights reserved.</p>
         </div>
       </footer>
     </div>
