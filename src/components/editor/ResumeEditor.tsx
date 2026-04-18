@@ -67,7 +67,7 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className={`min-h-20 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 ${props.className ?? ""}`}
+      className={`min-h-20 w-full rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(240,249,255,0.78)_100%)] px-3 py-2 text-sm leading-6 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 lg:rounded-lg lg:border-slate-200 lg:bg-white lg:shadow-sm ${props.className ?? ""}`}
     />
   );
 }
@@ -554,7 +554,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                 {data.personal.links.map((link, index) => (
                   <div
                     key={`${link.label}-${index}`}
-                    className="grid items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/90 p-2 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)_auto]"
+                    className="grid items-center gap-1.5 rounded-lg border border-sky-200/80 bg-sky-50/70 p-2 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)_auto] lg:border-slate-200 lg:bg-slate-50/90"
                   >
                     <Input
                       value={link.label}
@@ -623,7 +623,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
               {data.experience.map((job, experienceIndex) => (
                 <div
                   key={job.id ?? `experience-${experienceIndex}`}
-                  className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/85 p-3"
+                  className="space-y-2.5 rounded-xl border border-sky-200/80 bg-sky-50/70 p-3 lg:border-slate-200 lg:bg-slate-50/85"
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold tracking-tight text-slate-800">
@@ -747,7 +747,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
               {data.education.map((entry, educationIndex) => (
                 <div
                   key={entry.id ?? `education-${educationIndex}`}
-                  className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/85 p-3"
+                  className="space-y-2.5 rounded-xl border border-sky-200/80 bg-sky-50/70 p-3 lg:border-slate-200 lg:bg-slate-50/85"
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold tracking-tight text-slate-800">
@@ -832,7 +832,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
             {data.skills.map((category, categoryIndex) => (
               <div
                 key={category.id ?? `skills-${categoryIndex}`}
-                className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/85 p-3"
+                className="space-y-2.5 rounded-xl border border-sky-200/80 bg-sky-50/70 p-3 lg:border-slate-200 lg:bg-slate-50/85"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold tracking-tight text-slate-800">
@@ -936,8 +936,8 @@ function ResumeEditorComponent({ data, onChange }: Props) {
   ]);
 
   return (
-    <div className="space-y-3 pb-5 [&_[data-slot=button][data-size=sm]]:h-9 [&_[data-slot=button][data-size=sm]]:px-3 [&_[data-slot=button][data-size=sm]]:text-[12px] lg:[&_[data-slot=button][data-size=sm]]:h-7 lg:[&_[data-slot=button][data-size=sm]]:px-2.5 lg:[&_[data-slot=button][data-size=sm]]:text-[0.8rem]">
-      <section className="rounded-2xl border border-slate-200/90 bg-slate-50/85 p-3.5 shadow-sm">
+    <div className="space-y-3 pb-5 [&_[data-slot=button][data-size=sm]]:h-9 [&_[data-slot=button][data-size=sm]]:px-3 [&_[data-slot=button][data-size=sm]]:text-[12px] lg:[&_[data-slot=button][data-size=sm]]:h-7 lg:[&_[data-slot=button][data-size=sm]]:px-2.5 lg:[&_[data-slot=button][data-size=sm]]:text-[0.8rem] [&_[data-slot=input]]:border-sky-200/90 [&_[data-slot=input]]:bg-sky-50/70 [&_[data-slot=input]]:shadow-[inset_0_1px_0_rgba(255,255,255,0.88)] [&_[data-slot=input]]:focus-visible:border-sky-400 [&_[data-slot=input]]:focus-visible:ring-sky-100 [&_textarea]:border-sky-200/90 [&_textarea]:bg-sky-50/70 [&_textarea]:shadow-[inset_0_1px_0_rgba(255,255,255,0.88)] [&_textarea]:focus-visible:border-sky-400 [&_textarea]:focus-visible:ring-sky-100 lg:[&_[data-slot=input]]:border-slate-200 lg:[&_[data-slot=input]]:bg-white lg:[&_[data-slot=input]]:shadow-none lg:[&_textarea]:border-slate-200 lg:[&_textarea]:bg-white lg:[&_textarea]:shadow-sm">
+      <section className="rounded-2xl border border-sky-200/80 bg-[linear-gradient(140deg,rgba(240,249,255,0.86)_0%,rgba(250,252,255,0.96)_62%,rgba(236,254,255,0.84)_100%)] p-3.5 shadow-[0_18px_40px_-34px_rgba(14,116,144,0.45)] lg:border-slate-200/90 lg:bg-slate-50/85 lg:shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
             Step {currentStep + 1} of {STEP_COUNT}
@@ -977,7 +977,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_18px_44px_-36px_rgba(15,23,42,0.68)]">
+      <section className="rounded-2xl border border-sky-200/80 bg-[linear-gradient(150deg,rgba(255,255,255,0.96)_0%,rgba(240,249,255,0.72)_100%)] p-4 shadow-[0_20px_46px_-34px_rgba(14,116,144,0.5)] lg:border-slate-200 lg:bg-white lg:shadow-[0_18px_44px_-36px_rgba(15,23,42,0.68)]">
         <div className="mb-4 flex items-start gap-2.5">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-700">
             <currentStepMeta.icon className="size-4" />
@@ -991,7 +991,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
         {stepContent}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm">
+      <section className="rounded-2xl border border-sky-200/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.95)_0%,rgba(236,254,255,0.72)_100%)] p-2.5 shadow-[0_16px_36px_-34px_rgba(14,116,144,0.5)] lg:border-slate-200 lg:bg-white/90 lg:shadow-sm">
         <div className="flex items-center justify-between gap-2">
           <Button
             type="button"
