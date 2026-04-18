@@ -773,9 +773,9 @@ export function EditorClient({ resumeId }: Props) {
         <DialogContent className="max-w-md rounded-2xl p-0">
           <div className="p-6">
             <DialogHeader>
-              <DialogTitle>Sign in to download PDF</DialogTitle>
+              <DialogTitle>Sign in to download Ready-Resume</DialogTitle>
               <DialogDescription>
-                Create a free account to export, complete secure payment, and keep your resume synced.
+                Create a free account to export and keep your resume synced.
               </DialogDescription>
             </DialogHeader>
           </div>
