@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import NextImage from "next/image";
 import {
   ArrowLeft,
@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import type { ResumeData } from "@/types/resume";
 
 const STEPS = [
@@ -54,21 +55,103 @@ const STEPS = [
 
 const STEP_COUNT = STEPS.length;
 
+const PHONE_COUNTRIES = [
+  { iso2: "IN", name: "India", dialCode: "+91" },
+  { iso2: "US", name: "United States", dialCode: "+1" },
+  { iso2: "GB", name: "United Kingdom", dialCode: "+44" },
+  { iso2: "AE", name: "United Arab Emirates", dialCode: "+971" },
+  { iso2: "CA", name: "Canada", dialCode: "+1" },
+  { iso2: "AU", name: "Australia", dialCode: "+61" },
+  { iso2: "SG", name: "Singapore", dialCode: "+65" },
+  { iso2: "SA", name: "Saudi Arabia", dialCode: "+966" },
+  { iso2: "DE", name: "Germany", dialCode: "+49" },
+  { iso2: "FR", name: "France", dialCode: "+33" },
+  { iso2: "BR", name: "Brazil", dialCode: "+55" },
+  { iso2: "JP", name: "Japan", dialCode: "+81" },
+] as const;
+
+const SORTED_PHONE_COUNTRIES = [...PHONE_COUNTRIES].sort(
+  (left, right) => right.dialCode.length - left.dialCode.length,
+);
+
+function detectCountryFromPhone(phone: string) {
+  const normalizedPhone = phone.trim();
+  return SORTED_PHONE_COUNTRIES.find((country) => normalizedPhone.startsWith(country.dialCode));
+}
+
+function stripPhoneDialCode(phone: string) {
+  const normalizedPhone = phone.trim();
+
+  for (const country of SORTED_PHONE_COUNTRIES) {
+    const escapedDial = country.dialCode.replace("+", "\\+");
+    const matchDialAtStart = new RegExp(`^${escapedDial}[\\s-]*`);
+    if (matchDialAtStart.test(normalizedPhone)) {
+      return normalizedPhone.replace(matchDialAtStart, "").trim();
+    }
+  }
+
+  return normalizedPhone;
+}
+
+function getCountryByIso(iso2: string) {
+  return PHONE_COUNTRIES.find((country) => country.iso2 === iso2) ?? PHONE_COUNTRIES[0];
+}
+
 type Props = {
   data: ResumeData;
   onChange: (next: ResumeData) => void;
 };
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500/95">{children}</p>;
 }
 
-function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+function floatingLabelClassName() {
+  return "pointer-events-none absolute left-3 top-0 z-10 -translate-y-1/2 rounded-full bg-[rgba(246,251,255,0.95)] px-1 text-[10px] font-medium text-slate-600 transition-all duration-200 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:px-0 peer-placeholder-shown:text-[12px] peer-placeholder-shown:text-slate-500 peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:px-1 peer-focus:text-[10px] peer-focus:text-sky-700 lg:bg-white";
+}
+
+type FloatingInputProps = Omit<React.ComponentProps<"input">, "placeholder"> & {
+  label: string;
+  wrapperClassName?: string;
+  inputClassName?: string;
+};
+
+function FloatingInput({ label, wrapperClassName, inputClassName, ...props }: FloatingInputProps) {
   return (
-    <textarea
-      {...props}
-      className={`min-h-20 w-full rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(240,249,255,0.78)_100%)] px-3 py-2 text-sm leading-6 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-slate-400 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 lg:rounded-lg lg:border-slate-200 lg:bg-white lg:shadow-sm ${props.className ?? ""}`}
-    />
+    <label className={cn("relative block", wrapperClassName)}>
+      <Input
+        {...props}
+        placeholder=" "
+        className={cn(
+          "peer h-11 rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(240,249,255,0.8)_100%)] px-3 pt-5 pb-1 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-sky-100 lg:border-slate-200 lg:bg-white lg:shadow-sm",
+          inputClassName,
+        )}
+      />
+      <span className={floatingLabelClassName()}>{label}</span>
+    </label>
+  );
+}
+
+type FloatingTextAreaProps = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "placeholder"> & {
+  label: string;
+  wrapperClassName?: string;
+};
+
+function FloatingTextArea({ label, wrapperClassName, className, ...props }: FloatingTextAreaProps) {
+  return (
+    <label className={cn("relative block", wrapperClassName)}>
+      <textarea
+        {...props}
+        placeholder=" "
+        className={cn(
+          "peer min-h-20 w-full rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(240,249,255,0.78)_100%)] px-3 pt-6 pb-2 text-sm leading-6 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-transparent focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 lg:rounded-lg lg:border-slate-200 lg:bg-white lg:shadow-sm",
+          className,
+        )}
+      />
+      <span className="pointer-events-none absolute left-3 top-0 z-10 -translate-y-1/2 rounded-full bg-[rgba(246,251,255,0.95)] px-1 text-[10px] font-medium text-slate-600 transition-all duration-200 peer-placeholder-shown:top-3.5 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:px-0 peer-placeholder-shown:text-[12px] peer-placeholder-shown:text-slate-500 peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:px-1 peer-focus:text-[10px] peer-focus:text-sky-700 lg:bg-white">
+        {label}
+      </span>
+    </label>
   );
 }
 
@@ -113,7 +196,9 @@ async function optimizePhotoFile(file: File): Promise<string> {
     targetImage.src = rawUrl;
   });
 
-  const maxEdge = 720;
+  const isCompactViewport =
+    typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+  const maxEdge = isCompactViewport ? 540 : 720;
   const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
   const width = Math.max(1, Math.round(image.width * scale));
   const height = Math.max(1, Math.round(image.height * scale));
@@ -139,6 +224,10 @@ function buildId() {
 
 function ResumeEditorComponent({ data, onChange }: Props) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [phoneCountryIso, setPhoneCountryIso] = useState(() => {
+    const detectedCountry = detectCountryFromPhone(data.personal.phone);
+    return detectedCountry?.iso2 ?? "IN";
+  });
 
   const currentStepMeta = STEPS[currentStep];
   const progressPercent = Math.round(((currentStep + 1) / STEP_COUNT) * 100);
@@ -155,6 +244,27 @@ function ResumeEditorComponent({ data, onChange }: Props) {
       onChange({ ...data, summary });
     },
     [data, onChange],
+  );
+
+  useEffect(() => {
+    const detectedCountry = detectCountryFromPhone(data.personal.phone);
+    if (detectedCountry && detectedCountry.iso2 !== phoneCountryIso) {
+      setPhoneCountryIso(detectedCountry.iso2);
+    }
+  }, [data.personal.phone, phoneCountryIso]);
+
+  const updatePhoneCountry = useCallback(
+    (nextIso: string) => {
+      const selectedCountry = getCountryByIso(nextIso);
+      const localPhoneNumber = stripPhoneDialCode(data.personal.phone);
+      const formattedPhone = localPhoneNumber
+        ? `${selectedCountry.dialCode} ${localPhoneNumber}`
+        : `${selectedCountry.dialCode} `;
+
+      setPhoneCountryIso(selectedCountry.iso2);
+      setPersonal({ phone: formattedPhone });
+    },
+    [data.personal.phone, setPersonal],
   );
 
   const addLink = useCallback(() => {
@@ -448,7 +558,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
       return (
         <div className="space-y-3">
           <div className="grid gap-3 xl:grid-cols-[108px_minmax(0,1fr)]">
-            <div className="space-y-2">
+            <div className="mx-auto w-28 space-y-2 sm:mx-0 sm:w-[108px] xl:w-full">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                 {data.personal.photoUrl ? (
                   <div className="relative aspect-square w-full">
@@ -493,49 +603,56 @@ function ResumeEditorComponent({ data, onChange }: Props) {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2 space-y-1.5">
-                <FieldLabel>Full Name</FieldLabel>
-                <Input
-                  value={data.personal.fullName}
-                  onChange={(event) => setPersonal({ fullName: event.target.value })}
-                  placeholder="Jordan Lee"
-                  className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <FieldLabel>Email</FieldLabel>
-                <Input
-                  type="email"
-                  value={data.personal.email}
-                  onChange={(event) => setPersonal({ email: event.target.value })}
-                  placeholder="you@email.com"
-                  className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <FieldLabel>Phone</FieldLabel>
-                <Input
+              <FloatingInput
+                label="Full Name"
+                wrapperClassName="sm:col-span-2"
+                value={data.personal.fullName}
+                onChange={(event) => setPersonal({ fullName: event.target.value })}
+              />
+
+              <FloatingInput
+                type="email"
+                label="Email"
+                value={data.personal.email}
+                onChange={(event) => setPersonal({ email: event.target.value })}
+              />
+
+              <div className="grid grid-cols-[minmax(118px,0.64fr)_minmax(0,1fr)] gap-2 sm:grid-cols-[minmax(130px,0.52fr)_minmax(0,1fr)]">
+                <label className="relative block">
+                  <select
+                    value={phoneCountryIso}
+                    onChange={(event) => updatePhoneCountry(event.target.value)}
+                    className="peer h-11 w-full appearance-none rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(240,249,255,0.84)_100%)] px-2.5 pt-5 pb-1 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] outline-none transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-sky-100 lg:border-slate-200 lg:bg-white lg:shadow-sm"
+                  >
+                    {PHONE_COUNTRIES.map((country) => (
+                      <option key={country.iso2} value={country.iso2}>
+                        {country.iso2} {country.dialCode}
+                      </option>
+                    ))}
+                  </select>
+                  <span className={floatingLabelClassName()}>Country</span>
+                </label>
+
+                <FloatingInput
+                  type="tel"
+                  label="Phone"
                   value={data.personal.phone}
                   onChange={(event) => setPersonal({ phone: event.target.value })}
-                  placeholder="+1 555 0100"
-                  className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                 />
               </div>
-              <div className="sm:col-span-2 space-y-1.5">
-                <FieldLabel>Location</FieldLabel>
-                <Input
-                  value={data.personal.location}
-                  onChange={(event) => setPersonal({ location: event.target.value })}
-                  placeholder="San Francisco, CA"
-                  className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                />
-              </div>
+
+              <FloatingInput
+                label="Location"
+                wrapperClassName="sm:col-span-2"
+                value={data.personal.location}
+                onChange={(event) => setPersonal({ location: event.target.value })}
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <FieldLabel>Links</FieldLabel>
+              <SectionLabel>Links</SectionLabel>
               <Button type="button" variant="ghost" size="sm" onClick={addLink}>
                 <Plus className="size-3.5" />
                 Add Link
@@ -556,17 +673,17 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                     key={`${link.label}-${index}`}
                     className="grid items-center gap-1.5 rounded-lg border border-sky-200/80 bg-sky-50/70 p-2 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)_auto] lg:border-slate-200 lg:bg-slate-50/90"
                   >
-                    <Input
+                    <FloatingInput
+                      label="Label"
                       value={link.label}
-                      placeholder="LinkedIn"
                       onChange={(event) => updateLink(index, { label: event.target.value })}
-                      className="h-9 rounded-lg border-slate-200 bg-white text-sm"
+                      inputClassName="h-10"
                     />
-                    <Input
+                    <FloatingInput
+                      label="URL"
                       value={link.url}
-                      placeholder="https://..."
                       onChange={(event) => updateLink(index, { url: event.target.value })}
-                      className="h-9 rounded-lg border-slate-200 bg-white text-sm"
+                      inputClassName="h-10"
                     />
                     <Button
                       type="button"
@@ -590,12 +707,11 @@ function ResumeEditorComponent({ data, onChange }: Props) {
     if (currentStep === 1) {
       return (
         <div className="space-y-1.5">
-          <FieldLabel>Professional Summary</FieldLabel>
-          <TextArea
+          <FloatingTextArea
+            label="Professional Summary"
             rows={5}
             value={data.summary}
             onChange={(event) => setSummary(event.target.value)}
-            placeholder="Two to three sentences that capture your strengths, expertise, and what roles you are targeting."
           />
         </div>
       );
@@ -642,47 +758,33 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="sm:col-span-2 space-y-1.5">
-                      <FieldLabel>Role</FieldLabel>
-                      <Input
-                        value={job.role}
-                        onChange={(event) => updateExperience(experienceIndex, { role: event.target.value })}
-                        placeholder="Senior Product Designer"
-                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                      />
-                    </div>
-                    <div className="sm:col-span-2 space-y-1.5">
-                      <FieldLabel>Company</FieldLabel>
-                      <Input
-                        value={job.company}
-                        onChange={(event) => updateExperience(experienceIndex, { company: event.target.value })}
-                        placeholder="Acme Inc."
-                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <FieldLabel>Start</FieldLabel>
-                      <Input
-                        value={job.start}
-                        onChange={(event) => updateExperience(experienceIndex, { start: event.target.value })}
-                        placeholder="2022"
-                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <FieldLabel>End</FieldLabel>
-                      <Input
-                        value={job.end}
-                        onChange={(event) => updateExperience(experienceIndex, { end: event.target.value })}
-                        placeholder="Present"
-                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                      />
-                    </div>
+                    <FloatingInput
+                      label="Role"
+                      wrapperClassName="sm:col-span-2"
+                      value={job.role}
+                      onChange={(event) => updateExperience(experienceIndex, { role: event.target.value })}
+                    />
+                    <FloatingInput
+                      label="Company"
+                      wrapperClassName="sm:col-span-2"
+                      value={job.company}
+                      onChange={(event) => updateExperience(experienceIndex, { company: event.target.value })}
+                    />
+                    <FloatingInput
+                      label="Start"
+                      value={job.start}
+                      onChange={(event) => updateExperience(experienceIndex, { start: event.target.value })}
+                    />
+                    <FloatingInput
+                      label="End"
+                      value={job.end}
+                      onChange={(event) => updateExperience(experienceIndex, { end: event.target.value })}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <FieldLabel>Bullet Points</FieldLabel>
+                      <SectionLabel>Bullet Points</SectionLabel>
                       <Button
                         type="button"
                         variant="ghost"
@@ -696,12 +798,12 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                     <div className="space-y-2">
                       {job.bullets.map((bullet, bulletIndex) => (
                         <div key={`${job.id ?? experienceIndex}-bullet-${bulletIndex}`} className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto]">
-                          <TextArea
+                          <FloatingTextArea
+                            label="Bullet Point"
                             rows={2}
                             value={bullet}
                             onChange={(event) => updateBullet(experienceIndex, bulletIndex, event.target.value)}
                             className="min-h-16 rounded-lg"
-                            placeholder="Improved conversion by 28% by redesigning onboarding and reducing friction in first-run tasks."
                           />
                           <Button
                             type="button"
@@ -766,42 +868,28 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="sm:col-span-2 space-y-1.5">
-                      <FieldLabel>School</FieldLabel>
-                      <Input
-                        value={entry.school}
-                        onChange={(event) => updateEducation(educationIndex, { school: event.target.value })}
-                        placeholder="University of California, Berkeley"
-                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                      />
-                    </div>
-                    <div className="sm:col-span-2 space-y-1.5">
-                      <FieldLabel>Degree / Field</FieldLabel>
-                      <Input
-                        value={entry.degree}
-                        onChange={(event) => updateEducation(educationIndex, { degree: event.target.value })}
-                        placeholder="B.S. Computer Science"
-                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <FieldLabel>Start</FieldLabel>
-                      <Input
-                        value={entry.start}
-                        onChange={(event) => updateEducation(educationIndex, { start: event.target.value })}
-                        placeholder="2018"
-                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <FieldLabel>End</FieldLabel>
-                      <Input
-                        value={entry.end}
-                        onChange={(event) => updateEducation(educationIndex, { end: event.target.value })}
-                        placeholder="2022"
-                        className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                      />
-                    </div>
+                    <FloatingInput
+                      label="School"
+                      wrapperClassName="sm:col-span-2"
+                      value={entry.school}
+                      onChange={(event) => updateEducation(educationIndex, { school: event.target.value })}
+                    />
+                    <FloatingInput
+                      label="Degree / Field"
+                      wrapperClassName="sm:col-span-2"
+                      value={entry.degree}
+                      onChange={(event) => updateEducation(educationIndex, { degree: event.target.value })}
+                    />
+                    <FloatingInput
+                      label="Start"
+                      value={entry.start}
+                      onChange={(event) => updateEducation(educationIndex, { start: event.target.value })}
+                    />
+                    <FloatingInput
+                      label="End"
+                      value={entry.end}
+                      onChange={(event) => updateEducation(educationIndex, { end: event.target.value })}
+                    />
                   </div>
                 </div>
               ))}
@@ -850,19 +938,15 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                   </Button>
                 </div>
 
-                <div className="space-y-1.5">
-                  <FieldLabel>Category</FieldLabel>
-                  <Input
-                    value={category.category}
-                    onChange={(event) => updateSkillCategory(categoryIndex, { category: event.target.value })}
-                    placeholder="Frontend"
-                    className="h-9 rounded-lg border-slate-200 bg-white text-sm"
-                  />
-                </div>
+                <FloatingInput
+                  label="Category"
+                  value={category.category}
+                  onChange={(event) => updateSkillCategory(categoryIndex, { category: event.target.value })}
+                />
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <FieldLabel>Items</FieldLabel>
+                    <SectionLabel>Items</SectionLabel>
                     <Button
                       type="button"
                       variant="ghost"
@@ -879,11 +963,10 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                         key={`${category.id ?? categoryIndex}-item-${itemIndex}`}
                         className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
                       >
-                        <Input
+                        <FloatingInput
+                          label="Skill"
                           value={item}
                           onChange={(event) => updateSkillItem(categoryIndex, itemIndex, event.target.value)}
-                          placeholder="TypeScript"
-                          className="h-9 rounded-lg border-slate-200 bg-white text-sm"
                         />
                         <Button
                           type="button"
@@ -919,6 +1002,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
     data.skills,
     data.summary,
     handlePhotoUpload,
+    phoneCountryIso,
     removeBullet,
     removeEducation,
     removeExperience,
@@ -931,6 +1015,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
     updateEducation,
     updateExperience,
     updateLink,
+    updatePhoneCountry,
     updateSkillCategory,
     updateSkillItem,
   ]);

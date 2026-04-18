@@ -456,7 +456,7 @@ export function EditorClient({ resumeId }: Props) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[linear-gradient(180deg,#f3f5f8_0%,#f6f7f9_52%,#f1f5f9_100%)] text-slate-900">
+    <div className="flex min-h-dvh flex-col bg-[radial-gradient(1200px_circle_at_0%_0%,rgba(186,230,253,0.48),transparent_55%),radial-gradient(900px_circle_at_100%_8%,rgba(254,226,226,0.42),transparent_50%),radial-gradient(900px_circle_at_50%_100%,rgba(254,243,199,0.38),transparent_52%),linear-gradient(180deg,#f8fafc_0%,#fefce8_48%,#ecfeff_100%)] text-slate-900">
       <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/76">
         <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-3 px-4 py-4 lg:px-6">
           <Button variant="ghost" size="sm" className="rounded-xl text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-slate-900" asChild>
