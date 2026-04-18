@@ -25,7 +25,7 @@ export default function Hero() {
 
       <div className="relative mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:gap-8">
         <div className="mx-auto max-w-2xl text-center lg:mx-0 lg:text-left">
-          <h1 className="text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl lg:text-7xl lg:leading-[1.02]">
+          <h1 className="mt-5 text-5xl font-semibold tracking-tight text-slate-950 sm:mt-7 sm:text-6xl lg:mt-8 lg:text-7xl lg:leading-[1.02]">
             Build a resume that{" "}
             <span className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 bg-clip-text text-transparent">
               gets you hired.
