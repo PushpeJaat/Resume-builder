@@ -16,11 +16,13 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
+import { ExtractionLoaderOverlay } from "@/components/editor/ExtractionLoaderOverlay";
 import { EditorLayout } from "@/components/editor/EditorLayout";
 import { PreviewPanel } from "@/components/editor/PreviewPanel";
 import { ResumeEditor } from "@/components/editor/ResumeEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/BrandMark";
 import {
   Dialog,
   DialogContent,
@@ -148,11 +150,37 @@ export default function EditorLandingClient() {
     return window.Cashfree;
   }, []);
 
+  const redirectToPlanIfNeeded = useCallback(
+    (payload: { error?: unknown; redirectTo?: unknown } | null, fallbackMessage: string) => {
+      const redirectTo = typeof payload?.redirectTo === "string" ? payload.redirectTo : "";
+      if (!redirectTo) {
+        return false;
+      }
+
+      const message =
+        typeof payload?.error === "string" && payload.error.trim().length > 0
+          ? payload.error
+          : fallbackMessage;
+      toast.error(message);
+      router.push(redirectTo);
+      return true;
+    },
+    [router],
+  );
+
   const downloadResumePdf = useCallback(async (resumeId: string, fallbackTitle: string) => {
     const response = await fetch(`/api/resumes/${resumeId}/pdf`, { method: "POST" });
 
     if (!response.ok) {
-      const payload = await response.json().catch(() => null);
+      const payload = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        redirectTo?: unknown;
+      } | null;
+
+      if (redirectToPlanIfNeeded(payload, "Please choose a plan to continue downloading.")) {
+        return false;
+      }
+
       toast.error((payload?.error as string) || "Could not generate PDF.");
       return false;
     }
@@ -167,12 +195,15 @@ export default function EditorLandingClient() {
     URL.revokeObjectURL(url);
     toast.success("Resume downloaded.");
     return true;
-  }, []);
+  }, [redirectToPlanIfNeeded]);
 
   const runPaidDownload = useCallback(
     async (resumeId: string, fallbackTitle: string) => {
       type CreateOrderResponse = {
         alreadyPaid?: boolean;
+        planActive?: boolean;
+        redirectTo?: string;
+        code?: string;
         orderId?: string;
         paymentSessionId?: string;
         mode?: CashfreeCheckoutMode;
@@ -181,6 +212,8 @@ export default function EditorLandingClient() {
 
       type VerifyOrderResponse = {
         paid?: boolean;
+        redirectTo?: string;
+        code?: string;
         error?: string;
       };
 
@@ -194,6 +227,10 @@ export default function EditorLandingClient() {
         const orderPayload = (await orderResponse.json().catch(() => null)) as CreateOrderResponse | null;
 
         if (!orderResponse.ok) {
+          if (redirectToPlanIfNeeded(orderPayload, "Please choose a plan to continue downloading.")) {
+            return false;
+          }
+
           toast.error(orderPayload?.error || "Could not create payment order.");
           return false;
         }
@@ -225,6 +262,10 @@ export default function EditorLandingClient() {
         const verifyPayload = (await verifyResponse.json().catch(() => null)) as VerifyOrderResponse | null;
 
         if (!verifyResponse.ok) {
+          if (redirectToPlanIfNeeded(verifyPayload, "Please choose a plan to continue downloading.")) {
+            return false;
+          }
+
           toast.error(verifyPayload?.error || "Could not verify payment.");
           return false;
         }
@@ -242,7 +283,7 @@ export default function EditorLandingClient() {
         return false;
       }
     },
-    [downloadResumePdf, loadCashfreeSdk],
+    [downloadResumePdf, loadCashfreeSdk, redirectToPlanIfNeeded],
   );
 
   const createResume = useCallback(
@@ -302,6 +343,8 @@ export default function EditorLandingClient() {
     <div className="flex min-h-dvh flex-col bg-[radial-gradient(1200px_circle_at_0%_0%,rgba(186,230,253,0.48),transparent_55%),radial-gradient(900px_circle_at_100%_8%,rgba(254,226,226,0.42),transparent_50%),radial-gradient(900px_circle_at_50%_100%,rgba(254,243,199,0.38),transparent_52%),linear-gradient(180deg,#f8fafc_0%,#fefce8_48%,#ecfeff_100%)] text-slate-900">
       <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/76">
         <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-3 px-4 py-4 lg:px-6">
+          <BrandMark size="sm" className="hidden sm:inline-flex" />
+
           <Button variant="ghost" size="sm" className="rounded-xl text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-slate-900" asChild>
             <Link href="/">
               <ArrowLeft className="size-4" />
@@ -500,6 +543,8 @@ export default function EditorLandingClient() {
           preview={<PreviewPanel templateId={templateId} data={data} />}
         />
       </main>
+
+      {importState === "loading" ? <ExtractionLoaderOverlay /> : null}
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/90 bg-white/92 px-3 pb-[calc(env(safe-area-inset-bottom)+0.7rem)] pt-3 backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex w-full max-w-[1600px] gap-2">

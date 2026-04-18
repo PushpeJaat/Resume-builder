@@ -25,7 +25,7 @@ const FETCH_TIMEOUT_MS = parsePositiveInt(process.env.PARSE_RESUME_FETCH_TIMEOUT
 const OCR_TIMEOUT_MS = parsePositiveInt(process.env.OCR_TIMEOUT_MS, 10_000);
 const DOCX_TIMEOUT_MS = parsePositiveInt(process.env.DOCX_TIMEOUT_MS, 5_000);
 const MAX_PAGES_PER_REQUEST = 5;
-const MAX_PAGED_BATCHES = parsePositiveInt(process.env.VISION_MAX_PAGE_BATCHES, 2);
+const MAX_PAGED_BATCHES = parsePositiveInt(process.env.VISION_MAX_PAGE_BATCHES, 1);
 
 let cachedVisionClient: ImageAnnotatorClient | null = null;
 

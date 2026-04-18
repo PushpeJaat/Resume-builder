@@ -179,53 +179,80 @@ function validateResumeUpload(file: File) {
 }
 
 async function requestParseResume(file: File): Promise<ParsedResumePayload> {
-  const endpoints = isLikelyPdf(file) ? ["/api/extract-resume"] : ["/api/parse-resume"];
+  const endpoints = isLikelyPdf(file)
+    ? ["/api/parse-resume", "/api/extract-resume"]
+    : ["/api/parse-resume", "/api/extract-resume"];
 
-  let lastError = "";
+  const controllers = endpoints.map(() => new AbortController());
+  const endpointErrors = new Array<string>(endpoints.length).fill("");
 
-  for (const endpoint of endpoints) {
-    const formData = new FormData();
-    formData.set("resume", file);
+  const attempts = endpoints.map((endpoint, index) =>
+    requestFromEndpoint(endpoint, file, controllers[index].signal)
+      .then((payload) => ({ payload, index }))
+      .catch((error) => {
+        endpointErrors[index] = error instanceof Error ? error.message : "Could not parse that file right now.";
+        throw error;
+      }),
+  );
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      body: formData,
+  try {
+    const winner = await Promise.any(attempts);
+    controllers.forEach((controller, index) => {
+      if (index !== winner.index) {
+        controller.abort();
+      }
     });
+    return winner.payload;
+  } catch {
+    const firstError = endpointErrors.find((value) => value.trim().length > 0);
+    throw new Error(firstError || "Could not parse that file right now.");
+  } finally {
+    controllers.forEach((controller) => controller.abort());
+  }
+}
 
-    const responseText = await response.text();
-    const parsed = safeJsonParse(responseText);
+async function requestFromEndpoint(
+  endpoint: string,
+  file: File,
+  signal: AbortSignal,
+): Promise<ParsedResumePayload> {
+  const formData = new FormData();
+  formData.set("resume", file);
 
-    if (!response.ok) {
-      const message =
-        isRecord(parsed) && typeof parsed.error === "string"
-          ? parsed.error
-          : `Could not parse that file. Server returned ${response.status}.`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    body: formData,
+    signal,
+  });
 
-      lastError =
-        endpoint === "/api/extract-resume"
-          ? `AI structured parsing failed: ${message}`
-          : message;
-      continue;
-    }
+  const responseText = await response.text();
+  const parsed = safeJsonParse(responseText);
 
-    if (!isRecord(parsed)) {
-      lastError = "Resume parser returned an invalid response.";
-      continue;
-    }
+  if (!response.ok) {
+    const message =
+      isRecord(parsed) && typeof parsed.error === "string"
+        ? parsed.error
+        : `Could not parse that file. Server returned ${response.status}.`;
 
-    const structured = extractStructuredPayload(parsed as ParseResumeApiPayload);
-    if (structured && hasMeaningfulStructuredData(structured)) {
-      return structured;
-    }
-
-    if (typeof parsed.raw_text === "string" && parsed.raw_text.trim()) {
-      return buildPayloadFromRawText(parsed.raw_text);
-    }
-
-    lastError = "Resume parser returned an invalid response payload.";
+    throw new Error(
+      endpoint === "/api/extract-resume" ? `AI structured parsing failed: ${message}` : message,
+    );
   }
 
-  throw new Error(lastError || "Could not parse that file right now.");
+  if (!isRecord(parsed)) {
+    throw new Error("Resume parser returned an invalid response.");
+  }
+
+  const structured = extractStructuredPayload(parsed as ParseResumeApiPayload);
+  if (structured && hasMeaningfulStructuredData(structured)) {
+    return structured;
+  }
+
+  if (typeof parsed.raw_text === "string" && parsed.raw_text.trim()) {
+    return buildPayloadFromRawText(parsed.raw_text);
+  }
+
+  throw new Error("Resume parser returned an invalid response payload.");
 }
 
 function isLikelyPdf(file: File) {

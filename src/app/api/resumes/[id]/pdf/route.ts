@@ -6,6 +6,7 @@ import { renderResumeDocument } from "@/lib/templates/render";
 import { resumeDataSchema, type ResumeData } from "@/types/resume";
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { assertResumeOwner } from "@/lib/resume-access";
+import { getPlanDownloadAccess } from "@/lib/server/plan-access";
 
 export const runtime = "nodejs";
 
@@ -25,19 +26,29 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     process.env.NODE_ENV !== "production" && reqUrl.searchParams.get("devBypass") === "1";
 
   if (!devBypass) {
-    const paidOrder = await prisma.paymentOrder.findFirst({
-      where: {
-        userId: session.user.id,
-        resumeId: id,
-        status: "PAID",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const planAccess = await getPlanDownloadAccess(session.user.id);
 
-    if (!paidOrder) {
+    if (planAccess.status === "NO_ACTIVE_PLAN") {
       return NextResponse.json(
-        { error: "Payment required. Complete payment to download this resume." },
+        {
+          error: "Your plan is inactive or expired. Please choose a plan to continue downloading.",
+          code: "PLAN_REQUIRED",
+          redirectTo: "/pricing",
+        },
         { status: 402 },
+      );
+    }
+
+    if (planAccess.status === "LIMIT_REACHED") {
+      return NextResponse.json(
+        {
+          error: `Download limit reached. You can download up to ${planAccess.downloadLimit} resumes per plan period.`,
+          code: "DOWNLOAD_LIMIT_REACHED",
+          redirectTo: "/pricing",
+          downloadsUsed: planAccess.downloadsUsed,
+          downloadLimit: planAccess.downloadLimit,
+        },
+        { status: 403 },
       );
     }
   }

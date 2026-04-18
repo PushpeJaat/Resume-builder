@@ -11,6 +11,7 @@ import {
 } from "@/lib/cashfree";
 import { prisma } from "@/lib/prisma";
 import { assertResumeOwner } from "@/lib/resume-access";
+import { getPlanDownloadAccess } from "@/lib/server/plan-access";
 
 export const runtime = "nodejs";
 
@@ -39,20 +40,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Resume not found" }, { status: 404 });
   }
 
-  const paidOrder = await prisma.paymentOrder.findFirst({
-    where: {
-      userId: session.user.id,
-      resumeId,
-      status: "PAID",
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const planAccess = await getPlanDownloadAccess(session.user.id);
 
-  if (paidOrder) {
+  if (planAccess.status === "ACTIVE") {
     return NextResponse.json({
       alreadyPaid: true,
-      orderId: paidOrder.providerOrderId,
+      planActive: true,
+      downloadsUsed: planAccess.downloadsUsed,
+      downloadLimit: planAccess.downloadLimit,
+      downloadsRemaining: planAccess.downloadsRemaining,
     });
+  }
+
+  if (planAccess.status === "LIMIT_REACHED") {
+    return NextResponse.json(
+      {
+        error: `Download limit reached. You can download up to ${planAccess.downloadLimit} resumes per plan period.`,
+        code: "DOWNLOAD_LIMIT_REACHED",
+        redirectTo: "/pricing",
+        downloadsUsed: planAccess.downloadsUsed,
+        downloadLimit: planAccess.downloadLimit,
+      },
+      { status: 403 },
+    );
   }
 
   const config = getCashfreeConfig();

@@ -1,5 +1,5 @@
+import Image from "next/image";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type BrandMarkProps = {
@@ -21,27 +21,25 @@ export function BrandMark({
   const compact = size === "sm";
 
   return (
-    <Link href={href} className={cn("group inline-flex items-center gap-3", className)} onClick={onClick}>
+    <Link href={href} className={cn("group inline-flex items-center", className)} onClick={onClick}>
       <div
         className={cn(
-          "flex items-center justify-center rounded-2xl text-white shadow-lg transition-transform duration-200 group-hover:scale-105",
-          compact ? "h-9 w-9" : "h-10 w-10",
+          "relative overflow-hidden rounded-xl shadow-lg transition-transform duration-200 group-hover:scale-[1.02]",
+          compact ? "h-12 w-[128px]" : "h-14 w-[152px]",
           dark
-            ? "bg-gradient-to-br from-sky-500 to-cyan-400 shadow-sky-500/25"
-            : "bg-gradient-to-br from-sky-600 to-cyan-500 shadow-sky-500/20",
+            ? "border border-white/20 bg-white/95 shadow-cyan-500/15"
+            : "border border-slate-200 bg-white/95 shadow-slate-300/35",
         )}
       >
-        <Sparkles className={compact ? "h-4.5 w-4.5" : "h-5 w-5"} />
+        <Image
+          src="/logo.png"
+          alt="CVpilot"
+          fill
+          priority={compact}
+          className="object-contain p-1"
+          sizes={compact ? "128px" : "152px"}
+        />
       </div>
-      <span
-        className={cn(
-          "font-semibold tracking-tight transition-colors",
-          compact ? "text-lg" : "text-xl",
-          dark ? "text-white" : "text-slate-950",
-        )}
-      >
-        CVpilot
-      </span>
     </Link>
   );
 }

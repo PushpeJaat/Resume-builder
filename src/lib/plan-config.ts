@@ -1,0 +1,4 @@
+export const PLAN_VALIDITY_DAYS = 30;
+export const PLAN_DOWNLOAD_LIMIT = 20;
+
+export const PLAN_VALIDITY_MS = PLAN_VALIDITY_DAYS * 24 * 60 * 60 * 1000;

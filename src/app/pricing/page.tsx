@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { PLAN_DOWNLOAD_LIMIT } from "@/lib/plan-config";
 
 export default function PricingPage() {
   return (
@@ -59,6 +60,7 @@ export default function PricingPage() {
                   "No recurring payment",
                   "One-time subscription",
                   "Valid for 30 days",
+                  `Can download upto ${PLAN_DOWNLOAD_LIMIT} resumes`,
                 ].map((feature) => (
                   <li key={feature} className="flex items-center gap-3">
                     <svg className="h-5 w-5 text-cyan-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

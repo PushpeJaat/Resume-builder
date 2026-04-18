@@ -110,6 +110,13 @@ export async function POST(req: Request) {
     },
   });
 
+  if (mappedStatus === "PAID") {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { plan: "PREMIUM" },
+    });
+  }
+
   return NextResponse.json({
     paid: mappedStatus === "PAID",
     orderId,

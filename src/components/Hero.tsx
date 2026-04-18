@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroResumeImage from "@/HeroResume/Professional Modern CV Resume.jpg";
 
@@ -26,15 +25,7 @@ export default function Hero() {
 
       <div className="relative mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:gap-8">
         <div className="mx-auto max-w-2xl text-center lg:mx-0 lg:text-left">
-          <Badge
-            variant="secondary"
-            className="inline-flex h-auto rounded-full border border-indigo-100 bg-white/90 px-4 py-1.5 text-sm font-medium text-indigo-700 shadow-sm backdrop-blur"
-          >
-            <Sparkles className="size-3.5" />
-            New Feature
-          </Badge>
-
-          <h1 className="mt-6 text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl lg:text-7xl lg:leading-[1.02]">
+          <h1 className="text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl lg:text-7xl lg:leading-[1.02]">
             Build a resume that{" "}
             <span className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 bg-clip-text text-transparent">
               gets you hired.

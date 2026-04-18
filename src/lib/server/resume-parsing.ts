@@ -41,13 +41,13 @@ const SIGNED_URL_TTL_SECONDS = parsePositiveInt(process.env.SUPABASE_SIGNED_URL_
 const MIN_EXTRACTED_TEXT_CHARS = parsePositiveInt(process.env.PDF_MIN_TEXT_CHARS, 500);
 const FETCH_TIMEOUT_MS = parsePositiveInt(process.env.PDF_FETCH_TIMEOUT_MS, 8_000);
 const UNPDF_TIMEOUT_MS = parsePositiveInt(process.env.UNPDF_TIMEOUT_MS, 8_000);
-const OCR_TIMEOUT_MS = parsePositiveInt(process.env.OCR_TIMEOUT_MS, 15_000);
-const OCR_MAX_RETRIES = parsePositiveInt(process.env.OCR_MAX_RETRIES, 1);
+const OCR_TIMEOUT_MS = parsePositiveInt(process.env.OCR_TIMEOUT_MS, 12_000);
+const OCR_MAX_RETRIES = parsePositiveInt(process.env.OCR_MAX_RETRIES, 0);
 const OCR_MAX_PAGES = parsePositiveInt(process.env.OCR_MAX_PAGES, 5);
 const OCR_RETRY_DELAY_MS = parsePositiveInt(process.env.OCR_RETRY_DELAY_MS, 300);
-const OPENAI_TIMEOUT_MS = parsePositiveInt(process.env.OPENAI_TIMEOUT_MS, 45_000);
-const OPENAI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.OPENAI_MAX_OUTPUT_TOKENS, 4_096);
-const TOTAL_PIPELINE_TIMEOUT_MS = parsePositiveInt(process.env.PARSE_RESUME_TOTAL_TIMEOUT_MS, 60_000);
+const OPENAI_TIMEOUT_MS = parsePositiveInt(process.env.OPENAI_TIMEOUT_MS, 22_000);
+const OPENAI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.OPENAI_MAX_OUTPUT_TOKENS, 2_300);
+const TOTAL_PIPELINE_TIMEOUT_MS = parsePositiveInt(process.env.PARSE_RESUME_TOTAL_TIMEOUT_MS, 38_000);
 const MIN_STEP_TIMEOUT_MS = 1_200;
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const DEFAULT_STORAGE_BUCKET = "resume-uploads";
@@ -418,7 +418,7 @@ async function parseWithOpenAiFromText(text: string, deadline: number): Promise<
   }
 
   const modelName = (process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL).trim() || DEFAULT_OPENAI_MODEL;
-  const prompt = `${OPENAI_PROMPT}\n\nResume text:\n${text.slice(0, 45_000)}`;
+  const prompt = `${OPENAI_PROMPT}\n\nResume text:\n${text.slice(0, 28_000)}`;
   const client = new OpenAI({ apiKey: openAiApiKey });
 
   try {
