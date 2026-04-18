@@ -72,6 +72,10 @@ export default function EditorLandingClient() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentTemplate = TEMPLATES.find((template) => template.id === templateId);
+  const userFirstName =
+    session?.user?.name?.trim().split(" ").filter(Boolean)[0] ??
+    session?.user?.email?.split("@")[0] ??
+    "User";
 
   useEffect(() => {
     const draft = readParsedResumeDraft();
@@ -311,7 +315,7 @@ export default function EditorLandingClient() {
           </div>
 
           <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-            {session?.user?.id ? "Signed in" : "Guest mode"}
+            {session?.user?.id ? `Hi, ${userFirstName}` : "Guest mode"}
           </Badge>
 
           <Button
@@ -352,14 +356,14 @@ export default function EditorLandingClient() {
           </Button>
         </div>
 
-        <div className="mx-auto grid w-full max-w-[1600px] gap-3 px-4 pb-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:px-6">
+        <div className="mx-auto grid w-full max-w-[1600px] gap-3 rounded-2xl border border-indigo-200/80 bg-white/78 px-3 py-3 shadow-[0_18px_44px_-36px_rgba(99,102,241,0.6)] backdrop-blur sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:px-4">
           <div className="space-y-1.5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Resume Title</p>
             <Input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Product Designer Resume"
-              className="h-11 rounded-xl border-slate-200 bg-white text-[15px] transition-all duration-200 focus-visible:border-sky-400 focus-visible:ring-sky-100"
+              className="h-11 rounded-xl border-slate-200 bg-white text-base leading-5 transition-all duration-200 focus-visible:border-sky-400 focus-visible:ring-sky-100 lg:text-[15px]"
             />
           </div>
           <div className="space-y-1.5">
@@ -367,7 +371,7 @@ export default function EditorLandingClient() {
             <select
               value={templateId}
               onChange={(event) => setTemplateId(event.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-[15px] text-slate-900 shadow-sm outline-none transition-all duration-200 focus-visible:border-sky-400 focus-visible:ring-3 focus-visible:ring-sky-100"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base leading-5 text-slate-900 shadow-sm outline-none transition-all duration-200 focus-visible:border-sky-400 focus-visible:ring-3 focus-visible:ring-sky-100 lg:text-[15px]"
             >
               {TEMPLATES.map((template) => (
                 <option key={template.id} value={template.id}>
@@ -411,7 +415,7 @@ export default function EditorLandingClient() {
               void importResumeFile(file);
             }
           }}
-          className={`editor-fade-rise editor-fade-rise-delay-1 relative overflow-hidden rounded-2xl border px-3.5 py-2.5 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.55)] transition-all duration-300 ease-out ${
+          className={`editor-fade-rise editor-fade-rise-delay-1 relative overflow-hidden rounded-2xl border px-3.5 py-2.5 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.55)] ring-1 ring-cyan-100/80 transition-all duration-300 ease-out ${
             dragActive
               ? "border-sky-300 bg-sky-50 ring-2 ring-sky-100"
               : importState === "loading"
@@ -420,7 +424,7 @@ export default function EditorLandingClient() {
                   ? "border-emerald-300 bg-emerald-50 ring-2 ring-emerald-100"
                   : importState === "error"
                     ? "border-red-300 bg-red-50 ring-2 ring-red-100"
-                    : "border-slate-200 bg-white/80 hover:-translate-y-[1px] hover:border-slate-300 hover:bg-white hover:shadow-[0_24px_52px_-34px_rgba(15,23,42,0.66)]"
+                    : "border-cyan-300/80 bg-white/85 hover:-translate-y-[1px] hover:border-cyan-400/80 hover:bg-white hover:shadow-[0_24px_52px_-34px_rgba(15,23,42,0.66)]"
           }`}
         >
           <input
@@ -491,6 +495,7 @@ export default function EditorLandingClient() {
         </section>
 
         <EditorLayout
+          className="rounded-2xl border border-violet-200/80 bg-white/58 p-2 shadow-[0_24px_54px_-42px_rgba(124,58,237,0.52)]"
           editor={<ResumeEditor data={data} onChange={setData} />}
           preview={<PreviewPanel templateId={templateId} data={data} />}
         />

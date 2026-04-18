@@ -123,7 +123,7 @@ function FloatingInput({ label, wrapperClassName, inputClassName, ...props }: Fl
         {...props}
         placeholder=" "
         className={cn(
-          "peer h-11 rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(240,249,255,0.8)_100%)] px-3 pt-5 pb-1 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-sky-100 lg:border-slate-200 lg:bg-white lg:shadow-sm",
+          "peer h-11 rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(240,249,255,0.8)_100%)] px-3 pt-4 pb-2 text-base leading-5 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-sky-100 lg:border-slate-200 lg:bg-white lg:pt-5 lg:pb-1 lg:text-sm lg:shadow-sm",
           inputClassName,
         )}
       />
@@ -144,7 +144,7 @@ function FloatingTextArea({ label, wrapperClassName, className, ...props }: Floa
         {...props}
         placeholder=" "
         className={cn(
-          "peer min-h-20 w-full rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(240,249,255,0.78)_100%)] px-3 pt-6 pb-2 text-sm leading-6 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-transparent focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 lg:rounded-lg lg:border-slate-200 lg:bg-white lg:shadow-sm",
+          "peer min-h-20 w-full rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97)_0%,rgba(240,249,255,0.78)_100%)] px-3 pt-6 pb-2 text-base leading-6 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-transparent focus-visible:border-sky-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 lg:rounded-lg lg:border-slate-200 lg:bg-white lg:text-sm lg:shadow-sm",
           className,
         )}
       />
@@ -557,49 +557,56 @@ function ResumeEditorComponent({ data, onChange }: Props) {
     if (currentStep === 0) {
       return (
         <div className="space-y-3">
-          <div className="grid gap-3 xl:grid-cols-[108px_minmax(0,1fr)]">
-            <div className="mx-auto w-28 space-y-2 sm:mx-0 sm:w-[108px] xl:w-full">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-                {data.personal.photoUrl ? (
-                  <div className="relative aspect-square w-full">
-                    <NextImage
-                      src={data.personal.photoUrl}
-                      alt="Profile"
-                      fill
-                      unoptimized
-                      className="object-cover"
+          <div className="grid gap-3 xl:grid-cols-[94px_minmax(0,1fr)]">
+            <div className="mx-auto w-full max-w-[18rem] sm:mx-0 sm:max-w-[220px] xl:max-w-none">
+              <div className="flex items-start gap-2.5 sm:gap-2 xl:flex-col xl:items-stretch">
+                <div className="w-24 shrink-0 xl:w-full">
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+                    {data.personal.photoUrl ? (
+                      <div className="relative aspect-square w-full">
+                        <NextImage
+                          src={data.personal.photoUrl}
+                          alt="Profile"
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex aspect-square items-center justify-center text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                        No photo
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex min-w-0 flex-1 flex-col gap-2 xl:w-full xl:flex-none">
+                  <label className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-700 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50">
+                    <Upload className="size-3.5" />
+                    Upload
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/jpg"
+                      className="hidden"
+                      onChange={(event) => {
+                        void handlePhotoUpload(event);
+                      }}
                     />
-                  </div>
-                ) : (
-                  <div className="flex aspect-square items-center justify-center text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
-                    No photo
-                  </div>
-                )}
+                  </label>
+                  {data.personal.photoUrl ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-center text-red-600 hover:bg-red-50 hover:text-red-700"
+                      onClick={() => setPersonal({ photoUrl: "" })}
+                    >
+                      <Trash2 className="size-3.5" />
+                      Remove photo
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-              <label className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-700 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50">
-                <Upload className="size-3.5" />
-                Upload
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/jpg"
-                  className="hidden"
-                  onChange={(event) => {
-                    void handlePhotoUpload(event);
-                  }}
-                />
-              </label>
-              {data.personal.photoUrl ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-center text-red-600 hover:bg-red-50 hover:text-red-700"
-                  onClick={() => setPersonal({ photoUrl: "" })}
-                >
-                  <Trash2 className="size-3.5" />
-                  Remove photo
-                </Button>
-              ) : null}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -622,7 +629,7 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                   <select
                     value={phoneCountryIso}
                     onChange={(event) => updatePhoneCountry(event.target.value)}
-                    className="peer h-11 w-full appearance-none rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(240,249,255,0.84)_100%)] px-2.5 pt-5 pb-1 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] outline-none transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-sky-100 lg:border-slate-200 lg:bg-white lg:shadow-sm"
+                    className="peer h-11 w-full appearance-none rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(240,249,255,0.84)_100%)] px-2.5 pt-4 pb-2 text-base leading-5 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] outline-none transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-sky-100 lg:border-slate-200 lg:bg-white lg:pt-5 lg:pb-1 lg:text-sm lg:shadow-sm"
                   >
                     {PHONE_COUNTRIES.map((country) => (
                       <option key={country.iso2} value={country.iso2}>

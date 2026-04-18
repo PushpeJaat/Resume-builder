@@ -78,8 +78,8 @@ export function ResumePreviewFrame({ templateId, data }: Props) {
 
   return (
     <div className="relative h-full min-h-0">
-      <div ref={viewportRef} className="h-full min-h-0 overflow-auto px-2 py-2 sm:px-3 sm:py-3">
-        <div className="flex min-h-full w-full items-start justify-center sm:items-center">
+      <div ref={viewportRef} className="h-full min-h-0 overflow-auto px-2 pt-2 pb-0 sm:px-3 sm:pt-3 sm:pb-1">
+        <div className="flex min-h-full w-full items-start justify-center">
           <div
             className="transition-[width,min-height] duration-300 ease-out"
             style={{

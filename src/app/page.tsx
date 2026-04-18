@@ -82,8 +82,8 @@ export default function HomePage() {
 
       </main>
 
-      <footer className="border-t border-slate-200 bg-white px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl flex flex-col items-center text-center gap-6">
+      <footer className="border-t border-sky-200/90 bg-[linear-gradient(180deg,rgba(239,246,255,0.82)_0%,rgba(248,250,252,0.98)_100%)] px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 rounded-3xl border border-sky-200/80 bg-white/86 px-6 py-8 text-center shadow-[0_24px_60px_-44px_rgba(14,116,144,0.5)]">
           <div>
             <p className="text-2xl font-bold tracking-tight text-slate-950">CVpilot</p>
             <p className="mt-2 text-base text-slate-500">Modern resume building for fast-moving careers.</p>
