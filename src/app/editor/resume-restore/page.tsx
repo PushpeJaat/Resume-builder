@@ -44,7 +44,7 @@ export default function ResumeRestorePage() {
       } catch {
         // fall through to dashboard
       }
-      router.replace("/dashboard");
+      router.replace("/account");
     }
 
     void restore();

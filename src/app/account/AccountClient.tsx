@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Loader2 } from "lucide-react";
+import { getTemplateMeta } from "@/lib/templates/registry";
 
 type DownloadItem = {
   id: string;
@@ -13,6 +14,13 @@ type DownloadItem = {
   resumeId: string;
 };
 
+type ResumeItem = {
+  id: string;
+  title: string;
+  templateId: string;
+  updatedAt: string;
+};
+
 type Props = {
   email: string;
   name: string | null;
@@ -20,15 +28,77 @@ type Props = {
   hasPassword: boolean;
   createdAt: string;
   downloads: DownloadItem[];
+  resumes: ResumeItem[];
 };
 
-export function AccountClient({ email, name, plan, hasPassword, createdAt, downloads }: Props) {
+export function AccountClient({
+  email,
+  name,
+  plan,
+  hasPassword,
+  createdAt,
+  downloads,
+  resumes,
+}: Props) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const [resumeItems, setResumeItems] = useState<ResumeItem[]>(resumes);
+  const [downloadItems, setDownloadItems] = useState<DownloadItem[]>(downloads);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [creatingResume, setCreatingResume] = useState(false);
+  const [deletingResumeId, setDeletingResumeId] = useState<string | null>(null);
+
+  const refreshWorkspace = useCallback(async () => {
+    setWorkspaceLoading(true);
+    try {
+      const [resumesRes, downloadsRes] = await Promise.all([
+        fetch("/api/resumes", { cache: "no-store" }),
+        fetch("/api/downloads", { cache: "no-store" }),
+      ]);
+
+      if (resumesRes.ok) {
+        const json = (await resumesRes.json()) as { resumes: ResumeItem[] };
+        setResumeItems(json.resumes ?? []);
+      }
+
+      if (downloadsRes.ok) {
+        const json = (await downloadsRes.json()) as { downloads: DownloadItem[] };
+        setDownloadItems(json.downloads ?? []);
+      }
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }, []);
+
+  async function createResume() {
+    setCreatingResume(true);
+    try {
+      const res = await fetch("/api/resumes", { method: "POST" });
+      if (!res.ok) return;
+      const { id } = (await res.json()) as { id: string };
+      window.location.href = `/editor/${id}`;
+    } finally {
+      setCreatingResume(false);
+    }
+  }
+
+  async function deleteResume(id: string) {
+    if (!confirm("Delete this resume?")) return;
+    setDeletingResumeId(id);
+    try {
+      const res = await fetch(`/api/resumes/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        await refreshWorkspace();
+      }
+    } finally {
+      setDeletingResumeId(null);
+    }
+  }
 
   async function onSubmitPassword(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -65,6 +135,14 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
     setSuccess(hasPassword ? "Password changed successfully." : "Password set successfully.");
   }
 
+  const recentActivityLabel = useMemo(() => {
+    if (resumeItems.length === 0) return "No edits yet";
+    const latest = resumeItems
+      .map((resume) => new Date(resume.updatedAt).getTime())
+      .sort((a, b) => b - a)[0];
+    return new Date(latest).toLocaleDateString();
+  }, [resumeItems]);
+
   return (
     <div className="space-y-8">
       <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20">
@@ -72,7 +150,7 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Profile</p>
             <h1 className="mt-2 text-2xl font-bold text-white">Account settings</h1>
-            <p className="mt-1 text-sm text-slate-300">Manage your sign-in options, workspace access, and resume activity.</p>
+            <p className="mt-1 text-sm text-slate-300">Manage your sign-in options, documents, and resume activity.</p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-right">
             <p className="text-xs text-slate-400">Workspace access</p>
@@ -95,13 +173,31 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
           </div>
         </div>
 
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-400">Total resumes</p>
+            <p className="mt-1 text-2xl font-bold text-white">{resumeItems.length}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-400">PDF downloads</p>
+            <p className="mt-1 text-2xl font-bold text-white">{downloadItems.length}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-400">Recent activity</p>
+            <p className="mt-1 text-2xl font-bold text-white">{recentActivityLabel}</p>
+          </div>
+        </div>
+
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/dashboard"
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/5"
+          <button
+            type="button"
+            onClick={() => void createResume()}
+            disabled={creatingResume}
+            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Open dashboard
-          </Link>
+            {creatingResume ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {creatingResume ? "Creating..." : "Create new resume"}
+          </button>
           <Link
             href="/dashboard/templates"
             className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/5"
@@ -111,11 +207,84 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105"
+            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/5"
           >
             Log out
           </button>
         </div>
+      </section>
+
+      <section className="rounded-[28px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
+        <div className="border-b border-white/10 px-6 py-4">
+          <h2 className="text-lg font-semibold text-white">Your documents</h2>
+          <p className="mt-1 text-sm text-slate-300">Open, edit, or delete resumes from your profile workspace.</p>
+        </div>
+
+        {workspaceLoading && resumeItems.length === 0 ? (
+          <div className="space-y-3 p-6">
+            <div className="h-14 animate-pulse rounded-xl bg-white/10" />
+            <div className="h-14 animate-pulse rounded-xl bg-white/10" />
+            <div className="h-14 animate-pulse rounded-xl bg-white/10" />
+          </div>
+        ) : resumeItems.length === 0 ? (
+          <div className="p-6">
+            <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center">
+              <h3 className="text-lg font-semibold text-white">No resumes yet</h3>
+              <p className="mt-2 text-sm text-slate-400">Start with a blank resume or pick a template to create your first document.</p>
+              <div className="mt-5 flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void createResume()}
+                  disabled={creatingResume}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {creatingResume ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {creatingResume ? "Creating..." : "Create your first resume"}
+                </button>
+                <Link
+                  href="/dashboard/templates"
+                  className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/5"
+                >
+                  Browse templates
+                </Link>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <ul className="divide-y divide-white/10">
+            {resumeItems.map((resume) => (
+              <li key={resume.id} className="px-6 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <Link href={`/editor/${resume.id}`} className="text-base font-semibold text-white transition hover:text-sky-300">
+                      {resume.title}
+                    </Link>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {getTemplateMeta(resume.templateId)?.name ?? resume.templateId} | Updated {new Date(resume.updatedAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/editor/${resume.id}`}
+                      className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15"
+                    >
+                      Edit
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void deleteResume(resume.id)}
+                      disabled={deletingResumeId === resume.id}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingResumeId === resume.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                      {deletingResumeId === resume.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20">
@@ -195,15 +364,28 @@ export function AccountClient({ email, name, plan, hasPassword, createdAt, downl
 
       <section className="rounded-[28px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
         <div className="border-b border-white/10 px-6 py-4">
-          <h2 className="text-lg font-semibold text-white">Resume download history</h2>
-          <p className="mt-1 text-sm text-slate-300">See your most recent PDF exports.</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Resume download history</h2>
+              <p className="mt-1 text-sm text-slate-300">See your most recent PDF exports.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refreshWorkspace()}
+              disabled={workspaceLoading}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {workspaceLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              {workspaceLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
         </div>
 
-        {downloads.length === 0 ? (
+        {downloadItems.length === 0 ? (
           <p className="px-6 py-6 text-sm text-slate-400">No downloads yet. Export a resume to see history here.</p>
         ) : (
           <ul className="divide-y divide-white/10">
-            {downloads.map((download) => (
+            {downloadItems.map((download) => (
               <li key={download.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
                 <div>
                   <p className="text-sm font-medium text-white">{download.resumeTitle}</p>

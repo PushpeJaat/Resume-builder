@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 
 export default function ContactUsPage() {
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_42%,#f8fafc_100%)] px-4 py-14 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-10">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_42%,#f8fafc_100%)] text-slate-900">
+      <SiteHeader theme="light" />
+      <main className="px-4 pb-14 pt-24 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-10">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">Contact Us</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Get in touch with Fap Corporation</h1>
         <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
@@ -67,7 +70,8 @@ export default function ContactUsPage() {
             </Link>
           </div>
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }

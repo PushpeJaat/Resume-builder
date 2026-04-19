@@ -27,7 +27,7 @@ export function SiteHeader({ theme = "light" }: Props) {
         dark ? "border-b border-white/10 bg-slate-950/55" : "border-b border-slate-200/40 bg-white/70",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex h-16 w-full max-w-[90rem] items-center justify-between px-3 sm:px-4 lg:px-5">
         <BrandMark theme={dark ? "dark" : "light"} size="sm" onClick={() => setMenuOpen(false)} />
 
         {/* Desktop nav */}
@@ -48,7 +48,6 @@ export function SiteHeader({ theme = "light" }: Props) {
           ) : isLoggedIn ? (
             <>
               <span className={cn("rounded-lg px-3 py-2 text-sm font-medium", dark ? "text-slate-200" : "text-slate-700")}>Hi, {firstName}</span>
-              <Link href="/dashboard" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-200 hover:text-white hover:bg-white/8" : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/50")}>Dashboard</Link>
               <Link href="/account" className={cn("rounded-lg px-3 py-2 transition-all duration-200", dark ? "text-slate-200 hover:text-white hover:bg-white/8" : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/50")}>Profile</Link>
               <button
                 type="button"
@@ -90,7 +89,7 @@ export function SiteHeader({ theme = "light" }: Props) {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className={cn("border-t px-4 pb-4 lg:hidden", dark ? "border-white/10 bg-slate-950/95" : "border-slate-200/60 bg-white/95")}>
+        <div className={cn("border-t px-3 pb-3 sm:px-4 lg:hidden", dark ? "border-white/10 bg-slate-950/95" : "border-slate-200/60 bg-white/95")}>
           <nav
             className={cn(
               "flex flex-col gap-1 pt-2 text-sm font-medium [&>a]:border [&>a]:border-transparent [&>a]:transition-all",
@@ -105,7 +104,6 @@ export function SiteHeader({ theme = "light" }: Props) {
             <div className={cn("my-1 h-px", dark ? "bg-white/10" : "bg-slate-200")} />
             {isLoggedIn ? (
               <>
-                <Link href="/dashboard" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-200 hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Dashboard</Link>
                 <Link href="/account" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-200 hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Profile</Link>
                 <button type="button" onClick={() => { setMenuOpen(false); void signOut({ callbackUrl: "/" }); }} className={cn("rounded-lg border border-transparent px-3 py-2.5 text-left font-semibold", dark ? "text-red-400 hover:border-white/20 hover:bg-white/8" : "text-red-600 hover:border-red-200 hover:bg-red-50")}>Log out</button>
               </>

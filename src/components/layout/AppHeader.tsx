@@ -16,7 +16,7 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/90 backdrop-blur-xl">
-      <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
+      <div className="mx-auto flex min-h-16 w-full max-w-[90rem] flex-wrap items-center justify-between gap-2.5 px-3 py-2.5 sm:px-4 lg:px-5">
         <div className="flex items-center gap-3 sm:gap-6">
           <BrandMark size="sm" onClick={() => setMenuOpen(false)} />
           {/* Desktop nav */}
@@ -73,7 +73,7 @@ export function AppHeader() {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className="border-t border-slate-200/60 bg-white/95 px-4 pb-4 lg:hidden">
+        <div className="border-t border-slate-200/60 bg-white/95 px-3 pb-3 sm:px-4 lg:hidden">
           <nav className="flex flex-col gap-1 pt-2 text-sm font-medium [&>a]:border [&>a]:border-transparent [&>a]:transition-all [&>a:hover]:border-sky-200/90">
             <Link href="/" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-slate-700 hover:bg-slate-100">Home</Link>
             <Link href="/dashboard/templates" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-slate-700 hover:bg-slate-100">Templates</Link>

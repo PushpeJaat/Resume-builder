@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 
 const updatedOn = "April 11, 2026";
 
 export default function RefundsAndCancellationsPage() {
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f7fbff_0%,#ffffff_42%,#f8fafc_100%)] px-4 py-14 text-slate-900 sm:px-6 lg:px-8">
-      <article className="mx-auto w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-10">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f7fbff_0%,#ffffff_42%,#f8fafc_100%)] text-slate-900">
+      <SiteHeader theme="light" />
+      <main className="px-4 pb-14 pt-24 sm:px-6 lg:px-8">
+        <article className="mx-auto w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-10">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">Refunds &amp; Cancellations</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Refund and cancellation policy</h1>
         <p className="mt-2 text-sm text-slate-500">Last updated: {updatedOn}</p>
@@ -86,7 +89,8 @@ export default function RefundsAndCancellationsPage() {
             Contact Us
           </Link>
         </div>
-      </article>
-    </main>
+        </article>
+      </main>
+    </div>
   );
 }

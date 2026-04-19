@@ -73,7 +73,7 @@ export default function SignupPage() {
       // fall through to normal redirect
     }
 
-    router.push("/dashboard");
+    router.push("/account");
     router.refresh();
   }
 

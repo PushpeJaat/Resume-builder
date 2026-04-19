@@ -25,10 +25,10 @@ export function BrandMark({
       <div
         className={cn(
           "relative overflow-hidden rounded-xl transition-transform duration-200 group-hover:scale-[1.02]",
-          compact ? "h-12 w-[128px]" : "h-14 w-[152px]",
+          compact ? "h-14 w-[156px]" : "h-16 w-[188px]",
           dark
-            ? "border border-white/20 bg-transparent shadow-[0_10px_24px_-18px_rgba(6,182,212,0.6)]"
-            : "border border-slate-200/80 bg-transparent shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)]",
+            ? "bg-transparent shadow-[0_10px_24px_-18px_rgba(6,182,212,0.55)]"
+            : "bg-transparent shadow-[0_10px_24px_-18px_rgba(15,23,42,0.3)]",
         )}
       >
         <Image
@@ -37,7 +37,7 @@ export function BrandMark({
           fill
           priority={compact}
           className="object-contain"
-          sizes={compact ? "128px" : "152px"}
+          sizes={compact ? "156px" : "188px"}
         />
       </div>
     </Link>

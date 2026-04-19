@@ -11,7 +11,7 @@ export default async function AccountPage() {
     redirect("/login?callbackUrl=/account");
   }
 
-  const [user, downloads] = await Promise.all([
+  const [user, downloads, resumes] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -28,6 +28,16 @@ export default async function AccountPage() {
       take: 100,
       include: {
         resume: { select: { title: true } },
+      },
+    }),
+    prisma.resume.findMany({
+      where: { userId: session.user.id },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        templateId: true,
+        updatedAt: true,
       },
     }),
   ]);
@@ -52,6 +62,12 @@ export default async function AccountPage() {
             templateId: d.templateId,
             resumeTitle: d.resume.title,
             resumeId: d.resumeId,
+          }))}
+          resumes={resumes.map((resume) => ({
+            id: resume.id,
+            title: resume.title,
+            templateId: resume.templateId,
+            updatedAt: resume.updatedAt.toISOString(),
           }))}
         />
       </main>

@@ -92,10 +92,10 @@ export function AdminLoginClient({
                     Sign out and retry
                   </button>
                   <Link
-                    href="/dashboard"
+                    href="/account"
                     className="rounded-lg border border-cyan-300/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
                   >
-                    Go to user dashboard
+                    Go to user profile
                   </Link>
                 </div>
               </div>

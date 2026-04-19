@@ -498,9 +498,9 @@ export function EditorClient({ resumeId }: Props) {
             This resume may have been deleted or you do not have access to it.
           </p>
           <Button asChild className="mt-6">
-            <Link href="/dashboard">
+            <Link href="/account">
               <ArrowLeft className="size-4" />
-              Back to dashboard
+              Back to profile
             </Link>
           </Button>
         </div>
