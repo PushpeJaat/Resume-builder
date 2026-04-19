@@ -26,7 +26,6 @@ const OCR_TIMEOUT_MS = parsePositiveInt(process.env.OCR_TIMEOUT_MS, 10_000);
 const DOCX_TIMEOUT_MS = parsePositiveInt(process.env.DOCX_TIMEOUT_MS, 5_000);
 const MAX_PAGES_PER_REQUEST = 5;
 const MAX_PAGED_BATCHES = parsePositiveInt(process.env.VISION_MAX_PAGE_BATCHES, 2);
-const MAX_INLINE_PHOTO_BYTES = parsePositiveInt(process.env.MAX_INLINE_PHOTO_BYTES, 1_200_000);
 
 let cachedVisionClient: ImageAnnotatorClient | null = null;
 
@@ -52,19 +51,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const inlinePhotoDataUrl =
-      resolved.format === "jpeg" ? buildInlineJpegPhotoDataUrl(resolved.bytes) : "";
-    const photoPayload = inlinePhotoDataUrl
-      ? {
-          photoUrl: inlinePhotoDataUrl,
-          photo_data_url: inlinePhotoDataUrl,
-        }
-      : {};
-
     return NextResponse.json(
       {
         raw_text: cleaned,
-        ...photoPayload,
         meta: {
           source: extraction.source,
           provider: extraction.provider,
@@ -72,7 +61,6 @@ export async function POST(req: Request) {
           format: resolved.format,
           length: cleaned.length,
           input: resolved.inputType,
-          ...(inlinePhotoDataUrl ? { photo_data_url: inlinePhotoDataUrl } : {}),
         },
       },
       { status: 200 },
@@ -352,19 +340,6 @@ async function extractTextFromImage(imageBytes: Uint8Array) {
     provider: "google-vision" as const,
     mode: "image_ocr" as const,
   };
-}
-
-function buildInlineJpegPhotoDataUrl(imageBytes: Uint8Array) {
-  if (imageBytes.byteLength <= 0 || imageBytes.byteLength > MAX_INLINE_PHOTO_BYTES) {
-    return "";
-  }
-
-  const base64 = Buffer.from(imageBytes).toString("base64");
-  if (!base64) {
-    return "";
-  }
-
-  return `data:image/jpeg;base64,${base64}`;
 }
 
 async function runVisionPdfOcr(pdfBytes: Uint8Array, pages: number[]): Promise<string> {

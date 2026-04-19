@@ -100,14 +100,6 @@ type ParsedResumePayload = {
 type ParseResumeApiPayload = {
   raw_text?: unknown;
   meta?: unknown;
-  photoUrl?: unknown;
-  photo_url?: unknown;
-  photoDataUrl?: unknown;
-  photo_data_url?: unknown;
-  avatarUrl?: unknown;
-  avatar_url?: unknown;
-  image?: unknown;
-  picture?: unknown;
   parsed_resume?: unknown;
   parsedResume?: unknown;
   data?: unknown;
@@ -222,14 +214,13 @@ async function requestParseResume(file: File): Promise<ParsedResumePayload> {
     }
 
     const apiPayload = parsed as ParseResumeApiPayload;
-    const fallbackPhotoUrl = extractPhotoFromApiPayload(apiPayload);
     const structured = extractStructuredPayload(apiPayload);
     if (structured && hasMeaningfulStructuredData(structured)) {
-      return applyFallbackPhotoUrl(structured, fallbackPhotoUrl);
+      return structured;
     }
 
     if (typeof parsed.raw_text === "string" && parsed.raw_text.trim()) {
-      return buildPayloadFromRawText(parsed.raw_text, fallbackPhotoUrl);
+      return buildPayloadFromRawText(parsed.raw_text);
     }
 
     lastError = "Resume parser returned an invalid response payload.";
@@ -279,81 +270,6 @@ function extractStructuredPayload(payload: ParseResumeApiPayload): ParsedResumeP
   }
 
   return null;
-}
-
-function extractPhotoFromApiPayload(payload: ParseResumeApiPayload) {
-  const records: Array<Record<string, unknown>> = [];
-
-  const pushRecord = (value: unknown) => {
-    if (!isRecord(value)) {
-      return;
-    }
-
-    records.push(value as Record<string, unknown>);
-    const meta = (value as Record<string, unknown>).meta;
-    if (isRecord(meta)) {
-      records.push(meta as Record<string, unknown>);
-    }
-  };
-
-  pushRecord(payload);
-  pushRecord(payload.data);
-  pushRecord(payload.result);
-  pushRecord(payload.resume);
-  pushRecord(payload.payload);
-  pushRecord(payload.output);
-  pushRecord(payload.response);
-
-  const parsedStructured = parseStructuredCandidate(payload.parsed_resume ?? payload.parsedResume);
-  if (parsedStructured) {
-    pushRecord(parsedStructured);
-  }
-
-  return normalizePhotoUrl(
-    readTextFromRecords(records, [
-      "photoUrl",
-      "photo_url",
-      "photoDataUrl",
-      "photo_data_url",
-      "profilePhotoUrl",
-      "profile_photo_url",
-      "photo",
-      "avatarUrl",
-      "avatar_url",
-      "image",
-      "picture",
-    ]),
-  );
-}
-
-function applyFallbackPhotoUrl(payload: ParsedResumePayload, fallbackPhotoUrl: string): ParsedResumePayload {
-  if (!fallbackPhotoUrl) {
-    return payload;
-  }
-
-  const root = payload as unknown as Record<string, unknown>;
-  const existingPhoto = normalizePhotoUrl(
-    readTextFromRecords([root], [
-      "photoUrl",
-      "photo_url",
-      "profilePhotoUrl",
-      "profile_photo_url",
-      "photo",
-      "avatarUrl",
-      "avatar_url",
-      "image",
-      "picture",
-    ]),
-  );
-
-  if (existingPhoto) {
-    return payload;
-  }
-
-  return {
-    ...payload,
-    photoUrl: fallbackPhotoUrl,
-  };
 }
 
 function parseStructuredCandidate(value: unknown): ParsedResumePayload | null {
@@ -466,7 +382,7 @@ function hasMeaningfulStructuredData(payload: ParsedResumePayload) {
   });
 }
 
-function buildPayloadFromRawText(rawText: string, fallbackPhotoUrl = ""): ParsedResumePayload {
+function buildPayloadFromRawText(rawText: string): ParsedResumePayload {
   const lines = rawText
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -475,13 +391,11 @@ function buildPayloadFromRawText(rawText: string, fallbackPhotoUrl = ""): Parsed
   const email = rawText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? "";
   const phone = rawText.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0] ?? "";
   const skills = extractSkillsFromRawText(rawText);
-  const photoUrl = normalizePhotoUrl(fallbackPhotoUrl);
 
   return {
     fullName: detectNameFromLines(lines),
     email,
     phone,
-    photoUrl,
     summary: lines.slice(0, 12).join(" ").slice(0, 900),
     skills,
   };

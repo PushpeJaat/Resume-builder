@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
-import { deflateSync } from "node:zlib";
-import { extractImages, extractText } from "unpdf";
+import { extractText } from "unpdf";
 
 export type ExtractedResume = {
   fullName: string;
@@ -50,11 +49,6 @@ const OPENAI_TIMEOUT_MS = parsePositiveInt(process.env.OPENAI_TIMEOUT_MS, 45_000
 const OPENAI_MAX_OUTPUT_TOKENS = parsePositiveInt(process.env.OPENAI_MAX_OUTPUT_TOKENS, 4_096);
 const TOTAL_PIPELINE_TIMEOUT_MS = parsePositiveInt(process.env.PARSE_RESUME_TOTAL_TIMEOUT_MS, 60_000);
 const MIN_STEP_TIMEOUT_MS = 1_200;
-const PHOTO_EXTRACTION_MAX_PAGES = parsePositiveInt(process.env.PDF_PHOTO_EXTRACTION_MAX_PAGES, 2);
-const PHOTO_EXTRACTION_TIMEOUT_MS = parsePositiveInt(process.env.PDF_PHOTO_EXTRACTION_TIMEOUT_MS, 5_000);
-const PHOTO_MIN_EDGE_PX = parsePositiveInt(process.env.PDF_PHOTO_MIN_EDGE_PX, 88);
-const PHOTO_MAX_IMAGE_AREA = parsePositiveInt(process.env.PDF_PHOTO_MAX_IMAGE_AREA, 1_400_000);
-const PHOTO_MAX_DATA_URL_CHARS = parsePositiveInt(process.env.PDF_PHOTO_MAX_DATA_URL_CHARS, 650_000);
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const DEFAULT_STORAGE_BUCKET = "resume-uploads";
 
@@ -119,14 +113,6 @@ type StructuredParsingResult = {
   error?: string;
 };
 
-type ExtractedPdfImage = {
-  data: Uint8ClampedArray;
-  width: number;
-  height: number;
-  channels: 1 | 3 | 4;
-  key: string;
-};
-
 export async function parseResumeFile(file: File): Promise<ParseResumePipelineResult> {
   const deadline = Date.now() + TOTAL_PIPELINE_TIMEOUT_MS;
 
@@ -165,22 +151,7 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
   }
 
   const parsingResult = await parseWithOpenAiFromText(cleanedText, deadline);
-  let parsedResume = parsingResult.parsedResume;
-
-  if (parsedResume && !parsedResume.photoUrl && getRemainingMs(deadline) > MIN_STEP_TIMEOUT_MS) {
-    try {
-      // Keep photo extraction isolated so it never interferes with text extraction or AI parsing.
-      const extractedPhotoUrl = await extractProfilePhotoFromPdf(new Uint8Array(pdfBytes), deadline);
-      if (extractedPhotoUrl) {
-        parsedResume = {
-          ...parsedResume,
-          photoUrl: extractedPhotoUrl,
-        };
-      }
-    } catch {
-      // Never fail structured parsing because profile photo extraction failed.
-    }
-  }
+  const parsedResume = parsingResult.parsedResume;
 
   return {
     rawText: cleanedText,
@@ -407,275 +378,6 @@ async function extractWithGoogleVision(pdfBytes: Uint8Array, deadline: number): 
   }
 
   throw new ResumePipelineError(getErrorMessage(lastError, "Google Vision OCR failed."), 502);
-}
-
-async function extractProfilePhotoFromPdf(pdfBytes: Uint8Array, deadline: number): Promise<string> {
-  if (PHOTO_EXTRACTION_MAX_PAGES <= 0 || getRemainingMs(deadline) <= MIN_STEP_TIMEOUT_MS) {
-    return "";
-  }
-
-  const candidates: ExtractedPdfImage[] = [];
-
-  for (let pageNumber = 1; pageNumber <= PHOTO_EXTRACTION_MAX_PAGES; pageNumber += 1) {
-    const remainingMs = getRemainingMs(deadline);
-    if (remainingMs <= MIN_STEP_TIMEOUT_MS) {
-      break;
-    }
-
-    const timeoutMs = Math.max(MIN_STEP_TIMEOUT_MS, Math.min(PHOTO_EXTRACTION_TIMEOUT_MS, remainingMs));
-
-    try {
-      const extracted = await withTimeout(
-        extractImages(pdfBytes, pageNumber),
-        timeoutMs,
-        "PDF profile photo extraction timed out.",
-      );
-
-      if (!Array.isArray(extracted) || extracted.length === 0) {
-        continue;
-      }
-
-      for (const image of extracted) {
-        if (!isExtractedPdfImage(image)) {
-          continue;
-        }
-
-        if (isLikelyProfilePhotoImage(image)) {
-          candidates.push(image);
-        }
-      }
-    } catch (error) {
-      if (isOutOfRangePageError(error)) {
-        break;
-      }
-
-      // Ignore image extraction failures to preserve the current parsing flow.
-      return "";
-    }
-  }
-
-  const best = pickBestProfilePhotoImage(candidates);
-  if (!best) {
-    return "";
-  }
-
-  return encodeExtractedPhotoDataUrl(best);
-}
-
-function isExtractedPdfImage(value: unknown): value is ExtractedPdfImage {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-  return (
-    record.data instanceof Uint8ClampedArray &&
-    typeof record.width === "number" &&
-    typeof record.height === "number" &&
-    (record.channels === 1 || record.channels === 3 || record.channels === 4) &&
-    typeof record.key === "string"
-  );
-}
-
-function isLikelyProfilePhotoImage(image: ExtractedPdfImage) {
-  if (image.width < PHOTO_MIN_EDGE_PX || image.height < PHOTO_MIN_EDGE_PX) {
-    return false;
-  }
-
-  const area = image.width * image.height;
-  if (area <= 0 || area > PHOTO_MAX_IMAGE_AREA) {
-    return false;
-  }
-
-  const ratio = image.width / image.height;
-  return ratio >= 0.55 && ratio <= 1.65;
-}
-
-function pickBestProfilePhotoImage(images: ExtractedPdfImage[]): ExtractedPdfImage | null {
-  let best: { image: ExtractedPdfImage; score: number } | null = null;
-
-  for (const image of images) {
-    const ratio = image.width / image.height;
-    const area = image.width * image.height;
-
-    const shapeScore = 1 - Math.min(1, Math.abs(Math.log(ratio)));
-    const areaScore = Math.min(1, area / 250_000);
-    const channelScore = image.channels === 4 ? 0.12 : image.channels === 3 ? 0.08 : 0;
-    const score = shapeScore * 2 + areaScore + channelScore;
-
-    if (!best || score > best.score) {
-      best = {
-        image,
-        score,
-      };
-    }
-  }
-
-  return best?.image ?? null;
-}
-
-function encodeExtractedPhotoDataUrl(image: ExtractedPdfImage) {
-  const rgbaImage = toRgbaImage(image);
-  const resized = resizeRgbaImage(rgbaImage, 720);
-  const dataUrl = rgbaToPngDataUrl(resized.width, resized.height, resized.pixels);
-
-  if (!dataUrl || dataUrl.length > PHOTO_MAX_DATA_URL_CHARS) {
-    return "";
-  }
-
-  return dataUrl;
-}
-
-function toRgbaImage(image: ExtractedPdfImage) {
-  const pixelCount = image.width * image.height;
-  if (image.channels === 4) {
-    return {
-      width: image.width,
-      height: image.height,
-      pixels: new Uint8Array(image.data),
-    };
-  }
-
-  const pixels = new Uint8Array(pixelCount * 4);
-
-  if (image.channels === 3) {
-    for (let srcIndex = 0, dstIndex = 0; dstIndex < pixels.length; srcIndex += 3, dstIndex += 4) {
-      pixels[dstIndex] = image.data[srcIndex];
-      pixels[dstIndex + 1] = image.data[srcIndex + 1];
-      pixels[dstIndex + 2] = image.data[srcIndex + 2];
-      pixels[dstIndex + 3] = 255;
-    }
-
-    return {
-      width: image.width,
-      height: image.height,
-      pixels,
-    };
-  }
-
-  for (let srcIndex = 0, dstIndex = 0; dstIndex < pixels.length; srcIndex += 1, dstIndex += 4) {
-    const value = image.data[srcIndex];
-    pixels[dstIndex] = value;
-    pixels[dstIndex + 1] = value;
-    pixels[dstIndex + 2] = value;
-    pixels[dstIndex + 3] = 255;
-  }
-
-  return {
-    width: image.width,
-    height: image.height,
-    pixels,
-  };
-}
-
-function resizeRgbaImage(image: { width: number; height: number; pixels: Uint8Array }, maxEdge: number) {
-  const { width, height, pixels } = image;
-  const currentMax = Math.max(width, height);
-  if (currentMax <= maxEdge) {
-    return image;
-  }
-
-  const scale = maxEdge / currentMax;
-  const nextWidth = Math.max(1, Math.round(width * scale));
-  const nextHeight = Math.max(1, Math.round(height * scale));
-  const resized = new Uint8Array(nextWidth * nextHeight * 4);
-
-  for (let y = 0; y < nextHeight; y += 1) {
-    const srcY = Math.min(height - 1, Math.floor((y / nextHeight) * height));
-    for (let x = 0; x < nextWidth; x += 1) {
-      const srcX = Math.min(width - 1, Math.floor((x / nextWidth) * width));
-      const srcOffset = (srcY * width + srcX) * 4;
-      const dstOffset = (y * nextWidth + x) * 4;
-
-      resized[dstOffset] = pixels[srcOffset];
-      resized[dstOffset + 1] = pixels[srcOffset + 1];
-      resized[dstOffset + 2] = pixels[srcOffset + 2];
-      resized[dstOffset + 3] = pixels[srcOffset + 3];
-    }
-  }
-
-  return {
-    width: nextWidth,
-    height: nextHeight,
-    pixels: resized,
-  };
-}
-
-function rgbaToPngDataUrl(width: number, height: number, rgba: Uint8Array) {
-  if (width <= 0 || height <= 0 || rgba.length !== width * height * 4) {
-    return "";
-  }
-
-  const rowBytes = width * 4;
-  const raw = Buffer.alloc(height * (rowBytes + 1));
-
-  for (let row = 0; row < height; row += 1) {
-    const destination = row * (rowBytes + 1);
-    raw[destination] = 0;
-
-    const source = Buffer.from(rgba.buffer, rgba.byteOffset + row * rowBytes, rowBytes);
-    source.copy(raw, destination + 1);
-  }
-
-  const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 6;
-  ihdr[10] = 0;
-  ihdr[11] = 0;
-  ihdr[12] = 0;
-
-  const idat = deflateSync(raw);
-  const png = Buffer.concat([
-    pngSignature,
-    createPngChunk("IHDR", ihdr),
-    createPngChunk("IDAT", idat),
-    createPngChunk("IEND", Buffer.alloc(0)),
-  ]);
-
-  return `data:image/png;base64,${png.toString("base64")}`;
-}
-
-function createPngChunk(type: "IHDR" | "IDAT" | "IEND", data: Buffer) {
-  const chunkType = Buffer.from(type, "ascii");
-
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.length, 0);
-
-  const checksum = Buffer.alloc(4);
-  checksum.writeUInt32BE(calculateCrc32(Buffer.concat([chunkType, data])), 0);
-
-  return Buffer.concat([length, chunkType, data, checksum]);
-}
-
-const CRC32_TABLE = buildCrc32Table();
-
-function buildCrc32Table() {
-  const table = new Uint32Array(256);
-
-  for (let value = 0; value < 256; value += 1) {
-    let current = value;
-
-    for (let bit = 0; bit < 8; bit += 1) {
-      current = (current & 1) === 1 ? 0xedb88320 ^ (current >>> 1) : current >>> 1;
-    }
-
-    table[value] = current >>> 0;
-  }
-
-  return table;
-}
-
-function calculateCrc32(input: Buffer) {
-  let checksum = 0xffffffff;
-
-  for (const byte of input) {
-    checksum = CRC32_TABLE[(checksum ^ byte) & 0xff] ^ (checksum >>> 8);
-  }
-
-  return (checksum ^ 0xffffffff) >>> 0;
 }
 
 function cleanAndNormalizeText(input: string): string {
@@ -1171,9 +873,4 @@ function getErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
-}
-
-function isOutOfRangePageError(error: unknown) {
-  const message = getErrorMessage(error, "").toLowerCase();
-  return /page/.test(message) && /(out of range|invalid|exceed|beyond)/.test(message);
 }
