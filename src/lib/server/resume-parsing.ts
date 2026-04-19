@@ -133,9 +133,14 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
   validateUploadedPdf(file);
 
   const { pdfBytes, storagePath } = await resolvePdfBytes(file, deadline);
-  const extractedPhotoPromise = extractProfilePhotoFromPdf(pdfBytes, deadline).catch(() => "");
+  let unpdfText = "";
+  try {
+    unpdfText = await extractWithUnpdf(pdfBytes, deadline);
+  } catch {
+    // Preserve the original flow: when unpdf fails, continue with OCR fallback.
+    unpdfText = "";
+  }
 
-  const unpdfText = await extractWithUnpdf(pdfBytes, deadline);
   const shouldUseOcr = !unpdfText || unpdfText.trim().length < MIN_EXTRACTED_TEXT_CHARS;
   let usedOcr = false;
   let rawTextCandidate = unpdfText;
@@ -162,13 +167,18 @@ export async function parseResumeFile(file: File): Promise<ParseResumePipelineRe
   const parsingResult = await parseWithOpenAiFromText(cleanedText, deadline);
   let parsedResume = parsingResult.parsedResume;
 
-  if (parsedResume && !parsedResume.photoUrl) {
-    const extractedPhotoUrl = await extractedPhotoPromise;
-    if (extractedPhotoUrl) {
-      parsedResume = {
-        ...parsedResume,
-        photoUrl: extractedPhotoUrl,
-      };
+  if (parsedResume && !parsedResume.photoUrl && getRemainingMs(deadline) > MIN_STEP_TIMEOUT_MS) {
+    try {
+      // Keep photo extraction isolated so it never interferes with text extraction or AI parsing.
+      const extractedPhotoUrl = await extractProfilePhotoFromPdf(new Uint8Array(pdfBytes), deadline);
+      if (extractedPhotoUrl) {
+        parsedResume = {
+          ...parsedResume,
+          photoUrl: extractedPhotoUrl,
+        };
+      }
+    } catch {
+      // Never fail structured parsing because profile photo extraction failed.
     }
   }
 
