@@ -66,9 +66,9 @@ export function SiteHeader({ theme = "light" }: Props) {
         </nav>
 
         {/* Mobile: auth button + hamburger */}
-        <div className="flex items-center gap-2 lg:hidden">
+        <div className="flex items-center gap-1.5 lg:hidden">
           {status !== "loading" && !isLoggedIn && (
-            <Link href="/signup" className="rounded-lg border border-transparent bg-gradient-to-r from-sky-600 to-cyan-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-sky-600/25 transition hover:border-cyan-200/80 hover:brightness-110">
+            <Link href="/signup" className="rounded-lg border border-transparent bg-gradient-to-r from-sky-600 to-cyan-600 px-2.5 py-1.5 text-sm font-semibold text-white shadow-md shadow-sky-600/25 transition hover:border-cyan-200/80 hover:brightness-110">
               Get Started
             </Link>
           )}
@@ -76,7 +76,7 @@ export function SiteHeader({ theme = "light" }: Props) {
             type="button"
             aria-label="Toggle menu"
             onClick={() => setMenuOpen((o) => !o)}
-            className={cn("rounded-lg border border-transparent p-2 transition", dark ? "text-slate-300 hover:border-white/20 hover:bg-white/10" : "text-slate-600 hover:border-sky-200 hover:bg-slate-100")}
+            className={cn("rounded-lg border border-transparent p-1.5 transition", dark ? "text-slate-300 hover:border-white/20 hover:bg-white/10" : "text-slate-600 hover:border-sky-200 hover:bg-slate-100")}
           >
             {menuOpen ? (
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -89,28 +89,28 @@ export function SiteHeader({ theme = "light" }: Props) {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className={cn("border-t px-3 pb-3 sm:px-4 lg:hidden", dark ? "border-white/10 bg-slate-950/95" : "border-slate-200/60 bg-white/95")}>
+        <div className={cn("border-t px-3 pb-2.5 sm:px-4 lg:hidden", dark ? "border-white/10 bg-slate-950/95" : "border-slate-200/60 bg-white/95")}>
           <nav
             className={cn(
-              "flex flex-col gap-1 pt-2 text-sm font-medium [&>a]:border [&>a]:border-transparent [&>a]:transition-all",
+              "flex flex-col gap-0.5 pt-1.5 text-[0.95rem] font-medium [&>a]:border [&>a]:border-transparent [&>a]:transition-all",
               dark ? "[&>a:hover]:border-white/20" : "[&>a:hover]:border-sky-200/90",
             )}
           >
-            <Link href="/" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Home</Link>
-            <Link href="/dashboard/templates" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Templates</Link>
-            <Link href="/pricing" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Pricing</Link>
-            <Link href="/blog" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Blog</Link>
-            <Link href="/contact-us" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Contact</Link>
-            <div className={cn("my-1 h-px", dark ? "bg-white/10" : "bg-slate-200")} />
+            <Link href="/" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Home</Link>
+            <Link href="/dashboard/templates" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Templates</Link>
+            <Link href="/pricing" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Pricing</Link>
+            <Link href="/blog" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Blog</Link>
+            <Link href="/contact-us" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2", dark ? "text-slate-300 hover:text-white hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Contact</Link>
+            <div className={cn("my-0.5 h-px", dark ? "bg-white/10" : "bg-slate-200")} />
             {isLoggedIn ? (
               <>
-                <Link href="/account" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-200 hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Profile</Link>
-                <button type="button" onClick={() => { setMenuOpen(false); void signOut({ callbackUrl: "/" }); }} className={cn("rounded-lg border border-transparent px-3 py-2.5 text-left font-semibold", dark ? "text-red-400 hover:border-white/20 hover:bg-white/8" : "text-red-600 hover:border-red-200 hover:bg-red-50")}>Log out</button>
+                <Link href="/account" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2", dark ? "text-slate-200 hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Profile</Link>
+                <button type="button" onClick={() => { setMenuOpen(false); void signOut({ callbackUrl: "/" }); }} className={cn("rounded-lg border border-transparent px-3 py-2 text-left font-semibold", dark ? "text-red-400 hover:border-white/20 hover:bg-white/8" : "text-red-600 hover:border-red-200 hover:bg-red-50")}>Log out</button>
               </>
             ) : (
               <>
-                <Link href="/login" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2.5", dark ? "text-slate-300 hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Sign In</Link>
-                <Link href="/signup" onClick={() => setMenuOpen(false)} className="mt-1 rounded-lg border border-transparent bg-gradient-to-r from-sky-600 to-cyan-600 px-3 py-2.5 text-center font-semibold text-white hover:border-cyan-200/80">Get Started</Link>
+                <Link href="/login" onClick={() => setMenuOpen(false)} className={cn("rounded-lg px-3 py-2", dark ? "text-slate-300 hover:bg-white/8" : "text-slate-700 hover:bg-slate-100")}>Sign In</Link>
+                <Link href="/signup" onClick={() => setMenuOpen(false)} className="mt-0.5 rounded-lg border border-transparent bg-gradient-to-r from-sky-600 to-cyan-600 px-3 py-2 text-center font-semibold text-white hover:border-cyan-200/80">Get Started</Link>
               </>
             )}
           </nav>
