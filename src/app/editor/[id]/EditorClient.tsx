@@ -420,6 +420,15 @@ export function EditorClient({ resumeId }: Props) {
 
   const autoDownloadFiredRef = useRef(false);
 
+  const handleGoBack = useCallback(() => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push("/dashboard/templates");
+  }, [router]);
+
   useEffect(() => {
     if (!autoDownload || loading || !isLoggedIn || autoDownloadFiredRef.current) {
       return;
@@ -505,11 +514,15 @@ export function EditorClient({ resumeId }: Props) {
         <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-3 px-4 py-4 lg:px-6">
           <BrandMark size="sm" className="hidden sm:inline-flex" />
 
-          <Button variant="ghost" size="sm" className="rounded-xl text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-slate-900" asChild>
-            <Link href={isLoggedIn ? "/dashboard" : "/"}>
-              <ArrowLeft className="size-4" />
-              {isLoggedIn ? "Dashboard" : "Home"}
-            </Link>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="rounded-xl text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-slate-900"
+            onClick={handleGoBack}
+          >
+            <ArrowLeft className="size-4" />
+            Back
           </Button>
 
           <div className="min-w-0 flex-1">
@@ -722,6 +735,26 @@ export function EditorClient({ resumeId }: Props) {
         <EditorLayout
           editor={<ResumeEditor data={data} onChange={setData} />}
           preview={<PreviewPanel templateId={templateId} data={data} />}
+          previewFooter={(
+            <Button
+              type="button"
+              onClick={() => void downloadPdf()}
+              disabled={isDownloadBusy}
+              className="h-11 w-full rounded-xl bg-slate-900 text-white shadow-[0_18px_32px_-24px_rgba(15,23,42,0.8)]"
+            >
+              {isDownloadBusy ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {downloadLabel}
+                </>
+              ) : (
+                <>
+                  <Download className="size-4" />
+                  Download PDF
+                </>
+              )}
+            </Button>
+          )}
         />
       </main>
 

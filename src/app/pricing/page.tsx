@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { auth } from "@/auth";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { PLAN_DOWNLOAD_LIMIT } from "@/lib/plan-config";
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const session = await auth();
+  const ctaHref = session?.user?.id ? "/dashboard/templates" : "/signup";
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <SiteHeader theme="dark" />
@@ -71,10 +75,10 @@ export default function PricingPage() {
                 ))}
               </ul>
               <Link
-                href="/signup"
+                href={ctaHref}
                 className="block w-full rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-4 py-3 text-center font-semibold text-slate-950 transition hover:brightness-105"
               >
-                Pay INR 39 and export
+                Subscribe Now
               </Link>
             </section>
           </div>

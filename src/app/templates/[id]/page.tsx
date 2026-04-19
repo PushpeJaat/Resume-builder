@@ -151,8 +151,8 @@ export default async function TemplatePreviewPage({
 
               <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-6">
                 <p className="text-sm text-sky-100">
-                  <strong>Note:</strong> You can start editing immediately. Create a free account when you want to
-                  export the PDF, then complete secure payment to download.
+                  <strong>Note:</strong> This page is for live template preview. Click on &quot;Use Template&quot; to open the
+                  full editor and build your resume.
                 </p>
               </div>
             </section>
@@ -167,16 +167,6 @@ export default async function TemplatePreviewPage({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   Edit &amp; Create Resume
-                </Link>
-
-                <Link
-                  href="/signup"
-                  className="inline-flex items-center justify-center rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/5 sm:py-3"
-                >
-                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Create Account to Download
                 </Link>
               </div>
             </section>

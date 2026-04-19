@@ -25,7 +25,12 @@ export default function ContactUsPage() {
             <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
               <dt className="font-semibold text-slate-900">Customer Support:</dt>
               <dd>
-                <a className="font-medium text-sky-700 hover:text-sky-800" href="mailto:support@cvpilot.info">
+                <a
+                  className="font-medium text-sky-700 hover:text-sky-800"
+                  href="https://mail.google.com/mail/?view=cm&fs=1&to=support@cvpilot.info"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   support@cvpilot.info
                 </a>
               </dd>

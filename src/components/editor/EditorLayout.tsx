@@ -8,10 +8,11 @@ import { cn } from "@/lib/utils";
 type EditorLayoutProps = {
   editor: ReactNode;
   preview: ReactNode;
+  previewFooter?: ReactNode;
   className?: string;
 };
 
-export function EditorLayout({ editor, preview, className }: EditorLayoutProps) {
+export function EditorLayout({ editor, preview, previewFooter, className }: EditorLayoutProps) {
   const [mobileView, setMobileView] = useState<"editor" | "preview">("editor");
 
   return (
@@ -32,6 +33,7 @@ export function EditorLayout({ editor, preview, className }: EditorLayoutProps) 
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Live Preview</p>
             </div>
             <div className="min-h-0 flex-1 overflow-hidden p-2.5">{preview}</div>
+            {previewFooter ? <div className="border-t border-emerald-100/90 bg-white/92 p-3">{previewFooter}</div> : null}
           </section>
         </aside>
       </div>
@@ -77,6 +79,8 @@ export function EditorLayout({ editor, preview, className }: EditorLayoutProps) 
             </div>
 
             <div className="min-h-0 flex-1 overflow-hidden">{preview}</div>
+
+            {previewFooter ? <div className="border-t border-emerald-100/90 bg-white/92 p-3">{previewFooter}</div> : null}
           </section>
         )}
       </div>

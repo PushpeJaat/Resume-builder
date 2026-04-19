@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-
-function getAdminEmails(): Set<string> {
-  const raw = `${process.env.ADMIN_EMAILS ?? ""},${process.env.ADMIN_EMAIL ?? ""}`;
-  return new Set(
-    raw
-      .split(",")
-      .map((email) => email.trim().toLowerCase())
-      .filter((email) => email.length > 0),
-  );
-}
 
 export async function GET() {
   const session = await auth();
@@ -19,10 +10,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const adminEmails = getAdminEmails();
-  const requesterEmail = typeof session.user.email === "string" ? session.user.email.toLowerCase() : "";
-
-  if (adminEmails.size === 0 || !adminEmails.has(requesterEmail)) {
+  if (!isAdminEmail(session.user.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

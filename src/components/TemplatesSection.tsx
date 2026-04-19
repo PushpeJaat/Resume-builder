@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { TEMPLATES } from "@/lib/templates/registry";
 import { TemplateCard } from "./TemplateCard";
 
@@ -43,26 +42,6 @@ export function TemplatesSection() {
             ))}
           </div>
 
-          {/* Bottom CTA */}
-          <div className="mt-20 text-center">
-            <p className="text-base font-medium text-slate-500">
-              Start editing instantly. Create an account only when you want to save and export.
-            </p>
-            <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <Link
-                href="/editor"
-                className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
-              >
-                Start Building
-              </Link>
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                Create Free Account
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </section>

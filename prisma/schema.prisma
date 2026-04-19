@@ -30,6 +30,7 @@ model User {
   resumes      Resume[]
   downloads    DownloadHistory[]
   payments     PaymentOrder[]
+  blogPosts    BlogPost[]
 }
 
 model Resume {
@@ -92,4 +93,21 @@ model ExtractedResume {
   @@index([createdAt], map: "extracted_resumes_created_at_idx")
   @@index([sourceFileName], map: "extracted_resumes_source_file_name_idx")
   @@map("extracted_resumes")
+}
+
+model BlogPost {
+  id         String   @id @default(cuid())
+  title      String
+  slug       String   @unique
+  excerpt    String   @db.Text
+  content    String   @db.Text
+  category   String   @default("Guides")
+  authorId   String?
+  author     User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  isPublished Boolean @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([isPublished])
 }

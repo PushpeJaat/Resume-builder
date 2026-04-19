@@ -13,9 +13,10 @@ type Props = {
 export function SiteHeader({ theme = "light" }: Props) {
   const { data: session, status } = useSession();
   const isLoggedIn = status === "authenticated" && Boolean(session?.user?.id);
-  const firstName =
-    session?.user?.name?.trim().split(" ").filter(Boolean)[0] ??
-    session?.user?.email?.split("@")[0];
+  const fullName = session?.user?.name?.trim() ?? "";
+  const emailPrefix = session?.user?.email?.split("@")[0] ?? "";
+  const displayName = fullName && !fullName.includes("@") ? fullName : emailPrefix;
+  const firstName = displayName.split(/\s+/).filter(Boolean)[0] ?? "there";
   const dark = theme === "dark";
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -32,7 +33,7 @@ export function SiteHeader({ theme = "light" }: Props) {
         {/* Desktop nav */}
         <nav
           className={cn(
-            "hidden items-center gap-2 text-sm font-medium md:flex md:gap-3 [&>a]:border [&>a]:border-transparent [&>a]:transition-all",
+            "hidden items-center gap-2 text-sm font-medium lg:flex lg:gap-3 [&>a]:border [&>a]:border-transparent [&>a]:transition-all",
             dark ? "[&>a:hover]:border-white/20" : "[&>a:hover]:border-sky-200/90",
           )}
         >
@@ -66,7 +67,7 @@ export function SiteHeader({ theme = "light" }: Props) {
         </nav>
 
         {/* Mobile: auth button + hamburger */}
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 lg:hidden">
           {status !== "loading" && !isLoggedIn && (
             <Link href="/signup" className="rounded-lg border border-transparent bg-gradient-to-r from-sky-600 to-cyan-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-sky-600/25 transition hover:border-cyan-200/80 hover:brightness-110">
               Get Started
@@ -89,7 +90,7 @@ export function SiteHeader({ theme = "light" }: Props) {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className={cn("border-t px-4 pb-4 md:hidden", dark ? "border-white/10 bg-slate-950/95" : "border-slate-200/60 bg-white/95")}>
+        <div className={cn("border-t px-4 pb-4 lg:hidden", dark ? "border-white/10 bg-slate-950/95" : "border-slate-200/60 bg-white/95")}>
           <nav
             className={cn(
               "flex flex-col gap-1 pt-2 text-sm font-medium [&>a]:border [&>a]:border-transparent [&>a]:transition-all",
