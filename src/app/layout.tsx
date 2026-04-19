@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <body suppressHydrationWarning className="min-h-screen antialiased">
         <Providers>{children}</Providers>
+        <SiteFooter />
         <Toaster theme="dark" position="bottom-right" richColors />
       </body>
     </html>

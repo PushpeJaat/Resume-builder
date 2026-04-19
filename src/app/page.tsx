@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Bot,
   FileDown,
@@ -81,22 +80,6 @@ export default function HomePage() {
         </section>
 
       </main>
-
-      <footer className="border-t border-sky-200/90 bg-[linear-gradient(180deg,rgba(224,242,254,0.92)_0%,rgba(219,234,254,0.82)_100%)] px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 rounded-3xl border border-sky-200/90 bg-sky-50/82 px-6 py-8 text-center shadow-[0_24px_60px_-44px_rgba(14,116,144,0.5)]">
-          <div>
-            <p className="text-2xl font-bold tracking-tight text-slate-950">CVpilot</p>
-            <p className="mt-2 text-base text-slate-500">Modern resume building for fast-moving careers.</p>
-          </div>
-          <nav className="flex flex-col gap-3 text-base text-slate-600">
-            <Link href="/contact-us" className="transition hover:text-slate-950">Contact Us</Link>
-            <Link href="/privacy-policy" className="transition hover:text-slate-950">Privacy Policy</Link>
-            <Link href="/terms-and-conditions" className="transition hover:text-slate-950">Terms &amp; Conditions</Link>
-            <Link href="/refunds-cancellations" className="transition hover:text-slate-950">Refunds &amp; Cancellations</Link>
-          </nav>
-          <p className="mt-4 text-xs text-slate-400">&copy; {new Date().getFullYear()} CVpilot. All rights reserved.</p>
-        </div>
-      </footer>
     </div>
   );
 }

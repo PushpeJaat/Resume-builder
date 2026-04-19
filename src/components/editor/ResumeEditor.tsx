@@ -624,12 +624,12 @@ function ResumeEditorComponent({ data, onChange }: Props) {
                 onChange={(event) => setPersonal({ email: event.target.value })}
               />
 
-              <div className="grid grid-cols-[minmax(118px,0.64fr)_minmax(0,1fr)] gap-2 sm:grid-cols-[minmax(130px,0.52fr)_minmax(0,1fr)]">
+              <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 sm:grid-cols-[110px_minmax(0,1fr)]">
                 <label className="relative block">
                   <select
                     value={phoneCountryIso}
                     onChange={(event) => updatePhoneCountry(event.target.value)}
-                    className="peer h-11 w-full appearance-none rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(240,249,255,0.84)_100%)] px-2.5 pt-4 pb-2 text-base leading-5 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] outline-none transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-sky-100 lg:border-slate-200 lg:bg-white lg:pt-5 lg:pb-1 lg:text-sm lg:shadow-sm"
+                    className="peer h-11 w-full appearance-none rounded-xl border border-sky-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(240,249,255,0.84)_100%)] px-2 pt-4 pb-2 text-sm leading-5 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] outline-none transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-sky-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-sky-100 lg:border-slate-200 lg:bg-white lg:pt-5 lg:pb-1 lg:text-sm lg:shadow-sm"
                   >
                     {PHONE_COUNTRIES.map((country) => (
                       <option key={country.iso2} value={country.iso2}>

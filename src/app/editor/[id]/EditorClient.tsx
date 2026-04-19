@@ -472,8 +472,8 @@ export function EditorClient({ resumeId }: Props) {
     return (
       <div className="flex min-h-dvh flex-col bg-slate-100">
         <div className="h-28 border-b border-slate-200 bg-white/70" />
-        <div className="mx-auto flex w-full max-w-[1600px] flex-1 gap-6 p-4 lg:p-6">
-          <div className="w-full rounded-2xl border border-slate-200 bg-white p-4 lg:w-[54%]">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-1 gap-6 p-4 xl:p-6">
+          <div className="w-full rounded-2xl border border-slate-200 bg-white p-4 xl:w-[54%]">
             <div className="h-10 animate-pulse rounded-xl bg-slate-200" />
             <div className="mt-4 space-y-3">
               <div className="h-28 animate-pulse rounded-xl bg-slate-100" />
@@ -481,7 +481,7 @@ export function EditorClient({ resumeId }: Props) {
               <div className="h-28 animate-pulse rounded-xl bg-slate-100" />
             </div>
           </div>
-          <div className="hidden flex-1 rounded-2xl border border-slate-200 bg-white p-4 lg:block">
+          <div className="hidden flex-1 rounded-2xl border border-slate-200 bg-white p-4 xl:block">
             <div className="h-full animate-pulse rounded-xl bg-slate-100" />
           </div>
         </div>
@@ -512,7 +512,7 @@ export function EditorClient({ resumeId }: Props) {
     <div className="flex min-h-dvh flex-col bg-[radial-gradient(1200px_circle_at_0%_0%,rgba(186,230,253,0.48),transparent_55%),radial-gradient(900px_circle_at_100%_8%,rgba(254,226,226,0.42),transparent_50%),radial-gradient(900px_circle_at_50%_100%,rgba(254,243,199,0.38),transparent_52%),linear-gradient(180deg,#f8fafc_0%,#fefce8_48%,#ecfeff_100%)] text-slate-900">
       <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/76">
         <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-3 px-4 py-4 lg:px-6">
-          <BrandMark size="sm" className="hidden sm:inline-flex" />
+          <BrandMark size="sm" className="hidden lg:inline-flex" />
 
           <Button
             type="button"
@@ -558,7 +558,7 @@ export function EditorClient({ resumeId }: Props) {
           )}
 
           {isLoggedIn ? (
-            <Button variant="outline" className="hidden rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm lg:inline-flex" onClick={() => void saveNow()}>
+            <Button variant="outline" className="hidden rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm xl:inline-flex" onClick={() => void saveNow()}>
               <Save className="size-4" />
               Save
             </Button>
@@ -567,7 +567,7 @@ export function EditorClient({ resumeId }: Props) {
           <Button
             onClick={() => void downloadPdf()}
             disabled={isDownloadBusy}
-            className="hidden rounded-xl bg-slate-900 text-white shadow-[0_20px_45px_-30px_rgba(15,23,42,0.8)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_28px_52px_-30px_rgba(15,23,42,0.84)] lg:inline-flex"
+            className="hidden rounded-xl bg-slate-900 text-white shadow-[0_20px_45px_-30px_rgba(15,23,42,0.8)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_28px_52px_-30px_rgba(15,23,42,0.84)] xl:inline-flex"
           >
             {isDownloadBusy ? (
               <>
@@ -587,7 +587,7 @@ export function EditorClient({ resumeId }: Props) {
               variant="outline"
               onClick={() => void downloadPdfDevBypass()}
               disabled={isDownloadBusy}
-              className="hidden rounded-xl border-amber-300 bg-amber-50 text-amber-800 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-400 hover:bg-amber-100 lg:inline-flex"
+              className="hidden rounded-xl border-amber-300 bg-amber-50 text-amber-800 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-400 hover:bg-amber-100 xl:inline-flex"
             >
               Direct Download (Dev)
             </Button>
@@ -621,7 +621,7 @@ export function EditorClient({ resumeId }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col gap-4 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+5.8rem)] lg:px-6 lg:pb-4">
+      <main className="mx-auto flex w-full max-w-[1600px] min-h-0 flex-1 flex-col gap-4 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+5.8rem)] lg:px-6 xl:pb-4">
         <section
           role="button"
           tabIndex={0}
@@ -760,7 +760,7 @@ export function EditorClient({ resumeId }: Props) {
 
       {importState === "loading" ? <ExtractionLoaderOverlay /> : null}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/90 bg-white/92 px-3 pb-[calc(env(safe-area-inset-bottom)+0.7rem)] pt-3 backdrop-blur-xl lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/90 bg-white/92 px-3 pb-[calc(env(safe-area-inset-bottom)+0.7rem)] pt-3 backdrop-blur-xl xl:hidden">
         <div className="mx-auto flex w-full max-w-[1600px] gap-2">
           {isLoggedIn ? (
             <Button
