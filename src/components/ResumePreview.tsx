@@ -65,6 +65,19 @@ function renderElement(
   measure: ReturnType<typeof createCanvasMeasure>,
   scale: number,
 ) {
+  if (element.type === "rect") {
+    const style: CSSProperties = {
+      position: "absolute",
+      left: element.x * scale,
+      top: element.y * scale,
+      width: element.width * scale,
+      height: element.height * scale,
+      backgroundColor: element.color,
+    };
+
+    return <div key={element.id} style={style} />;
+  }
+
   if (element.type === "line") {
     const style: CSSProperties = {
       position: "absolute",

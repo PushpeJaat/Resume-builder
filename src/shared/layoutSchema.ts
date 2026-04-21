@@ -53,10 +53,22 @@ export const lineElementSchema = z.object({
   color: hexColorSchema.default("#d1d5db"),
 });
 
+export const rectElementSchema = z.object({
+  type: z.literal("rect"),
+  id: z.string().min(1),
+  pageIndex: z.number().int().nonnegative().default(0),
+  x: z.number().min(0),
+  y: z.number().min(0),
+  width: z.number().positive(),
+  height: z.number().positive(),
+  color: hexColorSchema.default("#f8fafc"),
+});
+
 export const resumeElementSchema = z.discriminatedUnion("type", [
   textElementSchema,
   imageElementSchema,
   lineElementSchema,
+  rectElementSchema,
 ]);
 
 export const resumeLayoutSchema = z.object({
@@ -68,6 +80,7 @@ export type ResumePage = z.infer<typeof resumePageSchema>;
 export type TextElement = z.infer<typeof textElementSchema>;
 export type ImageElement = z.infer<typeof imageElementSchema>;
 export type LineElement = z.infer<typeof lineElementSchema>;
+export type RectElement = z.infer<typeof rectElementSchema>;
 export type ResumeElement = z.infer<typeof resumeElementSchema>;
 export type ResumeLayout = z.infer<typeof resumeLayoutSchema>;
 

@@ -8,11 +8,7 @@ import {
 } from "@/shared/layoutSchema";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/templates/registry";
 
-const PAGE_TOP = 48;
 const PAGE_BOTTOM = 64;
-const LEFT = 44;
-const CONTENT_WIDTH = 507;
-const SECTION_GAP = 16;
 
 type TemplateVariant = {
   headerColor: string;
@@ -21,6 +17,21 @@ type TemplateVariant = {
   dividerColor: string;
   titleColor: string;
   bulletIndent: number;
+};
+
+type TemplateGeometry = {
+  kind: "single" | "sidebar" | "topband";
+  left: number;
+  width: number;
+  top: number;
+  sectionGap: number;
+  nameSize: number;
+  metaSize: number;
+};
+
+type TemplateStyle = {
+  variant: TemplateVariant;
+  geometry: TemplateGeometry;
 };
 
 const DEFAULT_VARIANT: TemplateVariant = {
@@ -108,12 +119,168 @@ const TEMPLATE_VARIANTS: Record<string, TemplateVariant> = {
   },
 };
 
+const SINGLE_GEOMETRY: TemplateGeometry = {
+  kind: "single",
+  left: 44,
+  width: 507,
+  top: 48,
+  sectionGap: 16,
+  nameSize: 26,
+  metaSize: 11,
+};
+
+const TEMPLATE_STYLES: Record<string, TemplateStyle> = {
+  "modern-professional": {
+    variant: TEMPLATE_VARIANTS["modern-professional"],
+    geometry: SINGLE_GEOMETRY,
+  },
+  "minimal-clean": {
+    variant: TEMPLATE_VARIANTS["minimal-clean"],
+    geometry: {
+      kind: "single",
+      left: 56,
+      width: 483,
+      top: 58,
+      sectionGap: 18,
+      nameSize: 24,
+      metaSize: 10.5,
+    },
+  },
+  "creative-designer": {
+    variant: TEMPLATE_VARIANTS["creative-designer"],
+    geometry: {
+      kind: "topband",
+      left: 44,
+      width: 507,
+      top: 138,
+      sectionGap: 16,
+      nameSize: 28,
+      metaSize: 11,
+    },
+  },
+  "executive-portrait": {
+    variant: TEMPLATE_VARIANTS["executive-portrait"],
+    geometry: {
+      kind: "single",
+      left: 46,
+      width: 503,
+      top: 52,
+      sectionGap: 16,
+      nameSize: 27,
+      metaSize: 11,
+    },
+  },
+  "profile-edge": {
+    variant: TEMPLATE_VARIANTS["profile-edge"],
+    geometry: {
+      kind: "sidebar",
+      left: 212,
+      width: 343,
+      top: 54,
+      sectionGap: 14,
+      nameSize: 23,
+      metaSize: 10,
+    },
+  },
+  "canva-standard": {
+    variant: TEMPLATE_VARIANTS["canva-standard"],
+    geometry: {
+      kind: "sidebar",
+      left: 214,
+      width: 339,
+      top: 52,
+      sectionGap: 14,
+      nameSize: 24,
+      metaSize: 10,
+    },
+  },
+  luminary: {
+    variant: TEMPLATE_VARIANTS.luminary,
+    geometry: {
+      kind: "topband",
+      left: 50,
+      width: 495,
+      top: 148,
+      sectionGap: 16,
+      nameSize: 29,
+      metaSize: 11,
+    },
+  },
+  "slate-sidebar": {
+    variant: TEMPLATE_VARIANTS["slate-sidebar"],
+    geometry: {
+      kind: "sidebar",
+      left: 214,
+      width: 339,
+      top: 52,
+      sectionGap: 14,
+      nameSize: 24,
+      metaSize: 10,
+    },
+  },
+  "aurora-glass": {
+    variant: TEMPLATE_VARIANTS["aurora-glass"],
+    geometry: {
+      kind: "topband",
+      left: 46,
+      width: 503,
+      top: 140,
+      sectionGap: 15,
+      nameSize: 27,
+      metaSize: 10.8,
+    },
+  },
+  "nova-noir": {
+    variant: TEMPLATE_VARIANTS["nova-noir"],
+    geometry: {
+      kind: "sidebar",
+      left: 214,
+      width: 339,
+      top: 52,
+      sectionGap: 14,
+      nameSize: 24,
+      metaSize: 10,
+    },
+  },
+};
+
 export function buildResumeLayout(data: ResumeData, templateId: string): ResumeLayout {
-  const variant = TEMPLATE_VARIANTS[templateId] ?? TEMPLATE_VARIANTS[DEFAULT_TEMPLATE_ID] ?? DEFAULT_VARIANT;
+  const style = TEMPLATE_STYLES[templateId] ?? TEMPLATE_STYLES[DEFAULT_TEMPLATE_ID] ?? {
+    variant: DEFAULT_VARIANT,
+    geometry: SINGLE_GEOMETRY,
+  };
+  const { variant, geometry } = style;
+
   const elements: ResumeElement[] = [];
 
   let pageIndex = 0;
-  let cursorY = PAGE_TOP;
+  let cursorY = geometry.top;
+
+  if (geometry.kind === "sidebar") {
+    elements.push({
+      type: "rect",
+      id: "sidebar-bg",
+      pageIndex: 0,
+      x: 0,
+      y: 0,
+      width: 190,
+      height: A4_PAGE.height,
+      color: variant.dividerColor,
+    });
+  }
+
+  if (geometry.kind === "topband") {
+    elements.push({
+      type: "rect",
+      id: "top-band",
+      pageIndex: 0,
+      x: 0,
+      y: 0,
+      width: A4_PAGE.width,
+      height: 112,
+      color: variant.headerColor,
+    });
+  }
 
   const advance = (amount: number) => {
     cursorY += amount;
@@ -124,7 +291,7 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
       return;
     }
     pageIndex += 1;
-    cursorY = PAGE_TOP;
+    cursorY = 48;
   };
 
   const pushText = (id: string, content: string, options: Omit<TextElement, "type" | "id" | "content" | "pageIndex">) => {
@@ -150,14 +317,14 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
   };
 
   pushText("name", data.personal.fullName || "Untitled Resume", {
-    x: LEFT,
+    x: geometry.left,
     y: cursorY,
-    width: CONTENT_WIDTH,
-    fontSize: 26,
+    width: geometry.width,
+    fontSize: geometry.nameSize,
     lineHeight: 1.1,
     fontFamily: FONT_FAMILY,
     fontWeight: "bold",
-    color: variant.headerColor,
+    color: geometry.kind === "topband" ? "#ffffff" : variant.headerColor,
     letterSpacing: 0,
   });
   advance(8);
@@ -167,14 +334,14 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
     .filter(Boolean);
   if (contactParts.length > 0) {
     pushText("contact", contactParts.join(" | "), {
-      x: LEFT,
+      x: geometry.left,
       y: cursorY,
-      width: CONTENT_WIDTH,
-      fontSize: 11,
+      width: geometry.width,
+      fontSize: geometry.metaSize,
       lineHeight: 1.3,
       fontFamily: FONT_FAMILY,
       fontWeight: "normal",
-      color: variant.metaColor,
+      color: geometry.kind === "topband" ? "#e2e8f0" : variant.metaColor,
       letterSpacing: 0,
     });
     advance(6);
@@ -184,21 +351,21 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
     type: "line",
     id: `header-line-${pageIndex}`,
     pageIndex,
-    x: LEFT,
+    x: geometry.left,
     y: cursorY,
-    width: CONTENT_WIDTH,
+    width: geometry.width,
     strokeWidth: 1,
     color: variant.dividerColor,
   });
   advance(14);
 
   if (data.summary.trim()) {
-    pushSectionTitle(elements, pageIndex, "summary-title", "PROFESSIONAL SUMMARY", cursorY, variant);
+    pushSectionTitle(elements, pageIndex, "summary-title", "PROFESSIONAL SUMMARY", cursorY, variant, geometry);
     advance(20);
     pushText("summary", data.summary, {
-      x: LEFT,
+      x: geometry.left,
       y: cursorY,
-      width: CONTENT_WIDTH,
+      width: geometry.width,
       fontSize: 11,
       lineHeight: 1.45,
       fontFamily: FONT_FAMILY,
@@ -206,20 +373,20 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
       color: variant.textColor,
       letterSpacing: 0,
     });
-    advance(SECTION_GAP);
+    advance(geometry.sectionGap);
   }
 
   if (data.experience.length > 0) {
     ensureSpace(38);
-    pushSectionTitle(elements, pageIndex, "experience-title", "EXPERIENCE", cursorY, variant);
+    pushSectionTitle(elements, pageIndex, "experience-title", "EXPERIENCE", cursorY, variant, geometry);
     advance(20);
 
     for (const [expIndex, exp] of data.experience.entries()) {
       ensureSpace(58);
       pushText(`exp-role-${expIndex}`, `${exp.role} - ${exp.company}`, {
-        x: LEFT,
+        x: geometry.left,
         y: cursorY,
-        width: CONTENT_WIDTH,
+        width: geometry.width,
         fontSize: 12,
         lineHeight: 1.25,
         fontFamily: FONT_FAMILY,
@@ -232,9 +399,9 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
       const duration = [exp.start, exp.end].filter(Boolean).join(" - ");
       if (duration) {
         pushText(`exp-duration-${expIndex}`, duration, {
-          x: LEFT,
+          x: geometry.left,
           y: cursorY,
-          width: CONTENT_WIDTH,
+          width: geometry.width,
           fontSize: 10,
           lineHeight: 1.25,
           fontFamily: FONT_FAMILY,
@@ -247,9 +414,9 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
 
       for (const [bulletIndex, bullet] of exp.bullets.entries()) {
         pushText(`exp-bullet-${expIndex}-${bulletIndex}`, `• ${bullet}`, {
-          x: LEFT + variant.bulletIndent,
+          x: geometry.left + variant.bulletIndent,
           y: cursorY,
-          width: CONTENT_WIDTH - variant.bulletIndent,
+          width: geometry.width - variant.bulletIndent,
           fontSize: 10.5,
           lineHeight: 1.35,
           fontFamily: FONT_FAMILY,
@@ -266,14 +433,14 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
 
   if (data.education.length > 0) {
     ensureSpace(36);
-    pushSectionTitle(elements, pageIndex, "education-title", "EDUCATION", cursorY, variant);
+    pushSectionTitle(elements, pageIndex, "education-title", "EDUCATION", cursorY, variant, geometry);
     advance(20);
 
     for (const [eduIndex, edu] of data.education.entries()) {
       pushText(`edu-${eduIndex}`, `${edu.degree} - ${edu.school}`, {
-        x: LEFT,
+        x: geometry.left,
         y: cursorY,
-        width: CONTENT_WIDTH,
+        width: geometry.width,
         fontSize: 11,
         lineHeight: 1.35,
         fontFamily: FONT_FAMILY,
@@ -283,9 +450,9 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
       });
       advance(2);
       pushText(`edu-duration-${eduIndex}`, `${edu.start} - ${edu.end}`, {
-        x: LEFT,
+        x: geometry.left,
         y: cursorY,
-        width: CONTENT_WIDTH,
+        width: geometry.width,
         fontSize: 10,
         lineHeight: 1.25,
         fontFamily: FONT_FAMILY,
@@ -299,16 +466,16 @@ export function buildResumeLayout(data: ResumeData, templateId: string): ResumeL
 
   if (data.skills.length > 0) {
     ensureSpace(36);
-    pushSectionTitle(elements, pageIndex, "skills-title", "SKILLS", cursorY, variant);
+    pushSectionTitle(elements, pageIndex, "skills-title", "SKILLS", cursorY, variant, geometry);
     advance(20);
 
     for (const [skillIndex, skill] of data.skills.entries()) {
       const label = skill.category.trim() ? `${skill.category}: ` : "";
       const items = skill.items.join(", ");
       pushText(`skill-${skillIndex}`, `${label}${items}`, {
-        x: LEFT,
+        x: geometry.left,
         y: cursorY,
-        width: CONTENT_WIDTH,
+        width: geometry.width,
         fontSize: 10.5,
         lineHeight: 1.35,
         fontFamily: FONT_FAMILY,
@@ -333,14 +500,15 @@ function pushSectionTitle(
   content: string,
   y: number,
   variant: TemplateVariant,
+  geometry: TemplateGeometry,
 ) {
   elements.push({
     type: "text",
     id,
     pageIndex,
-    x: LEFT,
+    x: geometry.left,
     y,
-    width: CONTENT_WIDTH,
+    width: geometry.width,
     content,
     fontSize: 10,
     lineHeight: 1.1,

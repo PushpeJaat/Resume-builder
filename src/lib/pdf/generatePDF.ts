@@ -43,6 +43,17 @@ export async function generatePDF(layoutJson: ResumeLayout): Promise<Uint8Array>
       continue;
     }
 
+    if (element.type === "rect") {
+      page.drawRectangle({
+        x: element.x,
+        y: layout.page.height - element.y - element.height,
+        width: element.width,
+        height: element.height,
+        color: parseHexColor(element.color),
+      });
+      continue;
+    }
+
     if (element.type === "line") {
       page.drawRectangle({
         x: element.x,
