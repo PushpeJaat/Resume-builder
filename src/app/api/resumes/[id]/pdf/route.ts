@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { buildResumeLayout } from "@/lib/layout/buildResumeLayout";
-import { generatePDF } from "@/lib/pdf/generatePDF";
+import { htmlToPdfBuffer } from "@/lib/browserless";
+import { renderResumeDocument } from "@/lib/templates/render";
 import { resumeDataSchema, type ResumeData } from "@/types/resume";
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { assertResumeOwner } from "@/lib/resume-access";
@@ -53,11 +53,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   const data = ensureResumeIds(parsed.data) as ResumeData;
 
-  const layout = buildResumeLayout(data, resume.templateId);
+  const html = renderResumeDocument(resume.templateId, data);
 
-  let pdf: Uint8Array;
+  let pdf: ArrayBuffer;
   try {
-    pdf = await generatePDF(layout);
+    pdf = await htmlToPdfBuffer(html);
   } catch (e) {
     const message = e instanceof Error ? e.message : "PDF generation failed";
     return NextResponse.json({ error: message }, { status: 502 });
