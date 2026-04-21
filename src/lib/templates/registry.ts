@@ -45,6 +45,16 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Slate Sidebar",
     description: "Dark slate sidebar with clean white main panel — professional and easy to scan.",
   },
+  {
+    id: "aurora-glass",
+    name: "Aurora Glass",
+    description: "Glassmorphism-style layout with floating gradients and vibrant visual accents.",
+  },
+  {
+    id: "nova-noir",
+    name: "Nova Noir",
+    description: "Canva-grade dark editorial template with cinematic arc backgrounds and neon highlights.",
+  },
 ];
 
 export function getTemplateMeta(id: string): TemplateMeta | undefined {

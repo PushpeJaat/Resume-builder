@@ -17,6 +17,10 @@ import { luminaryBody } from "./luminary/body.hbs";
 import { luminaryCss } from "./luminary/styles.css";
 import { slateSidebarBody } from "./slate-sidebar/body.hbs";
 import { slateSidebarCss } from "./slate-sidebar/styles.css";
+import { auroraGlassBody } from "./aurora-glass/body.hbs";
+import { auroraGlassCss } from "./aurora-glass/styles.css";
+import { novaNoirBody } from "./nova-noir/body.hbs";
+import { novaNoirCss } from "./nova-noir/styles.css";
 import { DEFAULT_TEMPLATE_ID } from "./registry";
 
 const fontLinks = `
@@ -99,6 +103,14 @@ const compilers: Record<string, { compile: Handlebars.TemplateDelegate; css: str
   "slate-sidebar": {
     compile: Handlebars.compile(slateSidebarBody),
     css: slateSidebarCss,
+  },
+  "aurora-glass": {
+    compile: Handlebars.compile(auroraGlassBody),
+    css: auroraGlassCss,
+  },
+  "nova-noir": {
+    compile: Handlebars.compile(novaNoirBody),
+    css: novaNoirCss,
   },
 };
 
