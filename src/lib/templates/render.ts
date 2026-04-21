@@ -50,7 +50,7 @@ p, li {
   orphans: 3;
   widows: 3;
 }
-section, article, .job, .edu, .skill-cat, .skill-row, .skill-block, .side-block, .contact-cell {
+.job, .edu, .skill-cat, .skill-row, .skill-block, .side-block, .contact-cell {
   break-inside: avoid;
   page-break-inside: avoid;
 }

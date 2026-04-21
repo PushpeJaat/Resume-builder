@@ -152,8 +152,6 @@ body {
   background: linear-gradient(160deg, rgba(15, 23, 42, 0.66), rgba(15, 23, 42, 0.42));
   backdrop-filter: blur(6px);
   padding: 3.8mm;
-  break-inside: avoid;
-  page-break-inside: avoid;
 }
 
 .nn-title,
