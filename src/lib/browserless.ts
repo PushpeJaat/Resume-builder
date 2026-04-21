@@ -20,7 +20,7 @@ export async function htmlToPdfBuffer(html: string): Promise<ArrayBuffer> {
     },
     body: JSON.stringify({
       html,
-      waitForTimeout: 3000,
+      waitForTimeout: 5500,
       options: {
         format: "A4",
         preferCSSPageSize: true,
