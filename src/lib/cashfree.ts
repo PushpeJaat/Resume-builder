@@ -5,7 +5,7 @@ export type CashfreeMode = "sandbox" | "production";
 
 const DEFAULT_CASHFREE_API_VERSION = "2023-08-01";
 const DEFAULT_CURRENCY = "INR";
-const DEFAULT_DOWNLOAD_AMOUNT = 49;
+const DEFAULT_DOWNLOAD_AMOUNT = 19;
 
 function parsePositiveNumber(input: string | undefined, fallback: number): number {
   if (!input) {
