@@ -21,36 +21,30 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const reqUrl = new URL(req.url);
-  const devBypass =
-    process.env.NODE_ENV !== "production" && reqUrl.searchParams.get("devBypass") === "1";
+  const planAccess = await getPlanDownloadAccess(session.user.id);
 
-  if (!devBypass) {
-    const planAccess = await getPlanDownloadAccess(session.user.id);
+  if (planAccess.status === "NO_ACTIVE_PLAN") {
+    return NextResponse.json(
+      {
+        error: "Your plan is inactive or expired. Please choose a plan to continue downloading.",
+        code: "PLAN_REQUIRED",
+        redirectTo: "/pricing",
+      },
+      { status: 402 },
+    );
+  }
 
-    if (planAccess.status === "NO_ACTIVE_PLAN") {
-      return NextResponse.json(
-        {
-          error: "Your plan is inactive or expired. Please choose a plan to continue downloading.",
-          code: "PLAN_REQUIRED",
-          redirectTo: "/pricing",
-        },
-        { status: 402 },
-      );
-    }
-
-    if (planAccess.status === "LIMIT_REACHED") {
-      return NextResponse.json(
-        {
-          error: `Download limit reached. You can download up to ${planAccess.downloadLimit} resumes per plan period.`,
-          code: "DOWNLOAD_LIMIT_REACHED",
-          redirectTo: "/pricing",
-          downloadsUsed: planAccess.downloadsUsed,
-          downloadLimit: planAccess.downloadLimit,
-        },
-        { status: 403 },
-      );
-    }
+  if (planAccess.status === "LIMIT_REACHED") {
+    return NextResponse.json(
+      {
+        error: `Download limit reached. You can download up to ${planAccess.downloadLimit} resumes per plan period.`,
+        code: "DOWNLOAD_LIMIT_REACHED",
+        redirectTo: "/pricing",
+        downloadsUsed: planAccess.downloadsUsed,
+        downloadLimit: planAccess.downloadLimit,
+      },
+      { status: 403 },
+    );
   }
 
   const parsed = resumeDataSchema.safeParse(resume.data);

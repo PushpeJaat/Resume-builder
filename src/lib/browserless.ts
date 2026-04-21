@@ -23,13 +23,14 @@ export async function htmlToPdfBuffer(html: string): Promise<ArrayBuffer> {
       waitForTimeout: 3000,
       options: {
         format: "A4",
+        preferCSSPageSize: true,
         printBackground: true,
         displayHeaderFooter: false,
         margin: {
-          top: "12mm",
-          right: "12mm",
-          bottom: "12mm",
-          left: "12mm",
+          top: "0mm",
+          right: "0mm",
+          bottom: "0mm",
+          left: "0mm",
         },
       },
     }),

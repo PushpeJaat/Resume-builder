@@ -42,7 +42,7 @@ import { demoResumeData, type ResumeData } from "@/types/resume";
 type ImportState = "idle" | "loading" | "success" | "error";
 type ActionState = "idle" | "saving" | "downloading";
 
-type CashfreeCheckoutMode = "sandbox" | "production";
+type CashfreeCheckoutMode = "production";
 type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
   checkout: (payload: { paymentSessionId: string; redirectTarget?: "_self" | "_blank" | "_modal" }) => Promise<unknown>;
 };
@@ -244,7 +244,7 @@ export default function EditorLandingClient() {
           return false;
         }
 
-        const mode = orderPayload.mode === "production" ? "production" : "sandbox";
+        const mode: CashfreeCheckoutMode = "production";
         const cashfreeFactory = await loadCashfreeSdk();
         const cashfree = cashfreeFactory({ mode });
 

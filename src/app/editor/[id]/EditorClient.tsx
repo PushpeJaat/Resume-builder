@@ -47,7 +47,7 @@ type PdfState = "idle" | "loading" | "error";
 type ImportState = "idle" | "loading" | "success" | "error";
 type PaymentState = "idle" | "creating-order" | "checkout" | "verifying";
 
-type CashfreeCheckoutMode = "sandbox" | "production";
+type CashfreeCheckoutMode = "production";
 type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
   checkout: (payload: { paymentSessionId: string; redirectTarget?: "_self" | "_blank" | "_modal" }) => Promise<unknown>;
 };
@@ -83,7 +83,6 @@ export function EditorClient({ resumeId }: Props) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const isLoggedIn = Boolean(session?.user?.id);
-  const showDevBypass = process.env.NODE_ENV !== "production";
   const isDownloadBusy =
     pdfState === "loading" ||
     paymentState === "creating-order" ||
@@ -257,13 +256,10 @@ export function EditorClient({ resumeId }: Props) {
   );
 
   const generatePdf = useCallback(
-    async (devBypass = false) => {
+    async () => {
       setPdfState("loading");
 
-      const endpoint = devBypass
-        ? `/api/resumes/${resumeId}/pdf?devBypass=1`
-        : `/api/resumes/${resumeId}/pdf`;
-      const response = await fetch(endpoint, { method: "POST" });
+      const response = await fetch(`/api/resumes/${resumeId}/pdf`, { method: "POST" });
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as {
@@ -345,7 +341,7 @@ export function EditorClient({ resumeId }: Props) {
 
       if (orderPayload?.alreadyPaid) {
         setPaymentState("idle");
-        void generatePdf(false);
+        void generatePdf();
         return;
       }
 
@@ -355,7 +351,7 @@ export function EditorClient({ resumeId }: Props) {
         return;
       }
 
-      const mode = orderPayload.mode === "production" ? "production" : "sandbox";
+      const mode: CashfreeCheckoutMode = "production";
       const cashfreeFactory = await loadCashfreeSdk();
       const cashfree = cashfreeFactory({ mode });
 
@@ -397,26 +393,13 @@ export function EditorClient({ resumeId }: Props) {
 
       toast.success("Payment successful. Preparing your PDF...");
       setPaymentState("idle");
-      void generatePdf(false);
+      void generatePdf();
     } catch (error) {
       setPaymentState("idle");
       const message = error instanceof Error ? error.message : "Payment failed. Please try again.";
       toast.error(message);
     }
   }, [generatePdf, isLoggedIn, loadCashfreeSdk, redirectToPlanIfNeeded, resumeId]);
-
-  const downloadPdfDevBypass = useCallback(async () => {
-    if (!isLoggedIn) {
-      setShowAuthModal(true);
-      return;
-    }
-
-    if (!showDevBypass) {
-      return;
-    }
-
-    void generatePdf(true);
-  }, [generatePdf, isLoggedIn, showDevBypass]);
 
   const autoDownloadFiredRef = useRef(false);
 
@@ -582,16 +565,6 @@ export function EditorClient({ resumeId }: Props) {
             )}
           </Button>
 
-          {showDevBypass ? (
-            <Button
-              variant="outline"
-              onClick={() => void downloadPdfDevBypass()}
-              disabled={isDownloadBusy}
-              className="hidden rounded-xl border-amber-300 bg-amber-50 text-amber-800 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-400 hover:bg-amber-100 xl:inline-flex"
-            >
-              Direct Download (Dev)
-            </Button>
-          ) : null}
         </div>
 
         <div className="mx-auto grid w-full max-w-[1600px] gap-3 px-4 pb-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:px-6">
@@ -790,16 +763,6 @@ export function EditorClient({ resumeId }: Props) {
             )}
           </Button>
         </div>
-        {showDevBypass ? (
-          <Button
-            variant="outline"
-            onClick={() => void downloadPdfDevBypass()}
-            disabled={isDownloadBusy}
-            className="mt-2 h-10 w-full rounded-xl border-amber-300 bg-amber-50 text-amber-800"
-          >
-            Direct Download (Dev)
-          </Button>
-        ) : null}
       </div>
 
       <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>

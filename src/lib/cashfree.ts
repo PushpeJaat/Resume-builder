@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { PaymentStatus } from "@prisma/client";
 
-export type CashfreeMode = "sandbox" | "production";
+export type CashfreeMode = "production";
 
 const DEFAULT_CASHFREE_API_VERSION = "2023-08-01";
 const DEFAULT_CURRENCY = "INR";
@@ -19,11 +19,11 @@ function parsePositiveNumber(input: string | undefined, fallback: number): numbe
 }
 
 export function getCashfreeMode(): CashfreeMode {
-  return process.env.CASHFREE_ENV?.toLowerCase() === "production" ? "production" : "sandbox";
+  return "production";
 }
 
-export function getCashfreeBaseUrl(mode: CashfreeMode): string {
-  return mode === "production" ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
+export function getCashfreeBaseUrl(_mode: CashfreeMode): string {
+  return "https://api.cashfree.com";
 }
 
 export function getCashfreeConfig() {

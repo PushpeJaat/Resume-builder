@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-type CashfreeCheckoutMode = "sandbox" | "production";
+type CashfreeCheckoutMode = "production";
 type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
   checkout: (payload: { paymentSessionId: string; redirectTarget?: "_self" | "_blank" | "_modal" }) => Promise<unknown>;
 };
@@ -154,7 +154,7 @@ export function PricingSubscribeButton() {
         return;
       }
 
-      const mode = createPayload.mode === "production" ? "production" : "sandbox";
+      const mode: CashfreeCheckoutMode = "production";
       const cashfreeFactory = await loadCashfreeSdk();
       const cashfree = cashfreeFactory({ mode });
 
