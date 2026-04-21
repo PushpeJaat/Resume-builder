@@ -53,7 +53,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   const data = ensureResumeIds(parsed.data) as ResumeData;
 
-  const layout = buildResumeLayout(data);
+  const layout = buildResumeLayout(data, resume.templateId);
 
   let pdf: Uint8Array;
   try {
