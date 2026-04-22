@@ -21,6 +21,8 @@ import { auroraGlassBody } from "./aurora-glass/body.hbs";
 import { auroraGlassCss } from "./aurora-glass/styles.css";
 import { novaNoirBody } from "./nova-noir/body.hbs";
 import { novaNoirCss } from "./nova-noir/styles.css";
+import { sunriseStrataBody } from "./sunrise-strata/body.hbs";
+import { sunriseStrataCss } from "./sunrise-strata/styles.css";
 import { DEFAULT_TEMPLATE_ID } from "./registry";
 
 const fontLinks = `
@@ -111,6 +113,10 @@ const compilers: Record<string, { compile: Handlebars.TemplateDelegate; css: str
   "nova-noir": {
     compile: Handlebars.compile(novaNoirBody),
     css: novaNoirCss,
+  },
+  "sunrise-strata": {
+    compile: Handlebars.compile(sunriseStrataBody),
+    css: sunriseStrataCss,
   },
 };
 

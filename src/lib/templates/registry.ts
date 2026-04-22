@@ -68,6 +68,12 @@ export const TEMPLATES: TemplateMeta[] = [
     description: "Canva-grade dark editorial template with cinematic arc backgrounds and neon highlights.",
     renderEngine: "html",
   },
+  {
+    id: "sunrise-strata",
+    name: "Sunrise Strata",
+    description: "Warm gradient editorial template with layered accents, soft glows, and modern section cards.",
+    renderEngine: "html",
+  },
 ];
 
 export function getTemplateMeta(id: string): TemplateMeta | undefined {
