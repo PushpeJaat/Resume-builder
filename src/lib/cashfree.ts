@@ -23,6 +23,7 @@ export function getCashfreeMode(): CashfreeMode {
 }
 
 export function getCashfreeBaseUrl(_mode: CashfreeMode): string {
+  void _mode;
   return "https://api.cashfree.com";
 }
 

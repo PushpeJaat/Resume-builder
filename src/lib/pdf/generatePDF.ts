@@ -12,7 +12,7 @@ import { wrapText } from "@/shared/textWrap";
 const REGULAR_FONT_PATH = path.join(process.cwd(), "public", "fonts", "NotoSans-Regular.ttf");
 const BOLD_FONT_PATH = path.join(process.cwd(), "public", "fonts", "NotoSans-Bold.ttf");
 
-type PdfFont = Awaited<ReturnType<PDFDocument["embedFont"]>>;
+type LoadedImage = { bytes: Uint8Array; kind: "png" | "jpg" };
 
 export async function generatePDF(layoutJson: ResumeLayout): Promise<Uint8Array> {
   const layout = resumeLayoutSchema.parse(layoutJson);
@@ -50,6 +50,31 @@ export async function generatePDF(layoutJson: ResumeLayout): Promise<Uint8Array>
         width: element.width,
         height: element.height,
         color: parseHexColor(element.color),
+        ...(element.strokeColor && typeof element.strokeWidth === "number" && element.strokeWidth > 0
+          ? {
+              borderColor: parseHexColor(element.strokeColor),
+              borderWidth: element.strokeWidth,
+            }
+          : {}),
+        ...(typeof element.opacity === "number" ? { opacity: element.opacity } : {}),
+      });
+      continue;
+    }
+
+    if (element.type === "circle") {
+      page.drawEllipse({
+        x: element.cx,
+        y: layout.page.height - element.cy,
+        xScale: element.radius,
+        yScale: element.radius,
+        color: parseHexColor(element.color),
+        ...(element.strokeColor && typeof element.strokeWidth === "number" && element.strokeWidth > 0
+          ? {
+              borderColor: parseHexColor(element.strokeColor),
+              borderWidth: element.strokeWidth,
+            }
+          : {}),
+        ...(typeof element.opacity === "number" ? { opacity: element.opacity } : {}),
       });
       continue;
     }
@@ -66,13 +91,14 @@ export async function generatePDF(layoutJson: ResumeLayout): Promise<Uint8Array>
     }
 
     if (element.type === "image") {
-      const imageBytes = await loadImageBytes(element.src);
-      if (!imageBytes) {
+      const imageAsset = await loadImageBytes(element.src);
+      if (!imageAsset) {
         continue;
       }
 
-      const ext = path.extname(element.src).toLowerCase();
-      const image = ext === ".png" ? await pdf.embedPng(imageBytes) : await pdf.embedJpg(imageBytes);
+      const image = imageAsset.kind === "png"
+        ? await pdf.embedPng(imageAsset.bytes)
+        : await pdf.embedJpg(imageAsset.bytes);
 
       page.drawImage(image, {
         x: element.x,
@@ -124,24 +150,49 @@ function parseHexColor(hex: string) {
   return rgb(red, green, blue);
 }
 
-async function loadImageBytes(src: string): Promise<Uint8Array | null> {
+async function loadImageBytes(src: string): Promise<LoadedImage | null> {
   if (!src) {
     return null;
   }
 
   if (src.startsWith("data:image/")) {
-    const [, payload] = src.split(",");
+    const dataUrlMatch = src.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!dataUrlMatch) {
+      return null;
+    }
+
+    const [, mimeSubtype, payload] = dataUrlMatch;
     if (!payload) {
       return null;
     }
-    return Uint8Array.from(Buffer.from(payload, "base64"));
+
+    const normalizedSubtype = mimeSubtype.toLowerCase();
+    const kind = normalizedSubtype.includes("png")
+      ? "png"
+      : normalizedSubtype.includes("jpg") || normalizedSubtype.includes("jpeg")
+        ? "jpg"
+        : null;
+
+    if (!kind) {
+      return null;
+    }
+
+    return {
+      bytes: Uint8Array.from(Buffer.from(payload, "base64")),
+      kind,
+    };
   }
 
   if (src.startsWith("/") || src.startsWith(".")) {
     const localPath = src.startsWith("/") ? src.slice(1) : src;
     try {
       const bytes = await readFile(path.join(process.cwd(), "public", localPath));
-      return Uint8Array.from(bytes);
+      const ext = path.extname(localPath).toLowerCase();
+
+      return {
+        bytes: Uint8Array.from(bytes),
+        kind: ext === ".png" ? "png" : "jpg",
+      };
     } catch {
       return null;
     }

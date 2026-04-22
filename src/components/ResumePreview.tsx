@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo } from "react";
 import type { CSSProperties } from "react";
 import { resumeLayoutSchema, type ResumeElement, type ResumeLayout } from "@/shared/layoutSchema";
@@ -8,16 +9,22 @@ import { createCanvasMeasure, wrapText } from "@/shared/textWrap";
 type Props = {
   layout: ResumeLayout;
   scale?: number;
+  maxPages?: number;
 };
 
-export function ResumePreview({ layout, scale = 1 }: Props) {
+export function ResumePreview({ layout, scale = 1, maxPages }: Props) {
   const parsed = useMemo(() => resumeLayoutSchema.parse(layout), [layout]);
   const measure = useMemo(() => createCanvasMeasure(), []);
 
   const pageCount = useMemo(() => {
     const maxPageIndex = parsed.elements.reduce((max, element) => Math.max(max, element.pageIndex), 0);
-    return maxPageIndex + 1;
-  }, [parsed.elements]);
+    const totalPages = maxPageIndex + 1;
+    if (typeof maxPages === "number" && Number.isFinite(maxPages)) {
+      return Math.max(1, Math.min(totalPages, Math.floor(maxPages)));
+    }
+
+    return totalPages;
+  }, [maxPages, parsed.elements]);
 
   return (
     <div style={{ width: parsed.page.width * scale }}>
@@ -66,6 +73,11 @@ function renderElement(
   scale: number,
 ) {
   if (element.type === "rect") {
+    const hasStroke =
+      typeof element.strokeWidth === "number" &&
+      element.strokeWidth > 0 &&
+      typeof element.strokeColor === "string";
+
     const style: CSSProperties = {
       position: "absolute",
       left: element.x * scale,
@@ -73,6 +85,31 @@ function renderElement(
       width: element.width * scale,
       height: element.height * scale,
       backgroundColor: element.color,
+      borderRadius: typeof element.cornerRadius === "number" ? element.cornerRadius * scale : undefined,
+      border: hasStroke ? `${element.strokeWidth * scale}px solid ${element.strokeColor}` : undefined,
+      opacity: element.opacity,
+    };
+
+    return <div key={element.id} style={style} />;
+  }
+
+  if (element.type === "circle") {
+    const diameter = element.radius * 2;
+    const hasStroke =
+      typeof element.strokeWidth === "number" &&
+      element.strokeWidth > 0 &&
+      typeof element.strokeColor === "string";
+
+    const style: CSSProperties = {
+      position: "absolute",
+      left: (element.cx - element.radius) * scale,
+      top: (element.cy - element.radius) * scale,
+      width: diameter * scale,
+      height: diameter * scale,
+      borderRadius: "9999px",
+      backgroundColor: element.color,
+      border: hasStroke ? `${element.strokeWidth * scale}px solid ${element.strokeColor}` : undefined,
+      opacity: element.opacity,
     };
 
     return <div key={element.id} style={style} />;
@@ -92,16 +129,19 @@ function renderElement(
   }
 
   if (element.type === "image") {
+    const width = Math.max(1, Math.round(element.width * scale));
+    const height = Math.max(1, Math.round(element.height * scale));
+
     const style: CSSProperties = {
       position: "absolute",
       left: element.x * scale,
       top: element.y * scale,
-      width: element.width * scale,
-      height: element.height * scale,
+      width,
+      height,
       objectFit: element.fit,
     };
 
-    return <img key={element.id} src={element.src} alt="Profile" style={style} />;
+    return <Image key={element.id} src={element.src} alt="Profile" width={width} height={height} unoptimized style={style} />;
   }
 
   const lineHeightPx = element.fontSize * element.lineHeight;

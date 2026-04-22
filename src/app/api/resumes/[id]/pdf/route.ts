@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { htmlToPdfBuffer } from "@/lib/browserless";
+import { buildResumeLayout } from "@/lib/layout/buildResumeLayout";
+import { shouldAllowBrowserlessFallback, shouldForceBrowserlessPdf } from "@/lib/pdf/enginePolicy";
+import { generatePDF } from "@/lib/pdf/generatePDF";
+import { shouldUseLayoutEngine } from "@/lib/templates/registry";
 import { renderResumeDocument } from "@/lib/templates/render";
 import { resumeDataSchema, type ResumeData } from "@/types/resume";
 import { ensureResumeIds } from "@/lib/normalize-resume";
@@ -53,14 +57,56 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   const data = ensureResumeIds(parsed.data) as ResumeData;
 
-  const html = renderResumeDocument(resume.templateId, data);
+  const useLayoutEngine = shouldUseLayoutEngine(resume.templateId);
+  const forceBrowserless = shouldForceBrowserlessPdf();
+  const allowBrowserlessFallback = shouldAllowBrowserlessFallback();
 
-  let pdf: ArrayBuffer;
-  try {
-    pdf = await htmlToPdfBuffer(html);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "PDF generation failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+  let browserlessReason: "forced" | "template-not-migrated" | "layout-error" | null = null;
+  let pdfBytes: Uint8Array | null = null;
+
+  if (!forceBrowserless && useLayoutEngine) {
+    try {
+      const layout = buildResumeLayout(data, resume.templateId);
+      pdfBytes = await generatePDF(layout);
+    } catch (error) {
+      browserlessReason = "layout-error";
+      const message = error instanceof Error ? error.message : "Layout PDF generation failed";
+      console.error("Layout PDF generation failed", {
+        resumeId: id,
+        templateId: resume.templateId,
+        message,
+      });
+
+      if (!allowBrowserlessFallback) {
+        return NextResponse.json({ error: message }, { status: 502 });
+      }
+    }
+  } else if (forceBrowserless) {
+    browserlessReason = "forced";
+  } else {
+    browserlessReason = "template-not-migrated";
+  }
+
+  if (!pdfBytes) {
+    if (!browserlessReason) {
+      browserlessReason = "template-not-migrated";
+    }
+
+    console.info("Using Browserless PDF renderer", {
+      resumeId: id,
+      templateId: resume.templateId,
+      reason: browserlessReason,
+    });
+
+    const html = renderResumeDocument(resume.templateId, data);
+
+    try {
+      const pdf = await htmlToPdfBuffer(html);
+      pdfBytes = new Uint8Array(pdf);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "PDF generation failed";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
   }
 
   try {
@@ -78,7 +124,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const safeName = resume.title.replace(/[^\w\s-]/g, "").trim().slice(0, 80) || "resume";
 
-  return new NextResponse(Buffer.from(pdf), {
+  return new NextResponse(Buffer.from(pdfBytes), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",

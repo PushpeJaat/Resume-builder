@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ResumePreview } from "@/components/ResumePreview";
+import type { ResumeLayout } from "@/shared/layoutSchema";
 
 interface TemplatePreviewClientProps {
   templateId: string;
-  html: string;
+  html?: string;
+  layout?: ResumeLayout | null;
 }
 
 /** Pixel-perfect A4 iframe scaled to fill its container via ResizeObserver. */
@@ -41,14 +44,42 @@ function ScaledIframe({ html }: { html: string }) {
   );
 }
 
+function ScaledLayoutPreview({ layout }: { layout: ResumeLayout }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.75);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setScale(entry.contentRect.width / layout.page.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [layout.page.width]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative w-full overflow-hidden"
+      style={{ aspectRatio: `${layout.page.width} / ${layout.page.height}` }}
+    >
+      <div className="pointer-events-none absolute left-0 top-0">
+        <ResumePreview layout={layout} scale={scale} maxPages={1} />
+      </div>
+    </div>
+  );
+}
+
 export function TemplatePreviewClient({
   templateId,
   html,
+  layout,
 }: TemplatePreviewClientProps) {
   return (
     <>
       {/* Live preview iframe */}
-      <ScaledIframe html={html} />
+      {layout ? <ScaledLayoutPreview layout={layout} /> : <ScaledIframe html={html ?? ""} />}
 
       {/* CTA button */}
       <div className="mt-4">

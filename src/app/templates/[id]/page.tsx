@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { getTemplateMeta } from "@/lib/templates/registry";
+import { buildResumeLayout } from "@/lib/layout/buildResumeLayout";
+import { getTemplateMeta, shouldUseLayoutEngine } from "@/lib/templates/registry";
 import { renderResumeDocument } from "@/lib/templates/render";
 import { TemplatePreviewClient } from "./TemplatePreviewClient";
 import type { ResumeData } from "@/types/resume";
@@ -92,7 +93,9 @@ export default async function TemplatePreviewPage({
     redirect("/");
   }
 
-  const html = renderResumeDocument(id, DEFAULT_RESUME_DATA);
+  const useLayoutEngine = shouldUseLayoutEngine(id);
+  const html = useLayoutEngine ? undefined : renderResumeDocument(id, DEFAULT_RESUME_DATA);
+  const layout = useLayoutEngine ? buildResumeLayout(DEFAULT_RESUME_DATA, id) : null;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -123,7 +126,7 @@ export default async function TemplatePreviewPage({
           {/* Left: live scaled preview */}
           <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
             <div className="overflow-hidden rounded-2xl bg-white shadow-xl">
-              <TemplatePreviewClient templateId={id} html={html} />
+              <TemplatePreviewClient templateId={id} html={html} layout={layout} />
             </div>
           </div>
 

@@ -73,6 +73,44 @@ type DashboardPayload = {
   payments: AdminPaymentRow[];
 };
 
+type TemplateEngineRow = {
+  id: string;
+  name: string;
+  renderEngine: "html" | "layout";
+};
+
+type TemplateParityFixtureRow = {
+  fixtureId: string;
+  fixtureLabel: string;
+  previewPageCount: number;
+  pdfPageCount: number;
+  pageCountMatches: boolean;
+};
+
+type TemplateParityTemplateRow = {
+  templateId: string;
+  templateName: string;
+  renderEngine: "html" | "layout";
+  allFixturesMatched: boolean;
+  fixtures: TemplateParityFixtureRow[];
+};
+
+type TemplateEnginePayload = {
+  generatedAt: string;
+  summary: {
+    total: number;
+    layout: number;
+    html: number;
+    parityCandidates?: number;
+  };
+  templates: TemplateEngineRow[];
+  parity?: {
+    fixturesChecked: number;
+    candidates: Array<{ id: string; name: string }>;
+    templates: TemplateParityTemplateRow[];
+  };
+};
+
 function statusBadgeClass(status: AdminPaymentRow["status"]): string {
   if (status === "PAID") return "border-emerald-300/40 bg-emerald-500/15 text-emerald-200";
   if (status === "FAILED") return "border-red-300/35 bg-red-500/15 text-red-200";
@@ -81,11 +119,30 @@ function statusBadgeClass(status: AdminPaymentRow["status"]): string {
   return "border-sky-300/35 bg-sky-500/15 text-sky-200";
 }
 
+function engineBadgeClass(engine: "html" | "layout") {
+  if (engine === "layout") {
+    return "border-emerald-300/35 bg-emerald-500/15 text-emerald-100";
+  }
+
+  return "border-amber-300/35 bg-amber-500/15 text-amber-100";
+}
+
+function parityBadgeClass(allFixturesMatched: boolean) {
+  if (allFixturesMatched) {
+    return "border-emerald-300/35 bg-emerald-500/15 text-emerald-100";
+  }
+
+  return "border-red-300/35 bg-red-500/15 text-red-100";
+}
+
 export function AdminDashboardClient() {
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
+  const [templateEngineData, setTemplateEngineData] = useState<TemplateEnginePayload | null>(null);
   const [blogs, setBlogs] = useState<AdminBlogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [parityError, setParityError] = useState<string | null>(null);
+  const [parityLoading, setParityLoading] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null);
@@ -101,20 +158,24 @@ export function AdminDashboardClient() {
     setError(null);
 
     try {
-      const [dashboardResponse, blogsResponse] = await Promise.all([
+      const [dashboardResponse, blogsResponse, templateEngineResponse] = await Promise.all([
         fetch("/api/admin/dashboard", { cache: "no-store" }),
         fetch("/api/admin/blogs", { cache: "no-store" }),
+        fetch("/api/admin/template-engines", { cache: "no-store" }),
       ]);
 
-      if (!dashboardResponse.ok || !blogsResponse.ok) {
+      if (!dashboardResponse.ok || !blogsResponse.ok || !templateEngineResponse.ok) {
         throw new Error("Could not load admin data.");
       }
 
       const dashboardPayload = (await dashboardResponse.json()) as DashboardPayload;
       const blogsPayload = (await blogsResponse.json()) as { posts: AdminBlogRow[] };
+      const templateEnginePayload = (await templateEngineResponse.json()) as TemplateEnginePayload;
 
       setDashboard(dashboardPayload);
       setBlogs(blogsPayload.posts || []);
+      setTemplateEngineData(templateEnginePayload);
+      setParityError(null);
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : "Could not load admin data.";
       setError(message);
@@ -141,6 +202,36 @@ export function AdminDashboardClient() {
       { label: "Blog posts", value: dashboard.stats.blogs },
     ];
   }, [dashboard]);
+
+  const parityByTemplate = useMemo(() => {
+    const byTemplateId = new Map<string, TemplateParityTemplateRow>();
+    for (const parityEntry of templateEngineData?.parity?.templates ?? []) {
+      byTemplateId.set(parityEntry.templateId, parityEntry);
+    }
+    return byTemplateId;
+  }, [templateEngineData]);
+
+  const runParityAudit = useCallback(async () => {
+    setParityLoading(true);
+    setParityError(null);
+
+    try {
+      const response = await fetch("/api/admin/template-engines?includeParity=1", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Could not run template parity audit.");
+      }
+
+      const payload = (await response.json()) as TemplateEnginePayload;
+      setTemplateEngineData(payload);
+    } catch (parityAuditError) {
+      const message = parityAuditError instanceof Error
+        ? parityAuditError.message
+        : "Could not run template parity audit.";
+      setParityError(message);
+    } finally {
+      setParityLoading(false);
+    }
+  }, []);
 
   async function updateUserPlan(userId: string, plan: "FREE" | "PREMIUM") {
     setSavingUserId(userId);
@@ -362,6 +453,89 @@ export function AdminDashboardClient() {
               <p className="mt-2 text-2xl font-bold text-white">{card.value}</p>
             </article>
           ))}
+        </section>
+
+        <section className="mt-8 rounded-[24px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="text-base font-semibold text-white">Template engine rollout monitor</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Active engine per template with optional parity verification across fixtures.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void runParityAudit()}
+              disabled={parityLoading}
+              className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/35 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {parityLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              {parityLoading ? "Running parity" : "Run parity audit"}
+            </button>
+          </div>
+
+          <div className="border-b border-white/10 px-5 py-3 text-xs text-slate-300 sm:px-6">
+            Layout: {templateEngineData?.summary.layout ?? 0} / {templateEngineData?.summary.total ?? 0} templates
+            · HTML fallback: {templateEngineData?.summary.html ?? 0}
+            {templateEngineData?.parity ? ` · Fixture set: ${templateEngineData.parity.fixturesChecked}` : ""}
+          </div>
+
+          {parityError ? (
+            <div className="border-b border-red-300/30 bg-red-500/10 px-5 py-3 text-sm text-red-100 sm:px-6">
+              {parityError}
+            </div>
+          ) : null}
+
+          {!templateEngineData || templateEngineData.templates.length === 0 ? (
+            <div className="p-6 text-sm text-slate-300">No template engine data found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm text-slate-200">
+                <thead className="border-b border-white/10 bg-white/[0.03] text-[11px] uppercase tracking-[0.15em] text-slate-400">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold">Template</th>
+                    <th className="px-5 py-3 font-semibold">Engine</th>
+                    <th className="px-5 py-3 font-semibold">Parity status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {templateEngineData.templates.map((template) => {
+                    const parity = parityByTemplate.get(template.id);
+
+                    return (
+                      <tr key={template.id}>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <p className="font-semibold text-white">{template.name}</p>
+                          <p className="mt-1 text-xs text-slate-400">{template.id}</p>
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${engineBadgeClass(template.renderEngine)}`}>
+                            {template.renderEngine}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          {!parity ? (
+                            <span className="text-xs text-slate-400">Not audited in this session</span>
+                          ) : (
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${parityBadgeClass(parity.allFixturesMatched)}`}>
+                              {parity.allFixturesMatched ? "Matched" : "Mismatch"}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {templateEngineData?.parity?.candidates?.length ? (
+            <div className="border-t border-white/10 px-5 py-4 text-xs text-slate-300 sm:px-6">
+              HTML templates with fixture parity match: {templateEngineData.parity.candidates.map((candidate) => candidate.id).join(", ")}
+            </div>
+          ) : null}
         </section>
 
         <section className="mt-8 rounded-[24px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">

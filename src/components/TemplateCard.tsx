@@ -2,8 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image, { type StaticImageData } from "next/image";
+import { ResumePreview } from "@/components/ResumePreview";
+import { buildResumeLayout } from "@/lib/layout/buildResumeLayout";
+import { getTemplateRenderEngine, shouldUseLayoutEngine } from "@/lib/templates/registry";
 import Link from "next/link";
 import { renderResumeDocument } from "@/lib/templates/render";
+import type { ResumeLayout } from "@/shared/layoutSchema";
 import type { ResumeData } from "@/types/resume";
 
 const DEMO_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(`
@@ -113,6 +117,33 @@ function ScaledIframe({ html, name }: { html: string; name: string }) {
   );
 }
 
+function ScaledLayoutPreview({ layout }: { layout: ResumeLayout }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.35);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setScale(entry.contentRect.width / layout.page.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [layout.page.width]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative w-full overflow-hidden"
+      style={{ aspectRatio: `${layout.page.width} / ${layout.page.height}` }}
+    >
+      <div className="pointer-events-none absolute left-0 top-0">
+        <ResumePreview layout={layout} scale={scale} maxPages={1} />
+      </div>
+    </div>
+  );
+}
+
 export interface TemplateCardProps {
   id: string;
   name: string;
@@ -135,7 +166,26 @@ export function TemplateCard({
   actionLabel = "Use Template",
   external = false,
 }: TemplateCardProps) {
-  const html = useMemo(() => renderResumeDocument(id, DEMO_DATA), [id]);
+  const useLayoutEngine = shouldUseLayoutEngine(id);
+  const activeRenderEngine = getTemplateRenderEngine(id);
+  const showEngineBadge = process.env.NEXT_PUBLIC_TEMPLATE_ENGINE_DEBUG === "1";
+
+  const html = useMemo(() => {
+    if (previewImageSrc || useLayoutEngine) {
+      return "";
+    }
+
+    return renderResumeDocument(id, DEMO_DATA);
+  }, [id, previewImageSrc, useLayoutEngine]);
+
+  const layout = useMemo(() => {
+    if (previewImageSrc || !useLayoutEngine) {
+      return null;
+    }
+
+    return buildResumeLayout(DEMO_DATA, id);
+  }, [id, previewImageSrc, useLayoutEngine]);
+
   const resolvedPreviewHref = previewHref ?? `/templates/${id}`;
   const resolvedActionHref = actionHref ?? `/editor?template=${id}`;
   const linkProps = external ? { target: "_blank", rel: "noopener noreferrer" } : {};
@@ -154,9 +204,17 @@ export function TemplateCard({
               className="object-cover object-top"
             />
           </div>
+        ) : layout ? (
+          <ScaledLayoutPreview layout={layout} />
         ) : (
           <ScaledIframe html={html} name={name} />
         )}
+
+        {showEngineBadge ? (
+          <span className="pointer-events-none absolute left-2 top-2 z-20 rounded-full border border-slate-300/80 bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700">
+            {activeRenderEngine}
+          </span>
+        ) : null}
         {/* Overlay for click-through */}
         <Link
           href={resolvedPreviewHref}

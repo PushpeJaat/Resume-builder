@@ -62,6 +62,23 @@ export const rectElementSchema = z.object({
   width: z.number().positive(),
   height: z.number().positive(),
   color: hexColorSchema.default("#f8fafc"),
+  cornerRadius: z.number().min(0).optional(),
+  strokeColor: hexColorSchema.optional(),
+  strokeWidth: z.number().min(0).optional(),
+  opacity: z.number().min(0).max(1).optional(),
+});
+
+export const circleElementSchema = z.object({
+  type: z.literal("circle"),
+  id: z.string().min(1),
+  pageIndex: z.number().int().nonnegative().default(0),
+  cx: z.number().min(0),
+  cy: z.number().min(0),
+  radius: z.number().positive(),
+  color: hexColorSchema.default("#f8fafc"),
+  strokeColor: hexColorSchema.optional(),
+  strokeWidth: z.number().min(0).optional(),
+  opacity: z.number().min(0).max(1).optional(),
 });
 
 export const resumeElementSchema = z.discriminatedUnion("type", [
@@ -69,6 +86,7 @@ export const resumeElementSchema = z.discriminatedUnion("type", [
   imageElementSchema,
   lineElementSchema,
   rectElementSchema,
+  circleElementSchema,
 ]);
 
 export const resumeLayoutSchema = z.object({
@@ -81,6 +99,7 @@ export type TextElement = z.infer<typeof textElementSchema>;
 export type ImageElement = z.infer<typeof imageElementSchema>;
 export type LineElement = z.infer<typeof lineElementSchema>;
 export type RectElement = z.infer<typeof rectElementSchema>;
+export type CircleElement = z.infer<typeof circleElementSchema>;
 export type ResumeElement = z.infer<typeof resumeElementSchema>;
 export type ResumeLayout = z.infer<typeof resumeLayoutSchema>;
 
