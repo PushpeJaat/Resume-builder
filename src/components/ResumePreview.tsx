@@ -73,10 +73,9 @@ function renderElement(
   scale: number,
 ) {
   if (element.type === "rect") {
-    const hasStroke =
-      typeof element.strokeWidth === "number" &&
-      element.strokeWidth > 0 &&
-      typeof element.strokeColor === "string";
+    const strokeWidth = typeof element.strokeWidth === "number" ? element.strokeWidth : 0;
+    const strokeColor = typeof element.strokeColor === "string" ? element.strokeColor : "";
+    const hasStroke = strokeWidth > 0 && strokeColor.length > 0;
 
     const style: CSSProperties = {
       position: "absolute",
@@ -86,7 +85,7 @@ function renderElement(
       height: element.height * scale,
       backgroundColor: element.color,
       borderRadius: typeof element.cornerRadius === "number" ? element.cornerRadius * scale : undefined,
-      border: hasStroke ? `${element.strokeWidth * scale}px solid ${element.strokeColor}` : undefined,
+      border: hasStroke ? `${strokeWidth * scale}px solid ${strokeColor}` : undefined,
       opacity: element.opacity,
     };
 
@@ -95,10 +94,9 @@ function renderElement(
 
   if (element.type === "circle") {
     const diameter = element.radius * 2;
-    const hasStroke =
-      typeof element.strokeWidth === "number" &&
-      element.strokeWidth > 0 &&
-      typeof element.strokeColor === "string";
+    const strokeWidth = typeof element.strokeWidth === "number" ? element.strokeWidth : 0;
+    const strokeColor = typeof element.strokeColor === "string" ? element.strokeColor : "";
+    const hasStroke = strokeWidth > 0 && strokeColor.length > 0;
 
     const style: CSSProperties = {
       position: "absolute",
@@ -108,7 +106,7 @@ function renderElement(
       height: diameter * scale,
       borderRadius: "9999px",
       backgroundColor: element.color,
-      border: hasStroke ? `${element.strokeWidth * scale}px solid ${element.strokeColor}` : undefined,
+      border: hasStroke ? `${strokeWidth * scale}px solid ${strokeColor}` : undefined,
       opacity: element.opacity,
     };
 
