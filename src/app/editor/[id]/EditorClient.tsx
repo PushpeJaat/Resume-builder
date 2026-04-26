@@ -39,6 +39,7 @@ import {
   resumeDataSchema,
   type ResumeData,
 } from "@/types/resume";
+import { resolveApiMessage, type ApiEnvelope } from "@/lib/api-client";
 
 type Props = { resumeId: string };
 
@@ -238,16 +239,16 @@ export function EditorClient({ resumeId }: Props) {
   }, []);
 
   const redirectToPlanIfNeeded = useCallback(
-    (payload: { error?: unknown; redirectTo?: unknown } | null, fallbackMessage: string) => {
+    (payload: { code?: unknown; error?: unknown; redirectTo?: unknown } | null, fallbackMessage: string) => {
       const redirectTo = typeof payload?.redirectTo === "string" ? payload.redirectTo : "";
       if (!redirectTo) {
         return false;
       }
 
-      const message =
-        typeof payload?.error === "string" && payload.error.trim().length > 0
-          ? payload.error
-          : fallbackMessage;
+      const message = resolveApiMessage(payload as ApiEnvelope | null, fallbackMessage, {
+        PLAN_REQUIRED: "Your plan is inactive or expired. Choose a plan to continue downloading.",
+        DOWNLOAD_LIMIT_REACHED: "Download limit reached for your current plan.",
+      });
       toast.error(message);
       router.push(redirectTo);
       return true;
@@ -263,6 +264,7 @@ export function EditorClient({ resumeId }: Props) {
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as {
+          code?: unknown;
           error?: unknown;
           redirectTo?: unknown;
         } | null;
@@ -273,7 +275,12 @@ export function EditorClient({ resumeId }: Props) {
         }
 
         setPdfState("error");
-        toast.error((payload?.error as string) || "Could not generate PDF.");
+        toast.error(
+          resolveApiMessage(payload as ApiEnvelope | null, "Could not generate PDF.", {
+            UPSTREAM_ERROR: "PDF generation is temporarily unavailable. Please retry in a moment.",
+            BAD_REQUEST: "Resume data is invalid. Please refresh and try again.",
+          }),
+        );
         return false;
       }
 
@@ -335,7 +342,14 @@ export function EditorClient({ resumeId }: Props) {
         }
 
         setPaymentState("idle");
-        toast.error(orderPayload?.error || "Could not create payment order.");
+        toast.error(
+          resolveApiMessage(orderPayload as ApiEnvelope | null, "Could not create payment order.", {
+            BAD_REQUEST: "Payment request is invalid. Please refresh and try again.",
+            NOT_FOUND: "Resume not found. Please create a new resume and try again.",
+            INTERNAL_ERROR: "Payment is not configured right now. Please try again later.",
+            UPSTREAM_ERROR: "Payment provider is temporarily unavailable.",
+          }),
+        );
         return;
       }
 
@@ -347,7 +361,11 @@ export function EditorClient({ resumeId }: Props) {
 
       if (!orderPayload?.paymentSessionId || !orderPayload.orderId) {
         setPaymentState("idle");
-        toast.error("Payment session is missing. Please try again.");
+        toast.error(
+          resolveApiMessage(orderPayload as ApiEnvelope | null, "Payment session is missing. Please try again.", {
+            UPSTREAM_ERROR: "Payment provider did not return a valid session. Please retry.",
+          }),
+        );
         return;
       }
 
@@ -381,7 +399,14 @@ export function EditorClient({ resumeId }: Props) {
         }
 
         setPaymentState("idle");
-        toast.error(verifyPayload?.error || "Could not verify payment.");
+        toast.error(
+          resolveApiMessage(verifyPayload as ApiEnvelope | null, "Could not verify payment.", {
+            BAD_REQUEST: "Payment verification request is invalid.",
+            NOT_FOUND: "Payment order not found. Please retry checkout.",
+            INTERNAL_ERROR: "Payment verification is temporarily unavailable.",
+            UPSTREAM_ERROR: "Payment provider did not confirm your payment yet.",
+          }),
+        );
         return;
       }
 

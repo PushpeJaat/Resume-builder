@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
   createCashfreeOrderId,
@@ -8,6 +7,12 @@ import {
   getCashfreeOrderStatus,
   mapCashfreeOrderStatus,
 } from "@/lib/cashfree";
+import {
+  apiSuccess,
+  internalServerError,
+  unauthorizedError,
+  upstreamError,
+} from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 import { getPlanDownloadAccess } from "@/lib/server/plan-access";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/templates/registry";
@@ -19,30 +24,28 @@ export async function POST(req: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
 
   const planAccess = await getPlanDownloadAccess(session.user.id);
 
   if (planAccess.status === "ACTIVE") {
-    return NextResponse.json({
-      alreadyPaid: true,
-      planActive: true,
-      downloadsUsed: planAccess.downloadsUsed,
-      downloadLimit: planAccess.downloadLimit,
-      downloadsRemaining: planAccess.downloadsRemaining,
-    });
+    return apiSuccess(
+      {
+        alreadyPaid: true,
+        planActive: true,
+        downloadsUsed: planAccess.downloadsUsed,
+        downloadLimit: planAccess.downloadLimit,
+        downloadsRemaining: planAccess.downloadsRemaining,
+      },
+      { code: "PLAN_ALREADY_ACTIVE" },
+    );
   }
 
   const config = getCashfreeConfig();
 
   if (!config) {
-    return NextResponse.json(
-      {
-        error: "Cashfree is not configured. Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY.",
-      },
-      { status: 500 },
-    );
+    return internalServerError("Cashfree is not configured. Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY.");
   }
 
   const latestResume = await prisma.resume.findFirst({
@@ -110,12 +113,7 @@ export async function POST(req: Request) {
   const createOrderPayload = await createOrderResponse.json().catch(() => null);
 
   if (!createOrderResponse.ok) {
-    return NextResponse.json(
-      {
-        error: getCashfreeErrorMessage(createOrderPayload, "Cashfree order creation failed."),
-      },
-      { status: 502 },
-    );
+    return upstreamError(getCashfreeErrorMessage(createOrderPayload, "Cashfree order creation failed."));
   }
 
   const paymentSessionId =
@@ -126,7 +124,7 @@ export async function POST(req: Request) {
         : null;
 
   if (!paymentSessionId) {
-    return NextResponse.json({ error: "Cashfree did not return a payment session." }, { status: 502 });
+    return upstreamError("Cashfree did not return a payment session.");
   }
 
   const cashfreeOrderStatus = getCashfreeOrderStatus(createOrderPayload);
@@ -148,12 +146,15 @@ export async function POST(req: Request) {
     },
   });
 
-  return NextResponse.json({
-    orderId,
-    paymentSessionId,
-    mode: config.mode,
-    amount: config.amountInPaise / 100,
-    currency: config.currency,
-    resumeId: resume.id,
-  });
+  return apiSuccess(
+    {
+      orderId,
+      paymentSessionId,
+      mode: config.mode,
+      amount: config.amountInPaise / 100,
+      currency: config.currency,
+      resumeId: resume.id,
+    },
+    { code: "SUBSCRIPTION_ORDER_CREATED" },
+  );
 }

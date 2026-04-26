@@ -10,6 +10,13 @@ import { renderResumeDocument } from "@/lib/templates/render";
 import { resumeDataSchema, type ResumeData } from "@/types/resume";
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { assertResumeOwner } from "@/lib/resume-access";
+import {
+  apiError,
+  badRequestError,
+  notFoundError,
+  unauthorizedError,
+  upstreamError,
+} from "@/lib/api-response";
 import { getPlanDownloadAccess } from "@/lib/server/plan-access";
 
 export const runtime = "nodejs";
@@ -17,43 +24,43 @@ export const runtime = "nodejs";
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
   const { id } = await ctx.params;
   const { error, resume } = await assertResumeOwner(id, session.user.id);
   if (error || !resume) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return notFoundError();
   }
 
   const planAccess = await getPlanDownloadAccess(session.user.id);
 
   if (planAccess.status === "NO_ACTIVE_PLAN") {
-    return NextResponse.json(
-      {
-        error: "Your plan is inactive or expired. Please choose a plan to continue downloading.",
-        code: "PLAN_REQUIRED",
+    return apiError({
+      status: 402,
+      code: "PLAN_REQUIRED",
+      error: "Your plan is inactive or expired. Please choose a plan to continue downloading.",
+      extra: {
         redirectTo: "/pricing",
       },
-      { status: 402 },
-    );
+    });
   }
 
   if (planAccess.status === "LIMIT_REACHED") {
-    return NextResponse.json(
-      {
-        error: `Download limit reached. You can download up to ${planAccess.downloadLimit} resumes per plan period.`,
-        code: "DOWNLOAD_LIMIT_REACHED",
+    return apiError({
+      status: 403,
+      code: "DOWNLOAD_LIMIT_REACHED",
+      error: `Download limit reached. You can download up to ${planAccess.downloadLimit} resumes per plan period.`,
+      extra: {
         redirectTo: "/pricing",
         downloadsUsed: planAccess.downloadsUsed,
         downloadLimit: planAccess.downloadLimit,
       },
-      { status: 403 },
-    );
+    });
   }
 
   const parsed = resumeDataSchema.safeParse(resume.data);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid resume data" }, { status: 400 });
+    return badRequestError("Invalid resume data");
   }
   const data = ensureResumeIds(parsed.data) as ResumeData;
 
@@ -78,7 +85,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       });
 
       if (!allowBrowserlessFallback) {
-        return NextResponse.json({ error: message }, { status: 502 });
+        return upstreamError(message);
       }
     }
   } else if (forceBrowserless) {
@@ -105,7 +112,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       pdfBytes = new Uint8Array(pdf);
     } catch (e) {
       const message = e instanceof Error ? e.message : "PDF generation failed";
-      return NextResponse.json({ error: message }, { status: 502 });
+      return upstreamError(message);
     }
   }
 

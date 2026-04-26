@@ -1,6 +1,11 @@
 import { ImageAnnotatorClient, type protos } from "@google-cloud/vision";
 import mammoth from "mammoth";
-import { NextResponse } from "next/server";
+import {
+  apiError,
+  apiSuccess,
+  statusToErrorCode,
+  unprocessableEntityError,
+} from "@/lib/api-response";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -43,15 +48,10 @@ export async function POST(req: Request) {
 
     const cleaned = cleanExtractedText(extraction.text);
     if (!cleaned) {
-      return NextResponse.json(
-        {
-          error: "No text could be extracted from the file.",
-        },
-        { status: 422 },
-      );
+      return unprocessableEntityError("No text could be extracted from the file.");
     }
 
-    return NextResponse.json(
+    return apiSuccess(
       {
         raw_text: cleaned,
         meta: {
@@ -63,11 +63,15 @@ export async function POST(req: Request) {
           input: resolved.inputType,
         },
       },
-      { status: 200 },
+      { code: "RESUME_PARSED" },
     );
   } catch (error) {
     const { status, message } = toErrorResponse(error);
-    return NextResponse.json({ error: message }, { status });
+    return apiError({
+      status,
+      code: statusToErrorCode(status),
+      error: message,
+    });
   }
 }
 

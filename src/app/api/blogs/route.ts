@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiSuccess } from "@/lib/api-response";
 
 export async function GET() {
   const posts = await prisma.blogPost.findMany({
@@ -23,17 +23,20 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({
-    posts: posts.map((post) => ({
-      id: post.id,
-      title: post.title,
-      slug: post.slug,
-      excerpt: post.excerpt,
-      content: post.content,
-      category: post.category,
-      createdAt: post.createdAt,
-      updatedAt: post.updatedAt,
-      authorName: post.author?.name || post.author?.email || "CVpilot Team",
-    })),
-  });
+  return apiSuccess(
+    {
+      posts: posts.map((post) => ({
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        excerpt: post.excerpt,
+        content: post.content,
+        category: post.category,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+        authorName: post.author?.name || post.author?.email || "CVpilot Team",
+      })),
+    },
+    { code: "BLOG_POSTS_LISTED" },
+  );
 }

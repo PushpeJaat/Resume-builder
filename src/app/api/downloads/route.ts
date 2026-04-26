@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { apiSuccess, unauthorizedError } from "@/lib/api-response";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
   const items = await prisma.downloadHistory.findMany({
     where: { userId: session.user.id },
@@ -15,13 +15,16 @@ export async function GET() {
       resume: { select: { title: true } },
     },
   });
-  return NextResponse.json({
-    downloads: items.map((d) => ({
-      id: d.id,
-      createdAt: d.createdAt,
-      templateId: d.templateId,
-      resumeTitle: d.resume.title,
-      resumeId: d.resumeId,
-    })),
-  });
+  return apiSuccess(
+    {
+      downloads: items.map((d) => ({
+        id: d.id,
+        createdAt: d.createdAt,
+        templateId: d.templateId,
+        resumeTitle: d.resume.title,
+        resumeId: d.resumeId,
+      })),
+    },
+    { code: "DOWNLOADS_LISTED" },
+  );
 }

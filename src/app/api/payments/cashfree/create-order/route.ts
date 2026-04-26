@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import {
@@ -9,6 +8,15 @@ import {
   getCashfreeOrderStatus,
   mapCashfreeOrderStatus,
 } from "@/lib/cashfree";
+import {
+  apiError,
+  apiSuccess,
+  badRequestError,
+  internalServerError,
+  notFoundError,
+  unauthorizedError,
+  upstreamError,
+} from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 import { assertResumeOwner } from "@/lib/resume-access";
 import { getPlanDownloadAccess } from "@/lib/server/plan-access";
@@ -23,57 +31,55 @@ export async function POST(req: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
 
   const rawBody = await req.json().catch(() => null);
   const parsed = createOrderSchema.safeParse(rawBody);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return badRequestError("Invalid request body");
   }
 
   const { resumeId } = parsed.data;
   const { error, resume } = await assertResumeOwner(resumeId, session.user.id);
 
   if (error || !resume) {
-    return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+    return notFoundError("Resume not found");
   }
 
   const planAccess = await getPlanDownloadAccess(session.user.id);
 
   if (planAccess.status === "ACTIVE") {
-    return NextResponse.json({
-      alreadyPaid: true,
-      planActive: true,
-      downloadsUsed: planAccess.downloadsUsed,
-      downloadLimit: planAccess.downloadLimit,
-      downloadsRemaining: planAccess.downloadsRemaining,
-    });
+    return apiSuccess(
+      {
+        alreadyPaid: true,
+        planActive: true,
+        downloadsUsed: planAccess.downloadsUsed,
+        downloadLimit: planAccess.downloadLimit,
+        downloadsRemaining: planAccess.downloadsRemaining,
+      },
+      { code: "PLAN_ALREADY_ACTIVE" },
+    );
   }
 
   if (planAccess.status === "LIMIT_REACHED") {
-    return NextResponse.json(
-      {
-        error: `Download limit reached. You can download up to ${planAccess.downloadLimit} resumes per plan period.`,
-        code: "DOWNLOAD_LIMIT_REACHED",
+    return apiError({
+      status: 403,
+      code: "DOWNLOAD_LIMIT_REACHED",
+      error: `Download limit reached. You can download up to ${planAccess.downloadLimit} resumes per plan period.`,
+      extra: {
         redirectTo: "/pricing",
         downloadsUsed: planAccess.downloadsUsed,
         downloadLimit: planAccess.downloadLimit,
       },
-      { status: 403 },
-    );
+    });
   }
 
   const config = getCashfreeConfig();
 
   if (!config) {
-    return NextResponse.json(
-      {
-        error: "Cashfree is not configured. Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY.",
-      },
-      { status: 500 },
-    );
+    return internalServerError("Cashfree is not configured. Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY.");
   }
 
   const orderId = createCashfreeOrderId(resumeId);
@@ -117,12 +123,7 @@ export async function POST(req: Request) {
   const createOrderPayload = await createOrderResponse.json().catch(() => null);
 
   if (!createOrderResponse.ok) {
-    return NextResponse.json(
-      {
-        error: getCashfreeErrorMessage(createOrderPayload, "Cashfree order creation failed."),
-      },
-      { status: 502 },
-    );
+    return upstreamError(getCashfreeErrorMessage(createOrderPayload, "Cashfree order creation failed."));
   }
 
   const paymentSessionId =
@@ -133,7 +134,7 @@ export async function POST(req: Request) {
         : null;
 
   if (!paymentSessionId) {
-    return NextResponse.json({ error: "Cashfree did not return a payment session." }, { status: 502 });
+    return upstreamError("Cashfree did not return a payment session.");
   }
 
   const cashfreeOrderStatus = getCashfreeOrderStatus(createOrderPayload);
@@ -154,11 +155,14 @@ export async function POST(req: Request) {
     },
   });
 
-  return NextResponse.json({
-    orderId,
-    paymentSessionId,
-    mode: config.mode,
-    amount: config.amountInPaise / 100,
-    currency: config.currency,
-  });
+  return apiSuccess(
+    {
+      orderId,
+      paymentSessionId,
+      mode: config.mode,
+      amount: config.amountInPaise / 100,
+      currency: config.currency,
+    },
+    { code: "PAYMENT_ORDER_CREATED" },
+  );
 }

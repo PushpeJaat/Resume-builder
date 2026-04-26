@@ -1,7 +1,12 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { createUniqueBlogSlug } from "@/lib/blog";
+import {
+  apiSuccess,
+  forbiddenError,
+  unauthorizedError,
+  validationError,
+} from "@/lib/api-response";
 import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
@@ -30,11 +35,11 @@ async function ensureAdmin() {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return { error: unauthorizedError() };
   }
 
   if (!isAdminEmail(session.user.email)) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+    return { error: forbiddenError() };
   }
 
   return { session };
@@ -59,20 +64,23 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({
-    posts: posts.map((post) => ({
-      id: post.id,
-      title: post.title,
-      slug: post.slug,
-      excerpt: post.excerpt,
-      content: post.content,
-      category: post.category,
-      isPublished: post.isPublished,
-      createdAt: post.createdAt,
-      updatedAt: post.updatedAt,
-      authorName: post.author?.name || post.author?.email || "CVpilot Team",
-    })),
-  });
+  return apiSuccess(
+    {
+      posts: posts.map((post) => ({
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        excerpt: post.excerpt,
+        content: post.content,
+        category: post.category,
+        isPublished: post.isPublished,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+        authorName: post.author?.name || post.author?.email || "CVpilot Team",
+      })),
+    },
+    { code: "ADMIN_BLOGS_LISTED" },
+  );
 }
 
 export async function POST(request: Request) {
@@ -85,7 +93,7 @@ export async function POST(request: Request) {
   const parsed = createBlogSchema.safeParse(json);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error.flatten(), "Invalid blog payload.");
   }
 
   const { title, excerpt, content, category, isPublished } = parsed.data;
@@ -103,17 +111,20 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({
-    post: {
-      id: post.id,
-      title: post.title,
-      slug: post.slug,
-      excerpt: post.excerpt,
-      content: post.content,
-      category: post.category,
-      isPublished: post.isPublished,
-      createdAt: post.createdAt,
-      updatedAt: post.updatedAt,
+  return apiSuccess(
+    {
+      post: {
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        excerpt: post.excerpt,
+        content: post.content,
+        category: post.category,
+        isPublished: post.isPublished,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+      },
     },
-  });
+    { code: "ADMIN_BLOG_CREATED" },
+  );
 }

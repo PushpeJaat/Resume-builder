@@ -36,6 +36,7 @@ import {
   getTemplateMeta,
   TEMPLATES,
 } from "@/lib/templates/registry";
+import { resolveApiMessage, type ApiEnvelope } from "@/lib/api-client";
 import { parseResumePdf, readParsedResumeDraft } from "@/lib/resumeParser";
 import { demoResumeData, type ResumeData } from "@/types/resume";
 
@@ -151,16 +152,16 @@ export default function EditorLandingClient() {
   }, []);
 
   const redirectToPlanIfNeeded = useCallback(
-    (payload: { error?: unknown; redirectTo?: unknown } | null, fallbackMessage: string) => {
+    (payload: { code?: unknown; error?: unknown; redirectTo?: unknown } | null, fallbackMessage: string) => {
       const redirectTo = typeof payload?.redirectTo === "string" ? payload.redirectTo : "";
       if (!redirectTo) {
         return false;
       }
 
-      const message =
-        typeof payload?.error === "string" && payload.error.trim().length > 0
-          ? payload.error
-          : fallbackMessage;
+      const message = resolveApiMessage(payload as ApiEnvelope | null, fallbackMessage, {
+        PLAN_REQUIRED: "Your plan is inactive or expired. Choose a plan to continue downloading.",
+        DOWNLOAD_LIMIT_REACHED: "Download limit reached for your current plan.",
+      });
       toast.error(message);
       router.push(redirectTo);
       return true;
@@ -173,6 +174,7 @@ export default function EditorLandingClient() {
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as {
+        code?: unknown;
         error?: unknown;
         redirectTo?: unknown;
       } | null;
@@ -181,7 +183,12 @@ export default function EditorLandingClient() {
         return false;
       }
 
-      toast.error((payload?.error as string) || "Could not generate PDF.");
+      toast.error(
+        resolveApiMessage(payload as ApiEnvelope | null, "Could not generate PDF.", {
+          UPSTREAM_ERROR: "PDF generation is temporarily unavailable. Please retry in a moment.",
+          BAD_REQUEST: "Resume data is invalid. Please refresh and try again.",
+        }),
+      );
       return false;
     }
 
@@ -231,7 +238,14 @@ export default function EditorLandingClient() {
             return false;
           }
 
-          toast.error(orderPayload?.error || "Could not create payment order.");
+          toast.error(
+            resolveApiMessage(orderPayload as ApiEnvelope | null, "Could not create payment order.", {
+              BAD_REQUEST: "Payment request is invalid. Please refresh and try again.",
+              NOT_FOUND: "Resume not found. Please create a new resume and try again.",
+              INTERNAL_ERROR: "Payment is not configured right now. Please try again later.",
+              UPSTREAM_ERROR: "Payment provider is temporarily unavailable.",
+            }),
+          );
           return false;
         }
 
@@ -240,7 +254,11 @@ export default function EditorLandingClient() {
         }
 
         if (!orderPayload?.paymentSessionId || !orderPayload.orderId) {
-          toast.error("Payment session is missing. Please try again.");
+          toast.error(
+            resolveApiMessage(orderPayload as ApiEnvelope | null, "Payment session is missing. Please try again.", {
+              UPSTREAM_ERROR: "Payment provider did not return a valid session. Please retry.",
+            }),
+          );
           return false;
         }
 
@@ -266,7 +284,14 @@ export default function EditorLandingClient() {
             return false;
           }
 
-          toast.error(verifyPayload?.error || "Could not verify payment.");
+          toast.error(
+            resolveApiMessage(verifyPayload as ApiEnvelope | null, "Could not verify payment.", {
+              BAD_REQUEST: "Payment verification request is invalid.",
+              NOT_FOUND: "Payment order not found. Please retry checkout.",
+              INTERNAL_ERROR: "Payment verification is temporarily unavailable.",
+              UPSTREAM_ERROR: "Payment provider did not confirm your payment yet.",
+            }),
+          );
           return false;
         }
 
@@ -320,12 +345,23 @@ export default function EditorLandingClient() {
           }),
         });
 
+        const payload = (await response.json().catch(() => null)) as (ApiEnvelope & { id?: string }) | null;
+
         if (!response.ok) {
-          toast.error("Could not create resume right now.");
+          toast.error(
+            resolveApiMessage(payload, "Could not create resume right now.", {
+              UNAUTHORIZED: "Please sign in again to continue.",
+              INTERNAL_ERROR: "Resume service is temporarily unavailable.",
+            }),
+          );
           return;
         }
 
-        const payload = (await response.json()) as { id: string };
+        if (!payload?.id) {
+          toast.error("Resume was created but response was invalid. Please retry.");
+          return;
+        }
+
         if (mode === "download") {
           await runPaidDownload(payload.id, resumeTitle);
           return;

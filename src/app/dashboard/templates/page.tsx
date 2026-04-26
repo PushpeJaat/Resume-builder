@@ -1,5 +1,3 @@
-"use client";
-
 import { AppHeader } from "@/components/layout/AppHeader";
 import { TemplatesSection } from "@/components/TemplatesSection";
 

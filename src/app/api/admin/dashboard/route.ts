@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { apiSuccess, forbiddenError, unauthorizedError } from "@/lib/api-response";
 import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
@@ -7,11 +7,11 @@ export async function GET() {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
 
   if (!isAdminEmail(session.user.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return forbiddenError();
   }
 
   const [
@@ -88,50 +88,53 @@ export async function GET() {
     }),
   ]);
 
-  return NextResponse.json({
-    stats: {
-      users: usersCount,
-      resumes: resumesCount,
-      downloads: downloadsCount,
-      payments: paymentsCount,
-      paidPayments: paidPaymentsCount,
-      blogs: blogsCount,
+  return apiSuccess(
+    {
+      stats: {
+        users: usersCount,
+        resumes: resumesCount,
+        downloads: downloadsCount,
+        payments: paymentsCount,
+        paidPayments: paidPaymentsCount,
+        blogs: blogsCount,
+      },
+      users: users.map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+        createdAt: user.createdAt,
+        resumeCount: user._count.resumes,
+        downloadCount: user._count.downloads,
+        paymentCount: user._count.payments,
+      })),
+      resumes: recentResumes.map((resume) => ({
+        id: resume.id,
+        title: resume.title,
+        templateId: resume.templateId,
+        updatedAt: resume.updatedAt,
+        userId: resume.user.id,
+        userEmail: resume.user.email,
+        userName: resume.user.name,
+      })),
+      payments: recentPayments.map((order) => ({
+        id: order.id,
+        provider: order.provider,
+        orderId: order.providerOrderId,
+        status: order.status,
+        providerStatus: order.cashfreeOrderStatus,
+        amountInPaise: order.amountInPaise,
+        currency: order.currency,
+        createdAt: order.createdAt,
+        paymentConfirmedAt: order.paymentConfirmedAt,
+        resumeId: order.resume.id,
+        resumeTitle: order.resume.title,
+        resumeTemplateId: order.resume.templateId,
+        userId: order.user.id,
+        userEmail: order.user.email,
+        userName: order.user.name,
+      })),
     },
-    users: users.map((user) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      plan: user.plan,
-      createdAt: user.createdAt,
-      resumeCount: user._count.resumes,
-      downloadCount: user._count.downloads,
-      paymentCount: user._count.payments,
-    })),
-    resumes: recentResumes.map((resume) => ({
-      id: resume.id,
-      title: resume.title,
-      templateId: resume.templateId,
-      updatedAt: resume.updatedAt,
-      userId: resume.user.id,
-      userEmail: resume.user.email,
-      userName: resume.user.name,
-    })),
-    payments: recentPayments.map((order) => ({
-      id: order.id,
-      provider: order.provider,
-      orderId: order.providerOrderId,
-      status: order.status,
-      providerStatus: order.cashfreeOrderStatus,
-      amountInPaise: order.amountInPaise,
-      currency: order.currency,
-      createdAt: order.createdAt,
-      paymentConfirmedAt: order.paymentConfirmedAt,
-      resumeId: order.resume.id,
-      resumeTitle: order.resume.title,
-      resumeTemplateId: order.resume.templateId,
-      userId: order.user.id,
-      userEmail: order.user.email,
-      userName: order.user.name,
-    })),
-  });
+    { code: "ADMIN_DASHBOARD_LOADED" },
+  );
 }

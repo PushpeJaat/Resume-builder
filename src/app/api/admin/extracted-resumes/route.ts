@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-
 import { auth } from "@/auth";
+import { apiSuccess, forbiddenError, unauthorizedError } from "@/lib/api-response";
 import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
@@ -8,11 +7,11 @@ export async function GET() {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
 
   if (!isAdminEmail(session.user.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return forbiddenError();
   }
 
   const rows = await prisma.extractedResume.findMany({
@@ -20,33 +19,36 @@ export async function GET() {
     take: 200,
   });
 
-  return NextResponse.json({
-    extracted_resumes: rows.map((row) => {
-      const record = asRecord(row.extractedData);
-      const personal = asRecord(record.personalInfo ?? record.personal ?? record.contact ?? record.basics);
+  return apiSuccess(
+    {
+      extracted_resumes: rows.map((row) => {
+        const record = asRecord(row.extractedData);
+        const personal = asRecord(record.personalInfo ?? record.personal ?? record.contact ?? record.basics);
 
-      const fullName = readTextFromRecords([personal, record], ["fullName", "full_name", "name"]);
-      const email = readTextFromRecords([personal, record], ["email", "emailAddress", "mail"]);
-      const phone = readTextFromRecords([personal, record], ["phone", "phoneNumber", "mobile", "contactNumber"]);
-      const summary = readTextFromRecords([record, personal], [
-        "summary",
-        "professionalSummary",
-        "profile",
-        "objective",
-      ]);
+        const fullName = readTextFromRecords([personal, record], ["fullName", "full_name", "name"]);
+        const email = readTextFromRecords([personal, record], ["email", "emailAddress", "mail"]);
+        const phone = readTextFromRecords([personal, record], ["phone", "phoneNumber", "mobile", "contactNumber"]);
+        const summary = readTextFromRecords([record, personal], [
+          "summary",
+          "professionalSummary",
+          "profile",
+          "objective",
+        ]);
 
-      return {
-        id: row.id,
-        source_file_name: row.sourceFileName,
-        created_at: row.createdAt.toISOString(),
-        created_at_readable: formatReadableDate(row.createdAt),
-        full_name: fullName,
-        email,
-        phone,
-        summary_preview: truncate(summary, 200),
-      };
-    }),
-  });
+        return {
+          id: row.id,
+          source_file_name: row.sourceFileName,
+          created_at: row.createdAt.toISOString(),
+          created_at_readable: formatReadableDate(row.createdAt),
+          full_name: fullName,
+          email,
+          phone,
+          summary_preview: truncate(summary, 200),
+        };
+      }),
+    },
+    { code: "ADMIN_EXTRACTED_RESUMES_LISTED" },
+  );
 }
 
 function formatReadableDate(value: Date) {

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { resolveApiMessage, type ApiEnvelope } from "@/lib/api-client";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -37,11 +38,17 @@ export default function SignupPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password }),
     });
-    const json = await res.json().catch(() => ({}));
+    const json = (await res.json().catch(() => null)) as ApiEnvelope | null;
     setLoading(false);
 
     if (!res.ok) {
-      setError(typeof json.error === "string" ? json.error : "Could not create account.");
+      setError(
+        resolveApiMessage(json, "Could not create account.", {
+          VALIDATION_ERROR: "Please check your details and ensure password has at least 8 characters.",
+          CONFLICT: "An account with this email already exists. Sign in instead.",
+          INTERNAL_ERROR: "Sign up is temporarily unavailable. Please try again shortly.",
+        }),
+      );
       return;
     }
 

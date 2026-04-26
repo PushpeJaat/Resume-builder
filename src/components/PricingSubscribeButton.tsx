@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { resolveApiMessage, type ApiEnvelope } from "@/lib/api-client";
 
 type CashfreeCheckoutMode = "production";
 type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
@@ -92,16 +93,16 @@ export function PricingSubscribeButton() {
   }, []);
 
   const handleRedirectTo = useCallback(
-    (payload: { error?: unknown; redirectTo?: unknown } | null, fallbackMessage: string) => {
+    (payload: { code?: unknown; error?: unknown; redirectTo?: unknown } | null, fallbackMessage: string) => {
       const redirectTo = typeof payload?.redirectTo === "string" ? payload.redirectTo : "";
       if (!redirectTo) {
         return false;
       }
 
-      const message =
-        typeof payload?.error === "string" && payload.error.trim().length > 0
-          ? payload.error
-          : fallbackMessage;
+      const message = resolveApiMessage(payload as ApiEnvelope | null, fallbackMessage, {
+        PLAN_REQUIRED: "Your plan is inactive or expired. Choose a plan to continue.",
+        DOWNLOAD_LIMIT_REACHED: "Download limit reached for your current plan.",
+      });
       toast.error(message);
       router.push(redirectTo);
       return true;
@@ -137,7 +138,13 @@ export function PricingSubscribeButton() {
         }
 
         setSubscribeState("idle");
-        toast.error(createPayload?.error || "Could not create payment order.");
+        toast.error(
+          resolveApiMessage(createPayload as ApiEnvelope | null, "Could not create payment order.", {
+            BAD_REQUEST: "Payment request is invalid. Please refresh and try again.",
+            INTERNAL_ERROR: "Payment is not configured right now. Please try again later.",
+            UPSTREAM_ERROR: "Payment provider is temporarily unavailable.",
+          }),
+        );
         return;
       }
 
@@ -150,7 +157,11 @@ export function PricingSubscribeButton() {
 
       if (!createPayload?.paymentSessionId || !createPayload.orderId || !createPayload.resumeId) {
         setSubscribeState("idle");
-        toast.error("Payment session is missing. Please try again.");
+        toast.error(
+          resolveApiMessage(createPayload as ApiEnvelope | null, "Payment session is missing. Please try again.", {
+            UPSTREAM_ERROR: "Payment provider did not return a valid session. Please retry.",
+          }),
+        );
         return;
       }
 
@@ -184,7 +195,14 @@ export function PricingSubscribeButton() {
         }
 
         setSubscribeState("idle");
-        toast.error(verifyPayload?.error || "Could not verify payment.");
+        toast.error(
+          resolveApiMessage(verifyPayload as ApiEnvelope | null, "Could not verify payment.", {
+            BAD_REQUEST: "Payment verification request is invalid.",
+            NOT_FOUND: "Payment order not found. Please retry checkout.",
+            INTERNAL_ERROR: "Payment verification is temporarily unavailable.",
+            UPSTREAM_ERROR: "Payment provider did not confirm your payment yet.",
+          }),
+        );
         return;
       }
 

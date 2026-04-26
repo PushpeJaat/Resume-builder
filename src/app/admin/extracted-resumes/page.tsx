@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Loader2 } from "lucide-react";
+import { readApiCode, resolveApiMessage, type ApiEnvelope } from "@/lib/api-client";
 
 type ExtractedResumeRow = {
   id: string;
@@ -21,32 +22,42 @@ type LoadState = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
 export default function AdminExtractedResumesPage() {
   const [rows, setRows] = useState<ExtractedResumeRow[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [loadError, setLoadError] = useState("");
 
   const load = useCallback(async () => {
     setLoadState("loading");
+    setLoadError("");
 
     const response = await fetch("/api/admin/extracted-resumes", {
       cache: "no-store",
     });
 
-    if (response.status === 401) {
+    const payload = (await response.json().catch(() => null)) as
+      | (ApiEnvelope & { extracted_resumes?: ExtractedResumeRow[] })
+      | null;
+
+    const code = readApiCode(payload);
+
+    if (code === "UNAUTHORIZED" || response.status === 401) {
       setLoadState("unauthorized");
       return;
     }
 
-    if (response.status === 403) {
+    if (code === "FORBIDDEN" || response.status === 403) {
       setLoadState("forbidden");
       return;
     }
 
     if (!response.ok) {
+      setLoadError(
+        resolveApiMessage(payload, "Please try again. If this keeps failing, check server logs.", {
+          INTERNAL_ERROR: "Server failed to load extracted resumes. Try again in a moment.",
+          UPSTREAM_ERROR: "Upstream dependency failed while loading extracted resumes.",
+        }),
+      );
       setLoadState("error");
       return;
     }
-
-    const payload = (await response.json().catch(() => null)) as
-      | { extracted_resumes?: ExtractedResumeRow[] }
-      | null;
 
     setRows(Array.isArray(payload?.extracted_resumes) ? payload.extracted_resumes : []);
     setLoadState("ready");
@@ -135,7 +146,7 @@ export default function AdminExtractedResumesPage() {
         {loadState === "error" ? (
           <section className="mt-8 rounded-[24px] border border-red-300/25 bg-red-500/10 p-6 text-center shadow-2xl shadow-black/20">
             <h2 className="text-lg font-semibold text-red-100">Could not load extracted resumes</h2>
-            <p className="mt-2 text-sm text-red-100/80">Please try again. If this keeps failing, check server logs.</p>
+            <p className="mt-2 text-sm text-red-100/80">{loadError || "Please try again. If this keeps failing, check server logs."}</p>
             <button
               type="button"
               onClick={() => void load()}

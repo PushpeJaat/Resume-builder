@@ -1,7 +1,14 @@
-import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import {
+  apiError,
+  apiSuccess,
+  badRequestError,
+  internalServerError,
+  statusToErrorCode,
+  unprocessableEntityError,
+} from "@/lib/api-response";
 import { parseResumeFile, ResumePipelineError } from "@/lib/server/resume-parsing";
 
 export const runtime = "nodejs";
@@ -12,10 +19,7 @@ export async function POST(req: Request) {
   const resume = formData?.get("resume");
 
   if (!isUploadableFile(resume)) {
-    return NextResponse.json(
-      { error: "A PDF file is required in form field 'resume'." },
-      { status: 400 },
-    );
+    return badRequestError("A PDF file is required in form field 'resume'.");
   }
 
   try {
@@ -23,13 +27,10 @@ export async function POST(req: Request) {
 
     if (!result.parsedResume) {
       const reason = result.parserError?.trim();
-      return NextResponse.json(
-        {
-          error: reason
-            ? `Structured AI parsing failed: ${reason}`
-            : "Structured AI parsing is unavailable. Configure OPENAI_API_KEY to return parsed resume JSON.",
-        },
-        { status: 422 },
+      return unprocessableEntityError(
+        reason
+          ? `Structured AI parsing failed: ${reason}`
+          : "Structured AI parsing is unavailable. Configure OPENAI_API_KEY to return parsed resume JSON.",
       );
     }
 
@@ -40,28 +41,35 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({
-      ...result.parsedResume,
-      parsed_resume: result.parsedResume,
-      extraction: {
-        id: created.id,
-        source_file_name: created.sourceFileName,
-        created_at: created.createdAt.toISOString(),
-        created_at_readable: formatReadableDate(created.createdAt),
+    return apiSuccess(
+      {
+        ...result.parsedResume,
+        parsed_resume: result.parsedResume,
+        extraction: {
+          id: created.id,
+          source_file_name: created.sourceFileName,
+          created_at: created.createdAt.toISOString(),
+          created_at_readable: formatReadableDate(created.createdAt),
+        },
       },
-    }, {
-      status: 200,
-      headers: {
-        "X-Resume-Parse-Source": result.meta.source,
+      {
+        code: "RESUME_EXTRACTED",
+        headers: {
+          "X-Resume-Parse-Source": result.meta.source,
+        },
       },
-    });
+    );
   } catch (error) {
     if (error instanceof ResumePipelineError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return apiError({
+        status: error.status,
+        code: statusToErrorCode(error.status),
+        error: error.message,
+      });
     }
 
     const message = error instanceof Error ? error.message : "Failed to extract resume.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalServerError(message);
   }
 }
 

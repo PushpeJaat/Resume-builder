@@ -1,10 +1,16 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resumeDataSchema } from "@/types/resume";
 import { assertResumeOwner } from "@/lib/resume-access";
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { listTemplateIds } from "@/lib/templates/render";
+import {
+  apiSuccess,
+  badRequestError,
+  notFoundError,
+  unauthorizedError,
+  validationError,
+} from "@/lib/api-response";
 import { z } from "zod";
 
 const patchSchema = z.object({
@@ -16,38 +22,38 @@ const patchSchema = z.object({
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
   const { id } = await ctx.params;
   const { error, resume } = await assertResumeOwner(id, session.user.id);
   if (error || !resume) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return notFoundError();
   }
   const full = await prisma.resume.findUnique({ where: { id } });
-  return NextResponse.json({ resume: full });
+  return apiSuccess({ resume: full }, { code: "RESUME_FETCHED" });
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
   const { id } = await ctx.params;
   const { error, resume } = await assertResumeOwner(id, session.user.id);
   if (error || !resume) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return notFoundError();
   }
   const json = await req.json().catch(() => null);
   const parsed = patchSchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error.flatten(), "Invalid resume update payload.");
   }
   const { title, templateId, data } = parsed.data;
   const allowedTemplates = new Set(listTemplateIds());
 
   if (templateId !== undefined) {
     if (!allowedTemplates.has(templateId)) {
-      return NextResponse.json({ error: "Invalid template" }, { status: 400 });
+      return badRequestError("Invalid template");
     }
   }
 
@@ -61,19 +67,19 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       ...(normalizedData !== undefined ? { data: normalizedData as object } : {}),
     },
   });
-  return NextResponse.json({ resume: updated });
+  return apiSuccess({ resume: updated }, { code: "RESUME_UPDATED" });
 }
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
   const { id } = await ctx.params;
   const { error, resume } = await assertResumeOwner(id, session.user.id);
   if (error || !resume) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return notFoundError();
   }
   await prisma.resume.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  return apiSuccess({}, { code: "RESUME_DELETED" });
 }

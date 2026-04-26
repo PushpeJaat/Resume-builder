@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { apiSuccess, unauthorizedError } from "@/lib/api-response";
 import { emptyResumeData } from "@/types/resume";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/templates/registry";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
   const resumes = await prisma.resume.findMany({
     where: { userId: session.user.id },
@@ -20,13 +20,13 @@ export async function GET() {
       createdAt: true,
     },
   });
-  return NextResponse.json({ resumes });
+  return apiSuccess({ resumes }, { code: "RESUMES_LISTED" });
 }
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
 
   let title = "Untitled resume";
@@ -46,5 +46,5 @@ export async function POST(request: Request) {
     data: { userId: session.user.id, title, templateId, data },
     select: { id: true },
   });
-  return NextResponse.json({ id: resume.id });
+  return apiSuccess({ id: resume.id }, { code: "RESUME_CREATED" });
 }

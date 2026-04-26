@@ -1,8 +1,15 @@
-import { NextResponse } from "next/server";
 import { compare, hash } from "bcryptjs";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  apiSuccess,
+  badRequestError,
+  internalServerError,
+  notFoundError,
+  unauthorizedError,
+  validationError,
+} from "@/lib/api-response";
 
 const bodySchema = z.object({
   currentPassword: z.string().min(1).optional(),
@@ -12,7 +19,7 @@ const bodySchema = z.object({
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
 
   try {
@@ -20,7 +27,7 @@ export async function POST(req: Request) {
     const parsed = bodySchema.safeParse(json);
 
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+      return validationError(parsed.error.flatten(), "Invalid password update payload.");
     }
 
     const user = await prisma.user.findUnique({
@@ -29,19 +36,19 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return notFoundError("User not found");
     }
 
     const { currentPassword, newPassword } = parsed.data;
 
     if (user.passwordHash) {
       if (!currentPassword) {
-        return NextResponse.json({ error: "Current password is required" }, { status: 400 });
+        return badRequestError("Current password is required");
       }
 
       const validCurrent = await compare(currentPassword, user.passwordHash);
       if (!validCurrent) {
-        return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
+        return badRequestError("Current password is incorrect");
       }
     }
 
@@ -52,8 +59,11 @@ export async function POST(req: Request) {
       data: { passwordHash },
     });
 
-    return NextResponse.json({ ok: true, hadPassword: Boolean(user.passwordHash) });
+    return apiSuccess(
+      { hadPassword: Boolean(user.passwordHash) },
+      { code: "PASSWORD_UPDATED" },
+    );
   } catch {
-    return NextResponse.json({ error: "Failed to update password" }, { status: 500 });
+    return internalServerError("Failed to update password");
   }
 }

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import {
@@ -8,6 +7,14 @@ import {
   getCashfreeOrderStatus,
   mapCashfreeOrderStatus,
 } from "@/lib/cashfree";
+import {
+  apiSuccess,
+  badRequestError,
+  internalServerError,
+  notFoundError,
+  unauthorizedError,
+  upstreamError,
+} from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 import { assertResumeOwner } from "@/lib/resume-access";
 
@@ -22,21 +29,21 @@ export async function POST(req: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
 
   const rawBody = await req.json().catch(() => null);
   const parsed = verifyOrderSchema.safeParse(rawBody);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return badRequestError("Invalid request body");
   }
 
   const { resumeId, orderId } = parsed.data;
   const { error, resume } = await assertResumeOwner(resumeId, session.user.id);
 
   if (error || !resume) {
-    return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+    return notFoundError("Resume not found");
   }
 
   const existingOrder = await prisma.paymentOrder.findFirst({
@@ -48,26 +55,24 @@ export async function POST(req: Request) {
   });
 
   if (!existingOrder) {
-    return NextResponse.json({ error: "Payment order not found" }, { status: 404 });
+    return notFoundError("Payment order not found");
   }
 
   if (existingOrder.status === "PAID") {
-    return NextResponse.json({
-      paid: true,
-      orderId,
-      orderStatus: existingOrder.cashfreeOrderStatus || "PAID",
-    });
+    return apiSuccess(
+      {
+        paid: true,
+        orderId,
+        orderStatus: existingOrder.cashfreeOrderStatus || "PAID",
+      },
+      { code: "PAYMENT_ALREADY_VERIFIED" },
+    );
   }
 
   const config = getCashfreeConfig();
 
   if (!config) {
-    return NextResponse.json(
-      {
-        error: "Cashfree is not configured. Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY.",
-      },
-      { status: 500 },
-    );
+    return internalServerError("Cashfree is not configured. Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY.");
   }
 
   const baseUrl = getCashfreeBaseUrl(config.mode);
@@ -84,12 +89,7 @@ export async function POST(req: Request) {
   const verifyPayload = await verifyResponse.json().catch(() => null);
 
   if (!verifyResponse.ok) {
-    return NextResponse.json(
-      {
-        error: getCashfreeErrorMessage(verifyPayload, "Could not verify payment status."),
-      },
-      { status: 502 },
-    );
+    return upstreamError(getCashfreeErrorMessage(verifyPayload, "Could not verify payment status."));
   }
 
   const cashfreeOrderStatus = getCashfreeOrderStatus(verifyPayload);
@@ -117,9 +117,12 @@ export async function POST(req: Request) {
     });
   }
 
-  return NextResponse.json({
-    paid: mappedStatus === "PAID",
-    orderId,
-    orderStatus: cashfreeOrderStatus || mappedStatus,
-  });
+  return apiSuccess(
+    {
+      paid: mappedStatus === "PAID",
+      orderId,
+      orderStatus: cashfreeOrderStatus || mappedStatus,
+    },
+    { code: "PAYMENT_VERIFIED" },
+  );
 }

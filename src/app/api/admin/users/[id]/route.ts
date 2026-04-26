@@ -1,6 +1,12 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import {
+  apiSuccess,
+  badRequestError,
+  forbiddenError,
+  unauthorizedError,
+  validationError,
+} from "@/lib/api-response";
 import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
@@ -12,11 +18,11 @@ async function ensureAdmin() {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return { error: unauthorizedError() };
   }
 
   if (!isAdminEmail(session.user.email)) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+    return { error: forbiddenError() };
   }
 
   return { session };
@@ -32,7 +38,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const parsed = updateSchema.safeParse(json);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return validationError(parsed.error.flatten(), "Invalid user update payload.");
   }
 
   const { id } = await context.params;
@@ -48,7 +54,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     },
   });
 
-  return NextResponse.json({ user: updated });
+  return apiSuccess({ user: updated }, { code: "ADMIN_USER_UPDATED" });
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -60,9 +66,9 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   const { id } = await context.params;
 
   if (id === gate.session.user.id) {
-    return NextResponse.json({ error: "You cannot delete your own admin account." }, { status: 400 });
+    return badRequestError("You cannot delete your own admin account.");
   }
 
   await prisma.user.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  return apiSuccess({}, { code: "ADMIN_USER_DELETED" });
 }

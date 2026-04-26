@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Loader2, RefreshCw, Shield, Trash2 } from "lucide-react";
+import { resolveApiMessage, type ApiEnvelope } from "@/lib/api-client";
 
 type AdminStats = {
   users: number;
@@ -164,13 +165,43 @@ export function AdminDashboardClient() {
         fetch("/api/admin/template-engines", { cache: "no-store" }),
       ]);
 
-      if (!dashboardResponse.ok || !blogsResponse.ok || !templateEngineResponse.ok) {
-        throw new Error("Could not load admin data.");
+      const [dashboardJson, blogsJson, templateEngineJson] = await Promise.all([
+        dashboardResponse.json().catch(() => null),
+        blogsResponse.json().catch(() => null),
+        templateEngineResponse.json().catch(() => null),
+      ]);
+
+      if (!dashboardResponse.ok) {
+        throw new Error(
+          resolveApiMessage(dashboardJson as ApiEnvelope | null, "Could not load admin dashboard.", {
+            UNAUTHORIZED: "Admin sign-in required.",
+            FORBIDDEN: "Your account does not have admin access.",
+            INTERNAL_ERROR: "Admin dashboard is temporarily unavailable.",
+          }),
+        );
       }
 
-      const dashboardPayload = (await dashboardResponse.json()) as DashboardPayload;
-      const blogsPayload = (await blogsResponse.json()) as { posts: AdminBlogRow[] };
-      const templateEnginePayload = (await templateEngineResponse.json()) as TemplateEnginePayload;
+      if (!blogsResponse.ok) {
+        throw new Error(
+          resolveApiMessage(blogsJson as ApiEnvelope | null, "Could not load admin blog data.", {
+            UNAUTHORIZED: "Admin sign-in required.",
+            FORBIDDEN: "Your account does not have admin access.",
+          }),
+        );
+      }
+
+      if (!templateEngineResponse.ok) {
+        throw new Error(
+          resolveApiMessage(templateEngineJson as ApiEnvelope | null, "Could not load template engine data.", {
+            UNAUTHORIZED: "Admin sign-in required.",
+            FORBIDDEN: "Your account does not have admin access.",
+          }),
+        );
+      }
+
+      const dashboardPayload = dashboardJson as DashboardPayload;
+      const blogsPayload = blogsJson as { posts: AdminBlogRow[] };
+      const templateEnginePayload = templateEngineJson as TemplateEnginePayload;
 
       setDashboard(dashboardPayload);
       setBlogs(blogsPayload.posts || []);
@@ -217,12 +248,19 @@ export function AdminDashboardClient() {
 
     try {
       const response = await fetch("/api/admin/template-engines?includeParity=1", { cache: "no-store" });
+      const payload = (await response.json().catch(() => null)) as (ApiEnvelope & TemplateEnginePayload) | null;
+
       if (!response.ok) {
-        throw new Error("Could not run template parity audit.");
+        throw new Error(
+          resolveApiMessage(payload, "Could not run template parity audit.", {
+            UNAUTHORIZED: "Admin sign-in required.",
+            FORBIDDEN: "Your account does not have admin access.",
+            INTERNAL_ERROR: "Template parity audit is temporarily unavailable.",
+          }),
+        );
       }
 
-      const payload = (await response.json()) as TemplateEnginePayload;
-      setTemplateEngineData(payload);
+      setTemplateEngineData(payload as TemplateEnginePayload);
     } catch (parityAuditError) {
       const message = parityAuditError instanceof Error
         ? parityAuditError.message
@@ -242,8 +280,17 @@ export function AdminDashboardClient() {
         body: JSON.stringify({ plan }),
       });
 
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope | null;
+
       if (!response.ok) {
-        throw new Error("Failed to update user plan.");
+        throw new Error(
+          resolveApiMessage(payload, "Failed to update user plan.", {
+            UNAUTHORIZED: "Admin sign-in required.",
+            FORBIDDEN: "You do not have permission to update user plans.",
+            VALIDATION_ERROR: "Plan update payload is invalid.",
+            NOT_FOUND: "User not found.",
+          }),
+        );
       }
 
       setDashboard((previous) => {
@@ -276,10 +323,17 @@ export function AdminDashboardClient() {
         method: "DELETE",
       });
 
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope | null;
 
       if (!response.ok) {
-        throw new Error(payload?.error || "Failed to delete user.");
+        throw new Error(
+          resolveApiMessage(payload, "Failed to delete user.", {
+            UNAUTHORIZED: "Admin sign-in required.",
+            FORBIDDEN: "You do not have permission to delete users.",
+            BAD_REQUEST: "This user cannot be deleted from the current session.",
+            NOT_FOUND: "User not found.",
+          }),
+        );
       }
 
       setDashboard((previous) => {
@@ -322,11 +376,17 @@ export function AdminDashboardClient() {
       });
 
       const payload = (await response.json().catch(() => null)) as
-        | { post?: AdminBlogRow; error?: unknown }
+        | (ApiEnvelope & { post?: AdminBlogRow })
         | null;
 
       if (!response.ok || !payload?.post) {
-        throw new Error("Could not create blog post. Check the form values.");
+        throw new Error(
+          resolveApiMessage(payload, "Could not create blog post. Check the form values.", {
+            UNAUTHORIZED: "Admin sign-in required.",
+            FORBIDDEN: "You do not have permission to publish blog posts.",
+            VALIDATION_ERROR: "Please provide a valid title, content, and category.",
+          }),
+        );
       }
 
       setBlogs((previous) => [payload.post as AdminBlogRow, ...previous]);
@@ -362,8 +422,15 @@ export function AdminDashboardClient() {
     setDeletingBlogId(id);
     try {
       const response = await fetch(`/api/admin/blogs/${id}`, { method: "DELETE" });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope | null;
       if (!response.ok) {
-        throw new Error("Could not delete blog post.");
+        throw new Error(
+          resolveApiMessage(payload, "Could not delete blog post.", {
+            UNAUTHORIZED: "Admin sign-in required.",
+            FORBIDDEN: "You do not have permission to delete blog posts.",
+            NOT_FOUND: "Blog post not found.",
+          }),
+        );
       }
 
       setBlogs((previous) => previous.filter((blog) => blog.id !== id));

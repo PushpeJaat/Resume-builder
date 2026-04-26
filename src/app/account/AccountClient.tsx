@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import { getTemplateMeta } from "@/lib/templates/registry";
+import { resolveApiMessage, type ApiEnvelope } from "@/lib/api-client";
 
 type DownloadItem = {
   id: string;
@@ -120,10 +121,17 @@ export function AccountClient({
       }),
     });
 
-    const json = (await res.json().catch(() => null)) as { error?: string } | null;
+    const json = (await res.json().catch(() => null)) as ApiEnvelope | null;
 
     if (!res.ok) {
-      setError(json?.error ?? "Could not update password.");
+      setError(
+        resolveApiMessage(json, "Could not update password.", {
+          UNAUTHORIZED: "Your session expired. Please sign in again.",
+          VALIDATION_ERROR: "Please enter a password with at least 8 characters.",
+          NOT_FOUND: "Account not found. Sign out and sign in again.",
+          INTERNAL_ERROR: "Password update is temporarily unavailable. Please try again.",
+        }),
+      );
       setSubmitting(false);
       return;
     }

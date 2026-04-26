@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { apiSuccess, forbiddenError, unauthorizedError } from "@/lib/api-response";
 import { isAdminEmail } from "@/lib/admin";
 import { runTemplateParityChecks } from "@/lib/layout/parityChecks";
 import { TEMPLATES } from "@/lib/templates/registry";
@@ -10,11 +10,11 @@ export async function GET(req: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedError();
   }
 
   if (!isAdminEmail(session.user.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return forbiddenError();
   }
 
   const url = new URL(req.url);
@@ -30,15 +30,18 @@ export async function GET(req: Request) {
   const htmlCount = templates.length - layoutCount;
 
   if (!includeParity) {
-    return NextResponse.json({
-      generatedAt: new Date().toISOString(),
-      summary: {
-        total: templates.length,
-        layout: layoutCount,
-        html: htmlCount,
+    return apiSuccess(
+      {
+        generatedAt: new Date().toISOString(),
+        summary: {
+          total: templates.length,
+          layout: layoutCount,
+          html: htmlCount,
+        },
+        templates,
       },
-      templates,
-    });
+      { code: "ADMIN_TEMPLATE_ENGINES_LISTED" },
+    );
   }
 
   const parityResults = await runTemplateParityChecks();
@@ -57,19 +60,22 @@ export async function GET(req: Request) {
       name: template.templateName,
     }));
 
-  return NextResponse.json({
-    generatedAt: new Date().toISOString(),
-    summary: {
-      total: templates.length,
-      layout: layoutCount,
-      html: htmlCount,
-      parityCandidates: parityCandidates.length,
+  return apiSuccess(
+    {
+      generatedAt: new Date().toISOString(),
+      summary: {
+        total: templates.length,
+        layout: layoutCount,
+        html: htmlCount,
+        parityCandidates: parityCandidates.length,
+      },
+      templates,
+      parity: {
+        fixturesChecked: parityByTemplate[0]?.fixtures.length ?? 0,
+        candidates: parityCandidates,
+        templates: parityByTemplate,
+      },
     },
-    templates,
-    parity: {
-      fixturesChecked: parityByTemplate[0]?.fixtures.length ?? 0,
-      candidates: parityCandidates,
-      templates: parityByTemplate,
-    },
-  });
+    { code: "ADMIN_TEMPLATE_PARITY_AUDITED" },
+  );
 }
