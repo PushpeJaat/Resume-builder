@@ -746,6 +746,20 @@ export function EditorClient({ resumeId }: Props) {
     recognitionRef.current.stop();
   }, []);
 
+  const focusVoiceAssistant = useCallback(
+    (startListening: boolean) => {
+      if (typeof document !== "undefined") {
+        const section = document.getElementById("voice-assistant-panel");
+        section?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      if (startListening && voiceState !== "listening" && voiceState !== "processing") {
+        startVoiceCapture();
+      }
+    },
+    [startVoiceCapture, voiceState],
+  );
+
   useEffect(() => {
     setSpeechRecognitionSupported(Boolean(getSpeechRecognitionCtor()));
   }, [getSpeechRecognitionCtor]);
@@ -874,6 +888,20 @@ export function EditorClient({ resumeId }: Props) {
               Guest mode
             </Badge>
           )}
+
+          <Button
+            type="button"
+            onClick={
+              voiceState === "listening"
+                ? stopVoiceCapture
+                : () => focusVoiceAssistant(true)
+            }
+            disabled={!speechRecognitionSupported || voiceState === "processing"}
+            className="rounded-xl bg-gradient-to-r from-cyan-300 via-sky-300 to-blue-300 text-slate-950 shadow-[0_20px_45px_-30px_rgba(14,165,233,0.9)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105"
+          >
+            {voiceState === "listening" ? <Square className="size-4" /> : <Mic className="size-4" />}
+            {voiceState === "listening" ? "Stop Voice" : "Voice Command"}
+          </Button>
 
           {isLoggedIn ? (
             <Button variant="outline" className="hidden rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm xl:inline-flex" onClick={() => void saveNow()}>
@@ -1041,6 +1069,7 @@ export function EditorClient({ resumeId }: Props) {
         </section>
 
         <section
+          id="voice-assistant-panel"
           className={`relative overflow-hidden rounded-2xl border px-3.5 py-3 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.55)] transition-all duration-300 ease-out ${
             voiceState === "listening"
               ? "border-sky-300 bg-sky-50 ring-2 ring-sky-100"
@@ -1048,7 +1077,7 @@ export function EditorClient({ resumeId }: Props) {
                 ? "border-amber-300 bg-amber-50 ring-2 ring-amber-100"
                 : voiceState === "error"
                   ? "border-red-300 bg-red-50 ring-2 ring-red-100"
-                  : "border-slate-200 bg-white/80"
+                  : "border-cyan-300/80 bg-cyan-50/55 ring-1 ring-cyan-100"
           }`}
         >
           <div className="flex flex-wrap items-start gap-3">

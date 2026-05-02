@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroResumeImage from "@/HeroResume/Professional Modern CV Resume.jpg";
 
@@ -25,16 +25,20 @@ export default function Hero() {
 
       <div className="relative mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:gap-8">
         <div className="mx-auto max-w-2xl text-center lg:mx-0 lg:text-left">
+          <p className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-800">
+            <Mic className="size-3.5" />
+            New Voice Editing
+          </p>
           <h1 className="mt-5 text-5xl font-semibold tracking-tight text-slate-950 sm:mt-7 sm:text-6xl lg:mt-8 lg:text-7xl lg:leading-[1.02]">
-            Build a resume that{" "}
+            Build and update your resume{" "}
             <span className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 bg-clip-text text-transparent">
-              gets you hired.
+              with your voice.
             </span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-slate-600 sm:text-xl sm:leading-9 lg:mx-0">
-            CVpilot pairs recruiter-friendly templates with AI-guided writing so you can turn raw experience into a
-            polished, interview-ready resume without fighting formatting.
+            Speak naturally in Hindi, English, or Hinglish and CVpilot updates your resume automatically, even when
+            your wording is mixed or not perfectly grammatical.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
@@ -43,8 +47,8 @@ export default function Hero() {
               size="lg"
               className="h-11 rounded-full bg-slate-950 px-7 text-sm font-semibold text-white shadow-[0_18px_45px_-18px_rgba(15,23,42,0.7)] transition-transform hover:-translate-y-0.5 hover:bg-slate-800"
             >
-              <Link href="/dashboard/templates">
-                Build your resume
+              <Link href="/editor">
+                Try voice commands
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -55,7 +59,7 @@ export default function Hero() {
               size="lg"
               className="h-11 rounded-full border-slate-300 bg-white/85 px-7 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur transition-transform hover:-translate-y-0.5 hover:bg-white"
             >
-              <Link href="/resume-score">Get your resume score</Link>
+              <Link href="/dashboard/templates">Browse templates</Link>
             </Button>
           </div>
         </div>

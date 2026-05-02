@@ -11,6 +11,7 @@ import {
   Check,
   Download,
   Loader2,
+  Mic,
   Save,
   Sparkles,
   UploadCloud,
@@ -411,6 +412,16 @@ export default function EditorLandingClient() {
           </Badge>
 
           <Button
+            type="button"
+            onClick={() => void createResume("save")}
+            disabled={actionState !== "idle"}
+            className="rounded-xl bg-gradient-to-r from-cyan-300 via-sky-300 to-blue-300 text-slate-950 shadow-[0_20px_45px_-30px_rgba(14,165,233,0.9)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105"
+          >
+            <Mic className="size-4" />
+            Open Voice Editor
+          </Button>
+
+          <Button
             variant="outline"
             onClick={() => void createResume("save")}
             disabled={actionState !== "idle"}
@@ -583,6 +594,31 @@ export default function EditorLandingClient() {
               <Sparkles className="size-3.5" />
               Choose File
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-cyan-300/80 bg-[linear-gradient(130deg,rgba(236,254,255,0.94)_0%,rgba(240,249,255,0.95)_52%,rgba(224,242,254,0.92)_100%)] px-3.5 py-3 shadow-[0_20px_45px_-34px_rgba(14,165,233,0.65)]">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700">
+              <Mic className="size-4" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-slate-900">New: Voice resume editing</p>
+              <p className="text-xs text-slate-600">
+                Open the full editor and speak in Hindi, English, or Hinglish to update your resume instantly.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => void createResume("save")}
+              disabled={actionState !== "idle"}
+              className="h-9 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800"
+            >
+              <Mic className="size-3.5" />
+              Start with Voice
+            </Button>
           </div>
         </section>
 

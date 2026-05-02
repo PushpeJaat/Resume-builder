@@ -1,7 +1,7 @@
 import {
-  Bot,
   FileDown,
   LayoutTemplate,
+  Mic,
   PencilRuler,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,11 @@ import {
 
 const features = [
   {
+    icon: Mic,
+    title: "Voice Command Editing",
+    description: "Speak in Hindi, English, or Hinglish and AI updates your resume sections automatically.",
+  },
+  {
     icon: PencilRuler,
     title: "Easy Editor",
     description: "Edit every section with a guided builder that keeps your resume structured and clean.",
@@ -29,11 +34,6 @@ const features = [
     icon: FileDown,
     title: "Instant PDF Download",
     description: "Export crisp, production-ready PDFs in seconds without formatting surprises.",
-  },
-  {
-    icon: Bot,
-    title: "AI Suggestions",
-    description: "Refine summaries, improve bullet points, and write stronger resumes with AI guidance.",
   },
 ];
 
@@ -52,11 +52,11 @@ export default function HomePage() {
                 Features
               </Badge>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Everything you need to ship a standout resume
+                Build faster with AI voice-first resume editing
               </h2>
               <p className="mt-4 text-base leading-7 text-slate-600">
-                Designed like a modern SaaS product: fast workflows, clean UI, and thoughtful details that make job
-                applications easier.
+                Start with templates, refine with guided editing, and now update your resume by speaking natural voice
+                commands without worrying about grammar perfection.
               </p>
             </div>
 
