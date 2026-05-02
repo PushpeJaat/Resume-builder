@@ -11,9 +11,13 @@ import {
   Check,
   Download,
   Loader2,
+  Mic,
   Save,
+  Square,
   Sparkles,
   UploadCloud,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { ExtractionLoaderOverlay } from "@/components/editor/ExtractionLoaderOverlay";
@@ -47,6 +51,68 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 type PdfState = "idle" | "loading" | "error";
 type ImportState = "idle" | "loading" | "success" | "error";
 type PaymentState = "idle" | "creating-order" | "checkout" | "verifying";
+type VoiceState = "idle" | "listening" | "processing" | "success" | "error";
+type VoiceLangMode = "auto" | "en-IN" | "hi-IN";
+
+type VoiceCommandApiResponse = {
+  status?: "applied" | "clarification";
+  assistantReply?: string;
+  changeSummary?: string;
+  nextData?: ResumeData;
+  error?: string;
+};
+
+type SpeechRecognitionAlternativeLike = {
+  transcript: string;
+};
+
+type SpeechRecognitionResultLike = {
+  isFinal: boolean;
+  length: number;
+  [index: number]: SpeechRecognitionAlternativeLike;
+};
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: SpeechRecognitionResultLike;
+  };
+};
+
+type SpeechRecognitionErrorEventLike = {
+  error: string;
+};
+
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionConstructorLike = new () => SpeechRecognitionLike;
+
+function mapSpeechRecognitionError(errorCode: string) {
+  switch (errorCode) {
+    case "not-allowed":
+    case "service-not-allowed":
+      return "Microphone permission is blocked. Please allow microphone access and try again.";
+    case "audio-capture":
+      return "No microphone was found. Please check your audio input device.";
+    case "no-speech":
+      return "No speech detected. Please speak again.";
+    case "network":
+      return "Speech recognition network issue. Please try again.";
+    default:
+      return "Voice input failed. Please try again.";
+  }
+}
 
 type CashfreeCheckoutMode = "production";
 type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
@@ -56,6 +122,8 @@ type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
 declare global {
   interface Window {
     Cashfree?: CashfreeCheckoutFactory;
+    webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
+    SpeechRecognition?: SpeechRecognitionConstructorLike;
   }
 }
 
@@ -79,9 +147,20 @@ export function EditorClient({ resumeId }: Props) {
   const [importState, setImportState] = useState<ImportState>("idle");
   const [importError, setImportError] = useState("");
   const [dragActive, setDragActive] = useState(false);
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [voiceError, setVoiceError] = useState("");
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [voiceReply, setVoiceReply] = useState("");
+  const [voiceChangeSummary, setVoiceChangeSummary] = useState("");
+  const [voiceLangMode, setVoiceLangMode] = useState<VoiceLangMode>("auto");
+  const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(false);
+  const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(true);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const voiceTranscriptRef = useRef("");
+  const voiceFinalTranscriptRef = useRef("");
 
   const isLoggedIn = Boolean(session?.user?.id);
   const isDownloadBusy =
@@ -452,6 +531,237 @@ export function EditorClient({ resumeId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoDownload, isLoggedIn, loading]);
 
+  const getSpeechRecognitionCtor = useCallback((): SpeechRecognitionConstructorLike | null => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
+  }, []);
+
+  const resolveRecognitionLanguage = useCallback((mode: VoiceLangMode) => {
+    if (mode === "en-IN") {
+      return "en-IN";
+    }
+
+    if (mode === "hi-IN") {
+      return "hi-IN";
+    }
+
+    return "hi-IN";
+  }, []);
+
+  const resolveSpeechLanguage = useCallback((mode: VoiceLangMode, text: string) => {
+    if (mode === "en-IN") {
+      return "en-IN";
+    }
+
+    if (mode === "hi-IN") {
+      return "hi-IN";
+    }
+
+    return /[\u0900-\u097F]/.test(text) ? "hi-IN" : "en-IN";
+  }, []);
+
+  const speakAssistantReply = useCallback(
+    (text: string) => {
+      if (!voiceReplyEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) {
+        return;
+      }
+
+      const cleaned = text.trim();
+      if (!cleaned) {
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(cleaned);
+      utterance.lang = resolveSpeechLanguage(voiceLangMode, cleaned);
+      utterance.rate = 0.98;
+      window.speechSynthesis.speak(utterance);
+    },
+    [resolveSpeechLanguage, voiceLangMode, voiceReplyEnabled],
+  );
+
+  const submitVoiceCommand = useCallback(
+    async (rawTranscript: string) => {
+      const transcript = rawTranscript.trim();
+      if (!transcript) {
+        setVoiceState("error");
+        setVoiceError("Could not hear your command. Please try again.");
+        return;
+      }
+
+      setVoiceState("processing");
+      setVoiceError("");
+
+      try {
+        const response = await fetch(`/api/resumes/${resumeId}/voice-command`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transcript,
+            locale: resolveRecognitionLanguage(voiceLangMode),
+            currentData: data,
+          }),
+        });
+
+        const payload = (await response.json().catch(() => null)) as VoiceCommandApiResponse | null;
+        if (!response.ok) {
+          const message =
+            typeof payload?.error === "string" && payload.error.trim()
+              ? payload.error
+              : "Could not process voice command right now.";
+          setVoiceState("error");
+          setVoiceError(message);
+          toast.error(message);
+          return;
+        }
+
+        const assistantReply =
+          typeof payload?.assistantReply === "string" && payload.assistantReply.trim().length > 0
+            ? payload.assistantReply.trim()
+            : "I understood your request and updated the resume. Any other changes you want?";
+
+        const changeSummary =
+          typeof payload?.changeSummary === "string" ? payload.changeSummary.trim() : "";
+
+        setVoiceReply(assistantReply);
+        setVoiceChangeSummary(changeSummary);
+        speakAssistantReply(assistantReply);
+
+        if (payload?.status === "clarification") {
+          setVoiceState("success");
+          toast.info(changeSummary || "I need one clarification before applying that change.");
+          return;
+        }
+
+        if (!payload?.nextData) {
+          setVoiceState("error");
+          setVoiceError("Voice command did not return valid resume data.");
+          toast.error("Voice command could not update the resume.");
+          return;
+        }
+
+        setData(payload.nextData);
+        setVoiceState("success");
+        toast.success(changeSummary || "Voice command applied.");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Voice command failed. Please try again.";
+        setVoiceState("error");
+        setVoiceError(message);
+        toast.error(message);
+      }
+    },
+    [data, resolveRecognitionLanguage, resumeId, speakAssistantReply, voiceLangMode],
+  );
+
+  const startVoiceCapture = useCallback(() => {
+    if (voiceState === "processing") {
+      return;
+    }
+
+    const SpeechRecognitionCtor = getSpeechRecognitionCtor();
+    if (!SpeechRecognitionCtor) {
+      setVoiceState("error");
+      setVoiceError("Speech recognition is not supported in this browser.");
+      toast.error("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+
+    voiceFinalTranscriptRef.current = "";
+    voiceTranscriptRef.current = "";
+
+    setVoiceTranscript("");
+    setVoiceError("");
+    setVoiceReply("");
+    setVoiceChangeSummary("");
+    setVoiceState("listening");
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = resolveRecognitionLanguage(voiceLangMode);
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const text = result?.[0]?.transcript?.trim() ?? "";
+        if (!text) {
+          continue;
+        }
+
+        if (result.isFinal) {
+          voiceFinalTranscriptRef.current = `${voiceFinalTranscriptRef.current} ${text}`.trim();
+        } else {
+          interimTranscript = `${interimTranscript} ${text}`.trim();
+        }
+      }
+
+      const mergedTranscript = `${voiceFinalTranscriptRef.current} ${interimTranscript}`.trim();
+      voiceTranscriptRef.current = mergedTranscript;
+      setVoiceTranscript(mergedTranscript);
+    };
+
+    recognition.onerror = (event) => {
+      const message = mapSpeechRecognitionError(event.error);
+      setVoiceState("error");
+      setVoiceError(message);
+      toast.error(message);
+    };
+
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      const transcript = (voiceFinalTranscriptRef.current || voiceTranscriptRef.current).trim();
+
+      if (!transcript) {
+        setVoiceState("idle");
+        return;
+      }
+
+      void submitVoiceCommand(transcript);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [getSpeechRecognitionCtor, resolveRecognitionLanguage, submitVoiceCommand, voiceLangMode, voiceState]);
+
+  const stopVoiceCapture = useCallback(() => {
+    if (!recognitionRef.current) {
+      return;
+    }
+
+    recognitionRef.current.stop();
+  }, []);
+
+  useEffect(() => {
+    setSpeechRecognitionSupported(Boolean(getSpeechRecognitionCtor()));
+  }, [getSpeechRecognitionCtor]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   const importResumeFile = useCallback(async (file: File) => {
     setImportState("loading");
     setImportError("");
@@ -727,6 +1037,119 @@ export function EditorClient({ resumeId }: Props) {
               <Sparkles className="size-3.5" />
               Choose File
             </div>
+          </div>
+        </section>
+
+        <section
+          className={`relative overflow-hidden rounded-2xl border px-3.5 py-3 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.55)] transition-all duration-300 ease-out ${
+            voiceState === "listening"
+              ? "border-sky-300 bg-sky-50 ring-2 ring-sky-100"
+              : voiceState === "processing"
+                ? "border-amber-300 bg-amber-50 ring-2 ring-amber-100"
+                : voiceState === "error"
+                  ? "border-red-300 bg-red-50 ring-2 ring-red-100"
+                  : "border-slate-200 bg-white/80"
+          }`}
+        >
+          <div className="flex flex-wrap items-start gap-3">
+            <div
+              className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
+                voiceState === "listening"
+                  ? "bg-sky-100 text-sky-700"
+                  : voiceState === "processing"
+                    ? "bg-amber-100 text-amber-700"
+                    : voiceState === "error"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {voiceState === "processing" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : voiceState === "listening" ? (
+                <Mic className="size-4" />
+              ) : (
+                <Bot className="size-4" />
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-slate-800">Talk to AI and edit your resume</p>
+              <p className="text-xs text-slate-500">
+                Speak in Hindi, English, or Hinglish. Even broken grammar commands will be understood.
+              </p>
+            </div>
+
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <select
+                value={voiceLangMode}
+                onChange={(event) => setVoiceLangMode(event.target.value as VoiceLangMode)}
+                className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 outline-none transition-all duration-200 focus-visible:border-sky-400 focus-visible:ring-2 focus-visible:ring-sky-100"
+              >
+                <option value="auto">Auto (Hinglish)</option>
+                <option value="en-IN">English</option>
+                <option value="hi-IN">Hindi</option>
+              </select>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-lg"
+                onClick={() => setVoiceReplyEnabled((value) => !value)}
+                title={voiceReplyEnabled ? "Disable spoken reply" : "Enable spoken reply"}
+              >
+                {voiceReplyEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+                {voiceReplyEnabled ? "Voice reply" : "Silent"}
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+                onClick={voiceState === "listening" ? stopVoiceCapture : startVoiceCapture}
+                disabled={!speechRecognitionSupported || voiceState === "processing"}
+              >
+                {voiceState === "listening" ? (
+                  <>
+                    <Square className="size-4" />
+                    Stop
+                  </>
+                ) : (
+                  <>
+                    <Mic className="size-4" />
+                    {voiceState === "processing" ? "Processing" : "Speak"}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-2.5 space-y-1.5">
+            {voiceState === "listening" ? (
+              <p className="text-xs font-semibold text-sky-700">Listening... speak your resume change now.</p>
+            ) : null}
+
+            {voiceTranscript ? (
+              <p className="text-xs text-slate-600">
+                Heard: <span className="font-medium text-slate-800">{voiceTranscript}</span>
+              </p>
+            ) : null}
+
+            {voiceReply ? (
+              <p className="text-xs text-slate-600">
+                Assistant: <span className="font-medium text-slate-800">{voiceReply}</span>
+              </p>
+            ) : null}
+
+            {voiceChangeSummary ? <p className="text-xs text-emerald-700">{voiceChangeSummary}</p> : null}
+
+            {voiceError ? <p className="text-xs text-red-700">{voiceError}</p> : null}
+
+            {!speechRecognitionSupported ? (
+              <p className="text-xs text-red-700">
+                This browser does not support live speech recognition. Please use a Chromium-based browser.
+              </p>
+            ) : null}
           </div>
         </section>
 
