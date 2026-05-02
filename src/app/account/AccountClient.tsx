@@ -25,7 +25,7 @@ type ResumeItem = {
 type Props = {
   email: string;
   name: string | null;
-  plan: "FREE" | "PREMIUM";
+  plan: "FREE" | "BASIC" | "ADVANCE";
   hasPassword: boolean;
   createdAt: string;
   downloads: DownloadItem[];
@@ -41,6 +41,11 @@ export function AccountClient({
   downloads,
   resumes,
 }: Props) {
+  const planLabel =
+    plan === "ADVANCE" ? "Advance" : plan === "BASIC" ? "Basic" : "Free";
+  const accessLabel =
+    plan === "ADVANCE" ? "High-volume access" : plan === "BASIC" ? "Standard access" : "Free access";
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -162,7 +167,8 @@ export function AccountClient({
           </div>
           <div className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-right">
             <p className="text-xs text-slate-400">Workspace access</p>
-            <p className="text-sm font-semibold text-white">{plan === "PREMIUM" ? "Full access" : "Free access"}</p>
+            <p className="text-sm font-semibold text-white">{accessLabel}</p>
+            <p className="mt-0.5 text-xs text-slate-300">Current plan: {planLabel}</p>
           </div>
         </div>
 

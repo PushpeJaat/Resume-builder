@@ -19,7 +19,7 @@ type AdminUserRow = {
   id: string;
   name: string | null;
   email: string;
-  plan: "FREE" | "PREMIUM";
+  plan: "FREE" | "BASIC" | "ADVANCE" | "PREMIUM";
   createdAt: string;
   resumeCount: number;
   downloadCount: number;
@@ -271,7 +271,7 @@ export function AdminDashboardClient() {
     }
   }, []);
 
-  async function updateUserPlan(userId: string, plan: "FREE" | "PREMIUM") {
+  async function updateUserPlan(userId: string, plan: "FREE" | "BASIC" | "ADVANCE" | "PREMIUM") {
     setSavingUserId(userId);
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -608,7 +608,7 @@ export function AdminDashboardClient() {
         <section className="mt-8 rounded-[24px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
           <div className="border-b border-white/10 px-5 py-4 sm:px-6">
             <h2 className="text-base font-semibold text-white">User access control</h2>
-            <p className="mt-1 text-sm text-slate-400">Promote users to PREMIUM or remove accounts.</p>
+            <p className="mt-1 text-sm text-slate-400">Assign FREE, BASIC, or ADVANCE access tiers, or remove accounts.</p>
           </div>
 
           {!dashboard || dashboard.users.length === 0 ? (
@@ -635,11 +635,13 @@ export function AdminDashboardClient() {
                       <td className="whitespace-nowrap px-5 py-4">
                         <select
                           value={user.plan}
-                          onChange={(event) => void updateUserPlan(user.id, event.target.value as "FREE" | "PREMIUM")}
+                          onChange={(event) => void updateUserPlan(user.id, event.target.value as "FREE" | "BASIC" | "ADVANCE" | "PREMIUM")}
                           disabled={savingUserId === user.id}
                           className="rounded-lg border border-white/15 bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white outline-none"
                         >
                           <option value="FREE">FREE</option>
+                          <option value="BASIC">BASIC</option>
+                          <option value="ADVANCE">ADVANCE</option>
                           <option value="PREMIUM">PREMIUM</option>
                         </select>
                       </td>

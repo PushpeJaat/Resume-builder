@@ -8,7 +8,14 @@ datasource db {
 
 enum Plan {
   FREE
+  BASIC
+  ADVANCE
   PREMIUM
+}
+
+enum PaidPlanTier {
+  BASIC
+  ADVANCE
 }
 
 enum PaymentStatus {
@@ -30,6 +37,7 @@ model User {
   resumes      Resume[]
   downloads    DownloadHistory[]
   payments     PaymentOrder[]
+  voiceTokenUsage VoiceTokenUsage[]
   blogPosts    BlogPost[]
 }
 
@@ -71,6 +79,7 @@ model PaymentOrder {
   providerOrderId       String        @unique
   paymentSessionId      String
   amountInPaise         Int
+  planTier              PaidPlanTier  @default(BASIC)
   currency              String        @default("INR")
   status                PaymentStatus @default(CREATED)
   cashfreeOrderStatus   String?
@@ -82,6 +91,21 @@ model PaymentOrder {
   @@index([userId])
   @@index([resumeId])
   @@index([status])
+  @@index([planTier])
+}
+
+model VoiceTokenUsage {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditsUsed Int
+  aiTokens    Int      @default(0)
+  planTier    String   @default("FREE")
+  source      String   @default("voice-command")
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model ExtractedResume {

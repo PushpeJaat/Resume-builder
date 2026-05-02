@@ -11,7 +11,7 @@ import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
 const updateSchema = z.object({
-  plan: z.enum(["FREE", "PREMIUM"]),
+  plan: z.enum(["FREE", "BASIC", "ADVANCE", "PREMIUM"]),
 });
 
 async function ensureAdmin() {

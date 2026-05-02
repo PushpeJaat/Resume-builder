@@ -9,12 +9,18 @@ import {
 } from "@/lib/cashfree";
 import {
   apiSuccess,
+  badRequestError,
   internalServerError,
   unauthorizedError,
   upstreamError,
 } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 import { getPlanDownloadAccess } from "@/lib/server/plan-access";
+import {
+  getSubscriptionAmountInPaise,
+  isPaidPlanTier,
+  type PaidPlanTier,
+} from "@/lib/plan-config";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/templates/registry";
 import { emptyResumeData } from "@/types/resume";
 
@@ -27,13 +33,22 @@ export async function POST(req: Request) {
     return unauthorizedError();
   }
 
+  const body = (await req.json().catch(() => null)) as { planTier?: unknown } | null;
+  const requestedPlanTier = body?.planTier;
+  if (requestedPlanTier !== undefined && !isPaidPlanTier(requestedPlanTier)) {
+    return badRequestError("Invalid plan tier.");
+  }
+
+  const planTier: PaidPlanTier = isPaidPlanTier(requestedPlanTier) ? requestedPlanTier : "BASIC";
+
   const planAccess = await getPlanDownloadAccess(session.user.id);
 
-  if (planAccess.status === "ACTIVE") {
+  if (planAccess.status === "ACTIVE" && planAccess.planTier === planTier) {
     return apiSuccess(
       {
         alreadyPaid: true,
         planActive: true,
+        planTier: planAccess.planTier,
         downloadsUsed: planAccess.downloadsUsed,
         downloadLimit: planAccess.downloadLimit,
         downloadsRemaining: planAccess.downloadsRemaining,
@@ -84,6 +99,7 @@ export async function POST(req: Request) {
 
   const requestUrl = new URL(req.url);
   const baseUrl = getCashfreeBaseUrl(config.mode);
+  const amountInPaise = getSubscriptionAmountInPaise(planTier);
   const createOrderResponse = await fetch(`${baseUrl}/pg/orders`, {
     method: "POST",
     headers: {
@@ -94,7 +110,7 @@ export async function POST(req: Request) {
     },
     body: JSON.stringify({
       order_id: orderId,
-      order_amount: config.amountInPaise / 100,
+      order_amount: amountInPaise / 100,
       order_currency: config.currency,
       customer_details: {
         customer_id: session.user.id,
@@ -135,13 +151,15 @@ export async function POST(req: Request) {
       resumeId: resume.id,
       providerOrderId: orderId,
       paymentSessionId,
-      amountInPaise: config.amountInPaise,
+      amountInPaise,
+      planTier,
       currency: config.currency,
       status: mapCashfreeOrderStatus(cashfreeOrderStatus),
       cashfreeOrderStatus,
       metadata: {
         cashfreeCreateOrder: createOrderPayload,
         source: "pricing-subscribe",
+        planTier,
       },
     },
   });
@@ -150,8 +168,9 @@ export async function POST(req: Request) {
     {
       orderId,
       paymentSessionId,
+      planTier,
       mode: config.mode,
-      amount: config.amountInPaise / 100,
+      amount: amountInPaise / 100,
       currency: config.currency,
       resumeId: resume.id,
     },

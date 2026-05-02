@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { assertResumeOwner } from "@/lib/resume-access";
+import { getVoiceTokenAccess, recordVoiceTokenUsage } from "@/lib/server/voice-token-access";
 import { apiError, apiSuccess, internalServerError, notFoundError, unauthorizedError, validationError } from "@/lib/api-response";
 import { resumeDataSchema, type ResumeData } from "@/types/resume";
 
@@ -11,6 +12,8 @@ export const maxDuration = 30;
 
 const DEFAULT_MODEL = "gpt-4o-mini";
 const OPENAI_TIMEOUT_MS = parsePositiveInt(process.env.OPENAI_VOICE_TIMEOUT_MS, 25_000);
+const MAX_OPENAI_COMPLETION_TOKENS = parsePositiveInt(process.env.OPENAI_VOICE_MAX_TOKENS, 3_500);
+const AI_TOKENS_PER_VOICE_CREDIT = parsePositiveInt(process.env.VOICE_CREDIT_TOKEN_BLOCK, 100);
 
 const voiceCommandRequestSchema = z.object({
   transcript: z.string().trim().min(1).max(1_800),
@@ -51,27 +54,60 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const currentData = ensureResumeIds(parsedBody.data.currentData ?? persistedResumeData.data);
+  const tokenAccess = await getVoiceTokenAccess(session.user.id);
+
+  if (tokenAccess.status === "EXHAUSTED") {
+    return apiError({
+      status: 402,
+      code: "VOICE_TOKENS_EXHAUSTED",
+      error: "Your AI voice tokens are finished. Please upgrade your plan to continue.",
+      extra: {
+        redirectTo: "/pricing",
+        tokenLimit: tokenAccess.tokenLimit,
+        tokensUsed: tokenAccess.tokensUsed,
+        tokensRemaining: tokenAccess.tokensRemaining,
+        planTier: tokenAccess.planTier,
+      },
+    });
+  }
 
   try {
     const aiResult = await applyVoiceCommand({
       transcript: parsedBody.data.transcript,
       locale: parsedBody.data.locale,
       currentData,
+      remainingCredits: tokenAccess.tokensRemaining,
     });
 
-    if (aiResult.status === "clarification") {
+    const rawCredits = toVoiceCredits(aiResult.totalAiTokens, parsedBody.data.transcript);
+    const creditsUsed = Math.max(1, Math.min(tokenAccess.tokensRemaining, rawCredits));
+    await recordVoiceTokenUsage({
+      userId: session.user.id,
+      creditsUsed,
+      aiTokens: aiResult.totalAiTokens,
+      planTier: tokenAccess.planTier,
+      source: "voice-command",
+    });
+
+    const tokensRemainingAfter = Math.max(tokenAccess.tokensRemaining - creditsUsed, 0);
+
+    if (aiResult.result.status === "clarification") {
       return apiSuccess(
         {
           status: "clarification",
-          assistantReply: aiResult.assistantReply,
-          changeSummary: aiResult.changeSummary,
+          assistantReply: aiResult.result.assistantReply,
+          changeSummary: aiResult.result.changeSummary,
           nextData: null,
+          tokensUsed: creditsUsed,
+          tokensRemaining: tokensRemainingAfter,
+          tokenLimit: tokenAccess.tokenLimit,
+          planTier: tokenAccess.planTier,
         },
         { code: "VOICE_COMMAND_CLARIFICATION" },
       );
     }
 
-    if (!aiResult.nextData) {
+    if (!aiResult.result.nextData) {
       return apiError({
         status: 502,
         code: "UPSTREAM_ERROR",
@@ -79,14 +115,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       });
     }
 
-    const nextData = ensureResumeIds(aiResult.nextData);
+    const nextData = ensureResumeIds(aiResult.result.nextData);
 
     return apiSuccess(
       {
         status: "applied",
-        assistantReply: aiResult.assistantReply,
-        changeSummary: aiResult.changeSummary,
+        assistantReply: aiResult.result.assistantReply,
+        changeSummary: aiResult.result.changeSummary,
         nextData,
+        tokensUsed: creditsUsed,
+        tokensRemaining: tokensRemainingAfter,
+        tokenLimit: tokenAccess.tokenLimit,
+        planTier: tokenAccess.planTier,
       },
       { code: "VOICE_COMMAND_APPLIED" },
     );
@@ -104,7 +144,8 @@ async function applyVoiceCommand(args: {
   transcript: string;
   locale?: string;
   currentData: ResumeData;
-}): Promise<VoiceCommandAiResult> {
+  remainingCredits: number;
+}): Promise<{ result: VoiceCommandAiResult; totalAiTokens: number }> {
   const apiKey = (process.env.OPENAI_API_KEY ?? "").trim();
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is missing for voice command processing.");
@@ -158,9 +199,10 @@ async function applyVoiceCommand(args: {
     model,
     systemPrompt,
     userPrompt,
+    remainingCredits: args.remainingCredits,
   });
 
-  const parsed = parseJsonObject(raw);
+  const parsed = parseJsonObject(raw.content);
   if (!parsed) {
     throw new Error(`${model} returned invalid JSON for voice command.`);
   }
@@ -176,12 +218,18 @@ async function applyVoiceCommand(args: {
 
   if (validated.data.status === "clarification") {
     return {
-      ...validated.data,
-      nextData: null,
+      result: {
+        ...validated.data,
+        nextData: null,
+      },
+      totalAiTokens: raw.totalAiTokens,
     };
   }
 
-  return validated.data;
+  return {
+    result: validated.data,
+    totalAiTokens: raw.totalAiTokens,
+  };
 }
 
 async function requestJsonResponse(args: {
@@ -189,11 +237,17 @@ async function requestJsonResponse(args: {
   model: string;
   systemPrompt: string;
   userPrompt: string;
+  remainingCredits: number;
 }) {
+  const boundedMaxTokens = Math.max(
+    120,
+    Math.min(MAX_OPENAI_COMPLETION_TOKENS, args.remainingCredits * AI_TOKENS_PER_VOICE_CREDIT),
+  );
+
   const request = {
     model: args.model,
     temperature: 0.2,
-    max_tokens: 3_500,
+    max_tokens: boundedMaxTokens,
     messages: [
       {
         role: "system" as const,
@@ -216,7 +270,10 @@ async function requestJsonResponse(args: {
       "Voice command processing timed out.",
     );
 
-    return response.choices[0]?.message?.content ?? "";
+    return {
+      content: response.choices[0]?.message?.content ?? "",
+      totalAiTokens: response.usage?.total_tokens ?? 0,
+    };
   } catch (error) {
     if (!isResponseFormatCompatibilityError(error)) {
       throw error;
@@ -228,8 +285,19 @@ async function requestJsonResponse(args: {
       "Voice command processing timed out.",
     );
 
-    return fallbackResponse.choices[0]?.message?.content ?? "";
+    return {
+      content: fallbackResponse.choices[0]?.message?.content ?? "",
+      totalAiTokens: fallbackResponse.usage?.total_tokens ?? 0,
+    };
   }
+}
+
+function toVoiceCredits(totalAiTokens: number, transcript: string) {
+  if (totalAiTokens > 0) {
+    return Math.max(1, Math.ceil(totalAiTokens / AI_TOKENS_PER_VOICE_CREDIT));
+  }
+
+  return Math.max(1, Math.ceil(Math.max(40, transcript.trim().length) / 80));
 }
 
 function isResponseFormatCompatibilityError(error: unknown) {

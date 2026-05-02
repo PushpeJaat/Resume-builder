@@ -1,8 +1,13 @@
 import { prisma } from "@/lib/prisma";
-import { PLAN_DOWNLOAD_LIMIT, PLAN_VALIDITY_MS } from "@/lib/plan-config";
+import {
+  getDownloadLimitForTier,
+  PLAN_VALIDITY_MS,
+  type PaidPlanTier,
+} from "@/lib/plan-config";
 
 export type PlanDownloadAccess = {
   status: "ACTIVE" | "NO_ACTIVE_PLAN" | "LIMIT_REACHED";
+  planTier: PaidPlanTier | null;
   planStartedAt: Date | null;
   planExpiresAt: Date | null;
   downloadsUsed: number;
@@ -20,20 +25,24 @@ export async function getPlanDownloadAccess(userId: string): Promise<PlanDownloa
     select: {
       paymentConfirmedAt: true,
       createdAt: true,
+      planTier: true,
     },
   });
 
   if (!latestPaidOrder) {
     return {
       status: "NO_ACTIVE_PLAN",
+      planTier: null,
       planStartedAt: null,
       planExpiresAt: null,
       downloadsUsed: 0,
       downloadsRemaining: 0,
-      downloadLimit: PLAN_DOWNLOAD_LIMIT,
+      downloadLimit: getDownloadLimitForTier("BASIC"),
     };
   }
 
+  const planTier = latestPaidOrder.planTier;
+  const downloadLimit = getDownloadLimitForTier(planTier);
   const planStartedAt = latestPaidOrder.paymentConfirmedAt ?? latestPaidOrder.createdAt;
   const planExpiresAt = new Date(planStartedAt.getTime() + PLAN_VALIDITY_MS);
   const now = new Date();
@@ -41,11 +50,12 @@ export async function getPlanDownloadAccess(userId: string): Promise<PlanDownloa
   if (now >= planExpiresAt) {
     return {
       status: "NO_ACTIVE_PLAN",
+      planTier,
       planStartedAt,
       planExpiresAt,
       downloadsUsed: 0,
       downloadsRemaining: 0,
-      downloadLimit: PLAN_DOWNLOAD_LIMIT,
+      downloadLimit,
     };
   }
 
@@ -59,15 +69,16 @@ export async function getPlanDownloadAccess(userId: string): Promise<PlanDownloa
     },
   });
 
-  const downloadsRemaining = Math.max(PLAN_DOWNLOAD_LIMIT - downloadsUsed, 0);
+  const downloadsRemaining = Math.max(downloadLimit - downloadsUsed, 0);
   const status = downloadsRemaining > 0 ? "ACTIVE" : "LIMIT_REACHED";
 
   return {
     status,
+    planTier,
     planStartedAt,
     planExpiresAt,
     downloadsUsed,
     downloadsRemaining,
-    downloadLimit: PLAN_DOWNLOAD_LIMIT,
+    downloadLimit,
   };
 }

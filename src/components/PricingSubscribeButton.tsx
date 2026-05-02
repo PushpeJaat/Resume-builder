@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { resolveApiMessage, type ApiEnvelope } from "@/lib/api-client";
+import type { PaidPlanTier } from "@/lib/plan-config";
 
 type CashfreeCheckoutMode = "production";
 type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
@@ -40,7 +41,12 @@ type VerifyOrderResponse = {
   error?: string;
 };
 
-export function PricingSubscribeButton() {
+type Props = {
+  planTier: PaidPlanTier;
+  buttonLabel?: string;
+};
+
+export function PricingSubscribeButton({ planTier, buttonLabel: buttonLabelOverride }: Props) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [subscribeState, setSubscribeState] = useState<SubscribeState>("idle");
@@ -54,7 +60,7 @@ export function PricingSubscribeButton() {
         ? "Opening payment"
         : subscribeState === "verifying"
           ? "Verifying payment"
-          : "Subscribe Now";
+          : buttonLabelOverride ?? "Subscribe Now";
 
   const loadCashfreeSdk = useCallback(async (): Promise<CashfreeCheckoutFactory> => {
     if (typeof window === "undefined") {
@@ -125,6 +131,8 @@ export function PricingSubscribeButton() {
     try {
       const createResponse = await fetch("/api/payments/cashfree/create-subscription-order", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planTier }),
       });
 
       const createPayload = (await createResponse.json().catch(() => null)) as
@@ -221,7 +229,7 @@ export function PricingSubscribeButton() {
       const message = error instanceof Error ? error.message : "Payment failed. Please try again.";
       toast.error(message);
     }
-  }, [handleRedirectTo, loadCashfreeSdk, router, session?.user?.id, status]);
+  }, [handleRedirectTo, loadCashfreeSdk, planTier, router, session?.user?.id, status]);
 
   return (
     <button

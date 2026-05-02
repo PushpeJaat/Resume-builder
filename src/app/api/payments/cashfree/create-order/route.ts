@@ -20,6 +20,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { assertResumeOwner } from "@/lib/resume-access";
 import { getPlanDownloadAccess } from "@/lib/server/plan-access";
+import { getSubscriptionAmountInPaise } from "@/lib/plan-config";
 
 export const runtime = "nodejs";
 
@@ -94,6 +95,7 @@ export async function POST(req: Request) {
 
   const requestUrl = new URL(req.url);
   const baseUrl = getCashfreeBaseUrl(config.mode);
+  const amountInPaise = getSubscriptionAmountInPaise("BASIC");
   const createOrderResponse = await fetch(`${baseUrl}/pg/orders`, {
     method: "POST",
     headers: {
@@ -104,7 +106,7 @@ export async function POST(req: Request) {
     },
     body: JSON.stringify({
       order_id: orderId,
-      order_amount: config.amountInPaise / 100,
+      order_amount: amountInPaise / 100,
       order_currency: config.currency,
       customer_details: {
         customer_id: session.user.id,
@@ -115,7 +117,7 @@ export async function POST(req: Request) {
       order_meta: {
         return_url: `${requestUrl.origin}/editor/${resumeId}?payment=1&order_id={order_id}`,
       },
-      order_note: `Resume PDF download for ${resume.title.slice(0, 60)}`,
+      order_note: `CVpilot Basic plan purchase for ${resume.title.slice(0, 60)}`,
     }),
     cache: "no-store",
   });
@@ -145,12 +147,15 @@ export async function POST(req: Request) {
       resumeId,
       providerOrderId: orderId,
       paymentSessionId,
-      amountInPaise: config.amountInPaise,
+      amountInPaise,
+      planTier: "BASIC",
       currency: config.currency,
       status: mapCashfreeOrderStatus(cashfreeOrderStatus),
       cashfreeOrderStatus,
       metadata: {
         cashfreeCreateOrder: createOrderPayload,
+        source: "editor-download",
+        planTier: "BASIC",
       },
     },
   });
@@ -160,7 +165,7 @@ export async function POST(req: Request) {
       orderId,
       paymentSessionId,
       mode: config.mode,
-      amount: config.amountInPaise / 100,
+      amount: amountInPaise / 100,
       currency: config.currency,
     },
     { code: "PAYMENT_ORDER_CREATED" },

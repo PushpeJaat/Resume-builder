@@ -55,10 +55,16 @@ type VoiceState = "idle" | "listening" | "processing" | "success" | "error";
 type VoiceLangMode = "auto" | "en-IN" | "hi-IN";
 
 type VoiceCommandApiResponse = {
+  code?: string;
   status?: "applied" | "clarification";
   assistantReply?: string;
   changeSummary?: string;
   nextData?: ResumeData;
+  tokenLimit?: number;
+  tokensUsed?: number;
+  tokensRemaining?: number;
+  planTier?: string;
+  redirectTo?: string;
   error?: string;
 };
 
@@ -152,6 +158,7 @@ export function EditorClient({ resumeId }: Props) {
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const [voiceReply, setVoiceReply] = useState("");
   const [voiceChangeSummary, setVoiceChangeSummary] = useState("");
+  const [voiceTokenStats, setVoiceTokenStats] = useState<{ limit: number; remaining: number; planTier: string } | null>(null);
   const [voiceLangMode, setVoiceLangMode] = useState<VoiceLangMode>("auto");
   const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(false);
   const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(true);
@@ -615,6 +622,12 @@ export function EditorClient({ resumeId }: Props) {
           setVoiceState("error");
           setVoiceError(message);
           toast.error(message);
+
+          const redirectTo = typeof payload?.redirectTo === "string" ? payload.redirectTo : "";
+          if (redirectTo) {
+            router.push(redirectTo);
+          }
+
           return;
         }
 
@@ -625,6 +638,18 @@ export function EditorClient({ resumeId }: Props) {
 
         const changeSummary =
           typeof payload?.changeSummary === "string" ? payload.changeSummary.trim() : "";
+
+        if (
+          typeof payload?.tokenLimit === "number" &&
+          typeof payload?.tokensRemaining === "number" &&
+          typeof payload?.planTier === "string"
+        ) {
+          setVoiceTokenStats({
+            limit: payload.tokenLimit,
+            remaining: payload.tokensRemaining,
+            planTier: payload.planTier,
+          });
+        }
 
         setVoiceReply(assistantReply);
         setVoiceChangeSummary(changeSummary);
@@ -653,7 +678,7 @@ export function EditorClient({ resumeId }: Props) {
         toast.error(message);
       }
     },
-    [data, resolveRecognitionLanguage, resumeId, speakAssistantReply, voiceLangMode],
+    [data, resolveRecognitionLanguage, resumeId, router, speakAssistantReply, voiceLangMode],
   );
 
   const startVoiceCapture = useCallback(() => {
@@ -1171,6 +1196,12 @@ export function EditorClient({ resumeId }: Props) {
             ) : null}
 
             {voiceChangeSummary ? <p className="text-xs text-emerald-700">{voiceChangeSummary}</p> : null}
+
+            {voiceTokenStats ? (
+              <p className="text-xs text-cyan-700">
+                Voice tokens: {voiceTokenStats.remaining}/{voiceTokenStats.limit} remaining ({voiceTokenStats.planTier})
+              </p>
+            ) : null}
 
             {voiceError ? <p className="text-xs text-red-700">{voiceError}</p> : null}
 

@@ -112,7 +112,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { id: token.sub },
           select: { plan: true },
         });
-        session.user.plan = dbUser?.plan === "PREMIUM" ? "PREMIUM" : "FREE";
+
+        const planValue = String(dbUser?.plan ?? "FREE");
+
+        if (planValue === "ADVANCE") {
+          session.user.plan = "ADVANCE";
+        } else if (planValue === "BASIC" || planValue === "PREMIUM") {
+          session.user.plan = "BASIC";
+        } else {
+          session.user.plan = "FREE";
+        }
       }
       return session;
     },

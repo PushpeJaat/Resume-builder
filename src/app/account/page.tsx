@@ -46,6 +46,8 @@ export default async function AccountPage() {
     redirect("/login?callbackUrl=/account");
   }
 
+  const accountPlan = String(user.plan);
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <AppHeader />
@@ -53,7 +55,13 @@ export default async function AccountPage() {
         <AccountClient
           email={user.email}
           name={user.name}
-          plan={user.plan === "PREMIUM" ? "PREMIUM" : "FREE"}
+          plan={
+            accountPlan === "ADVANCE"
+              ? "ADVANCE"
+              : accountPlan === "BASIC" || accountPlan === "PREMIUM"
+                ? "BASIC"
+                : "FREE"
+          }
           hasPassword={Boolean(user.passwordHash)}
           createdAt={user.createdAt.toISOString()}
           downloads={downloads.map((d) => ({

@@ -64,6 +64,7 @@ export async function POST(req: Request) {
         paid: true,
         orderId,
         orderStatus: existingOrder.cashfreeOrderStatus || "PAID",
+        planTier: existingOrder.planTier,
       },
       { code: "PAYMENT_ALREADY_VERIFIED" },
     );
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
   if (mappedStatus === "PAID") {
     await prisma.user.update({
       where: { id: session.user.id },
-      data: { plan: "PREMIUM" },
+      data: { plan: existingOrder.planTier },
     });
   }
 
@@ -122,6 +123,7 @@ export async function POST(req: Request) {
       paid: mappedStatus === "PAID",
       orderId,
       orderStatus: cashfreeOrderStatus || mappedStatus,
+      planTier: existingOrder.planTier,
     },
     { code: "PAYMENT_VERIFIED" },
   );
