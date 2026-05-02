@@ -4,16 +4,23 @@ import { auth } from "@/auth";
 import { ensureResumeIds } from "@/lib/normalize-resume";
 import { assertResumeOwner } from "@/lib/resume-access";
 import { getVoiceTokenAccess, recordVoiceTokenUsage } from "@/lib/server/voice-token-access";
+import { persistLatencySnapshot } from "@/lib/server/latency-snapshot-store";
 import { apiError, apiSuccess, internalServerError, notFoundError, unauthorizedError, validationError } from "@/lib/api-response";
+import { elapsedMs, nowMs, recordLatencyMetric } from "@/lib/latency-metrics";
 import { resumeDataSchema, type ResumeData } from "@/types/resume";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 const DEFAULT_MODEL = "gpt-4o-mini";
-const OPENAI_TIMEOUT_MS = parsePositiveInt(process.env.OPENAI_VOICE_TIMEOUT_MS, 25_000);
-const MAX_OPENAI_COMPLETION_TOKENS = parsePositiveInt(process.env.OPENAI_VOICE_MAX_TOKENS, 3_500);
+const OPENAI_TIMEOUT_MS = parsePositiveInt(process.env.OPENAI_VOICE_TIMEOUT_MS, 14_000);
+const MAX_OPENAI_COMPLETION_TOKENS = parsePositiveInt(process.env.OPENAI_VOICE_MAX_TOKENS, 1_200);
 const AI_TOKENS_PER_VOICE_CREDIT = parsePositiveInt(process.env.VOICE_CREDIT_TOKEN_BLOCK, 100);
+const VOICE_LATENCY_LOGS_ENABLED = parseBoolean(process.env.VOICE_LATENCY_LOGS, true);
+const VOICE_LATENCY_LOG_EVERY = parsePositiveInt(process.env.VOICE_LATENCY_LOG_EVERY, 8);
+const VOICE_LATENCY_DB_ENABLED = parseBoolean(process.env.VOICE_LATENCY_DB_ENABLED, true);
+const FAST_SUMMARY_MAX_CHARS = parsePositiveInt(process.env.VOICE_FAST_SUMMARY_MAX_CHARS, 500);
+const responseFormatCompatibilityByModel = new Map<string, boolean>();
 
 const voiceCommandRequestSchema = z.object({
   transcript: z.string().trim().min(1).max(1_800),
@@ -29,8 +36,15 @@ const voiceCommandAiSchema = z.object({
 });
 
 type VoiceCommandAiResult = z.infer<typeof voiceCommandAiSchema>;
+type VoiceProcessingPath = "fast-router" | "openai";
+
+type FastVoiceCommandMatch = {
+  rule: string;
+  result: VoiceCommandAiResult;
+};
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const requestStartedAt = nowMs();
   const session = await auth();
   if (!session?.user?.id) {
     return unauthorizedError();
@@ -54,9 +68,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const currentData = ensureResumeIds(parsedBody.data.currentData ?? persistedResumeData.data);
+  const fastMatch = tryApplyFastVoiceCommand({
+    transcript: parsedBody.data.transcript,
+    currentData,
+  });
   const tokenAccess = await getVoiceTokenAccess(session.user.id);
 
-  if (tokenAccess.status === "EXHAUSTED") {
+  if (tokenAccess.status === "EXHAUSTED" && !fastMatch) {
     return apiError({
       status: 402,
       code: "VOICE_TOKENS_EXHAUSTED",
@@ -72,15 +90,44 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   try {
-    const aiResult = await applyVoiceCommand({
-      transcript: parsedBody.data.transcript,
-      locale: parsedBody.data.locale,
-      currentData,
-      remainingCredits: tokenAccess.tokensRemaining,
-    });
+    let processingPath: VoiceProcessingPath = "openai";
+    let modelMs: number | null = null;
 
-    const rawCredits = toVoiceCredits(aiResult.totalAiTokens, parsedBody.data.transcript);
-    const creditsUsed = Math.max(1, Math.min(tokenAccess.tokensRemaining, rawCredits));
+    const fastMatchStartedAt = nowMs();
+
+    const aiResult =
+      fastMatch !== null
+        ? {
+            result: fastMatch.result,
+            totalAiTokens: 0,
+          }
+        : await (async () => {
+            const modelStartedAt = nowMs();
+            const output = await applyVoiceCommand({
+              transcript: parsedBody.data.transcript,
+              locale: parsedBody.data.locale,
+              currentData,
+              remainingCredits: tokenAccess.tokensRemaining,
+            });
+            modelMs = elapsedMs(modelStartedAt);
+            recordVoiceLatency("voice.api.openai_ms", modelMs, {
+              mode: "openai",
+            });
+            return output;
+          })();
+
+    const usedFastRouter = fastMatch !== null;
+
+    if (usedFastRouter) {
+      processingPath = "fast-router";
+      modelMs = 0;
+      recordVoiceLatency("voice.api.fast_router_ms", elapsedMs(fastMatchStartedAt), {
+        rule: fastMatch.rule,
+      });
+    }
+
+    const rawCredits = usedFastRouter ? 0 : toVoiceCredits(aiResult.totalAiTokens, parsedBody.data.transcript);
+    const creditsUsed = usedFastRouter ? 0 : Math.max(1, Math.min(tokenAccess.tokensRemaining, rawCredits));
     await recordVoiceTokenUsage({
       userId: session.user.id,
       creditsUsed,
@@ -90,6 +137,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     });
 
     const tokensRemainingAfter = Math.max(tokenAccess.tokensRemaining - creditsUsed, 0);
+    const latency = {
+      path: processingPath,
+      totalMs: elapsedMs(requestStartedAt),
+      modelMs,
+    };
+
+    recordVoiceLatency("voice.api.total_ms", latency.totalMs, {
+      path: processingPath,
+      status: aiResult.result.status,
+      creditsUsed,
+    });
 
     if (aiResult.result.status === "clarification") {
       return apiSuccess(
@@ -102,6 +160,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           tokensRemaining: tokensRemainingAfter,
           tokenLimit: tokenAccess.tokenLimit,
           planTier: tokenAccess.planTier,
+          latency,
         },
         { code: "VOICE_COMMAND_CLARIFICATION" },
       );
@@ -127,11 +186,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         tokensRemaining: tokensRemainingAfter,
         tokenLimit: tokenAccess.tokenLimit,
         planTier: tokenAccess.planTier,
+        latency,
       },
       { code: "VOICE_COMMAND_APPLIED" },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not process voice command.";
+    recordVoiceLatency("voice.api.error_ms", elapsedMs(requestStartedAt), {
+      message,
+    });
+
     return apiError({
       status: 502,
       code: "UPSTREAM_ERROR",
@@ -158,41 +222,21 @@ async function applyVoiceCommand(args: {
   const client = new OpenAI({ apiKey });
 
   const systemPrompt = [
-    "You are an AI resume editing engine for voice commands.",
-    "You can understand Hindi, English, and mixed Hinglish even when grammar is broken, words are misspelled, and Hindi is written in Roman script.",
-    "You must update resume JSON based on the user's intent.",
-    "Return JSON only. Do not return markdown.",
-    "Required output JSON shape:",
-    "{",
-    '  "status": "applied" | "clarification",',
-    '  "assistantReply": string,',
-    '  "changeSummary": string,',
-    '  "nextData": ResumeData | null',
-    "}",
-    "Rules:",
-    "- If instruction is clear, set status='applied' and provide a complete nextData object.",
-    "- Keep untouched fields unchanged.",
-    "- Do not invent personal facts that user did not ask for.",
-    "- If important details are missing, set status='clarification', nextData=null, and ask one concise follow-up question.",
-    "- assistantReply should match user's language style (Hindi/English/Hinglish) and be max two short sentences.",
-    "- When status='applied', assistantReply should confirm what changed and invite next instruction.",
-    "- nextData must strictly follow this structure:",
-    "  personal: { fullName, email, phone, location, photoUrl, links: [{label,url}] },",
-    "  summary: string,",
-    "  experience: [{ company, role, start, end, bullets: string[] }],",
-    "  education: [{ school, degree, start, end }],",
-    "  skills: [{ category, items: string[] }]",
+    "You are a resume JSON editor for voice commands.",
+    "Understand Hindi, English, and Hinglish (including imperfect grammar/spelling).",
+    "Return JSON only with shape:",
+    '{"status":"applied"|"clarification","assistantReply":string,"changeSummary":string,"nextData":ResumeData|null}',
+    "If request is clear: status='applied' and return complete nextData.",
+    "If critical info is missing: status='clarification', nextData=null, and ask one concise follow-up question.",
+    "Keep untouched fields unchanged and do not invent personal facts.",
+    "assistantReply: max two short sentences, in user's language style.",
   ].join("\n");
 
-  const userPrompt = JSON.stringify(
-    {
-      locale: args.locale ?? "unknown",
-      transcript: args.transcript,
-      currentData: args.currentData,
-    },
-    null,
-    2,
-  );
+  const userPrompt = JSON.stringify({
+    locale: args.locale ?? "unknown",
+    transcript: args.transcript,
+    currentData: args.currentData,
+  });
 
   const raw = await requestJsonResponse({
     client,
@@ -246,7 +290,7 @@ async function requestJsonResponse(args: {
 
   const request = {
     model: args.model,
-    temperature: 0.2,
+    temperature: 0,
     max_tokens: boundedMaxTokens,
     messages: [
       {
@@ -260,6 +304,21 @@ async function requestJsonResponse(args: {
     ],
   };
 
+  const responseFormatSupported = responseFormatCompatibilityByModel.get(args.model);
+
+  if (responseFormatSupported === false) {
+    const response = await withTimeout(
+      args.client.chat.completions.create(request),
+      OPENAI_TIMEOUT_MS,
+      "Voice command processing timed out.",
+    );
+
+    return {
+      content: response.choices[0]?.message?.content ?? "",
+      totalAiTokens: response.usage?.total_tokens ?? 0,
+    };
+  }
+
   try {
     const response = await withTimeout(
       args.client.chat.completions.create({
@@ -270,6 +329,8 @@ async function requestJsonResponse(args: {
       "Voice command processing timed out.",
     );
 
+    responseFormatCompatibilityByModel.set(args.model, true);
+
     return {
       content: response.choices[0]?.message?.content ?? "",
       totalAiTokens: response.usage?.total_tokens ?? 0,
@@ -278,6 +339,8 @@ async function requestJsonResponse(args: {
     if (!isResponseFormatCompatibilityError(error)) {
       throw error;
     }
+
+    responseFormatCompatibilityByModel.set(args.model, false);
 
     const fallbackResponse = await withTimeout(
       args.client.chat.completions.create(request),
@@ -298,6 +361,330 @@ function toVoiceCredits(totalAiTokens: number, transcript: string) {
   }
 
   return Math.max(1, Math.ceil(Math.max(40, transcript.trim().length) / 80));
+}
+
+function tryApplyFastVoiceCommand(args: { transcript: string; currentData: ResumeData }): FastVoiceCommandMatch | null {
+  const transcript = args.transcript.trim();
+  if (!transcript) {
+    return null;
+  }
+
+  const replyStyle = detectReplyStyle(transcript);
+
+  const email = extractEmailValue(transcript);
+  if (email && /\b(?:email|e-mail|mail)\b/i.test(transcript)) {
+    const normalized = email.toLowerCase();
+    const isUnchanged = normalized === args.currentData.personal.email.trim().toLowerCase();
+
+    const nextData: ResumeData = {
+      ...args.currentData,
+      personal: {
+        ...args.currentData.personal,
+        email: normalized,
+      },
+    };
+
+    return {
+      rule: "email",
+      result: {
+        status: "applied",
+        assistantReply: buildFastReply(
+          replyStyle,
+          isUnchanged
+            ? "Your email already matches this value."
+            : "Done. I updated your email.",
+          isUnchanged
+            ? "Email same hai, already updated value hai."
+            : "Done, email update ho gaya.",
+        ),
+        changeSummary: isUnchanged ? "Email was already set to the same value." : "Updated personal email.",
+        nextData,
+      },
+    };
+  }
+
+  const phone = extractPhoneValue(transcript);
+  if (phone && /\b(?:phone|mobile|contact|number)\b/i.test(transcript)) {
+    const isUnchanged = normalizeSpaces(phone) === normalizeSpaces(args.currentData.personal.phone);
+    const nextData: ResumeData = {
+      ...args.currentData,
+      personal: {
+        ...args.currentData.personal,
+        phone,
+      },
+    };
+
+    return {
+      rule: "phone",
+      result: {
+        status: "applied",
+        assistantReply: buildFastReply(
+          replyStyle,
+          isUnchanged
+            ? "Your phone number is already the same."
+            : "Done. I updated your phone number.",
+          isUnchanged
+            ? "Phone number already same hai."
+            : "Done, phone number update ho gaya.",
+        ),
+        changeSummary: isUnchanged ? "Phone number was already the same." : "Updated personal phone number.",
+        nextData,
+      },
+    };
+  }
+
+  const name = extractNameValue(transcript);
+  if (name) {
+    const isUnchanged = normalizeSpaces(name).toLowerCase() === normalizeSpaces(args.currentData.personal.fullName).toLowerCase();
+    const nextData: ResumeData = {
+      ...args.currentData,
+      personal: {
+        ...args.currentData.personal,
+        fullName: name,
+      },
+    };
+
+    return {
+      rule: "name",
+      result: {
+        status: "applied",
+        assistantReply: buildFastReply(
+          replyStyle,
+          isUnchanged ? "Your name is already set to that value." : "Done. I updated your full name.",
+          isUnchanged ? "Name already same value pe set hai." : "Done, full name update ho gaya.",
+        ),
+        changeSummary: isUnchanged ? "Full name was already the same." : "Updated full name.",
+        nextData,
+      },
+    };
+  }
+
+  const location = extractLocationValue(transcript);
+  if (location) {
+    const isUnchanged = normalizeSpaces(location).toLowerCase() === normalizeSpaces(args.currentData.personal.location).toLowerCase();
+    const nextData: ResumeData = {
+      ...args.currentData,
+      personal: {
+        ...args.currentData.personal,
+        location,
+      },
+    };
+
+    return {
+      rule: "location",
+      result: {
+        status: "applied",
+        assistantReply: buildFastReply(
+          replyStyle,
+          isUnchanged ? "Your location is already set to that value." : "Done. I updated your location.",
+          isUnchanged ? "Location already same value pe set hai." : "Done, location update ho gaya.",
+        ),
+        changeSummary: isUnchanged ? "Location was already the same." : "Updated personal location.",
+        nextData,
+      },
+    };
+  }
+
+  if (/\b(?:clear|remove|delete|erase)\s+(?:my\s+)?(?:professional\s+|profile\s+)?summary\b/i.test(transcript)) {
+    const nextData: ResumeData = {
+      ...args.currentData,
+      summary: "",
+    };
+
+    return {
+      rule: "summary-clear",
+      result: {
+        status: "applied",
+        assistantReply: buildFastReply(
+          replyStyle,
+          "Done. I cleared your summary.",
+          "Done, summary clear kar diya.",
+        ),
+        changeSummary: "Cleared resume summary.",
+        nextData,
+      },
+    };
+  }
+
+  const summaryReplacement = extractSummaryReplacement(transcript);
+  if (summaryReplacement) {
+    const nextData: ResumeData = {
+      ...args.currentData,
+      summary: summaryReplacement.slice(0, FAST_SUMMARY_MAX_CHARS),
+    };
+
+    return {
+      rule: "summary-replace",
+      result: {
+        status: "applied",
+        assistantReply: buildFastReply(
+          replyStyle,
+          "Done. I updated your summary.",
+          "Done, summary update ho gaya.",
+        ),
+        changeSummary: "Updated resume summary.",
+        nextData,
+      },
+    };
+  }
+
+  const summaryAppend = extractSummaryAppend(transcript);
+  if (summaryAppend) {
+    const existing = args.currentData.summary.trim();
+    const mergedSummary = mergeSummary(existing, summaryAppend).slice(0, FAST_SUMMARY_MAX_CHARS);
+
+    const nextData: ResumeData = {
+      ...args.currentData,
+      summary: mergedSummary,
+    };
+
+    return {
+      rule: "summary-append",
+      result: {
+        status: "applied",
+        assistantReply: buildFastReply(
+          replyStyle,
+          "Done. I added that to your summary.",
+          "Done, summary me add kar diya.",
+        ),
+        changeSummary: "Added details to resume summary.",
+        nextData,
+      },
+    };
+  }
+
+  return null;
+}
+
+function extractNameValue(transcript: string) {
+  const matched = extractByPatterns(transcript, [
+    /\b(?:set|update|change|replace|edit)\s+(?:my\s+)?(?:full\s+)?name\s+(?:to|as)\s+(.+)$/i,
+    /\b(?:my\s+name\s+is|name\s+is)\s+(.+)$/i,
+    /\bmera\s+naam(?:\s+hai)?\s+(.+)$/i,
+  ]);
+
+  return sanitizeExtractedValue(matched, 120);
+}
+
+function extractEmailValue(transcript: string) {
+  const match = transcript.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+  return sanitizeExtractedValue(match?.[1] ?? "", 180).toLowerCase();
+}
+
+function extractPhoneValue(transcript: string) {
+  const match = transcript.match(/(\+?\d[\d\s().-]{7,}\d)/);
+  return sanitizeExtractedValue(match?.[1] ?? "", 40);
+}
+
+function extractLocationValue(transcript: string) {
+  const matched = extractByPatterns(transcript, [
+    /\b(?:set|update|change|replace|edit)\s+(?:my\s+)?(?:location|city|address)\s+(?:to|as)\s+(.+)$/i,
+    /\b(?:i\s+am\s+based\s+in|i\s+live\s+in|based\s+in|from)\s+(.+)$/i,
+    /\bmain\s+(.+?)\s+se\s+h(?:u|oo)n\b/i,
+  ]);
+
+  return sanitizeExtractedValue(matched, 140);
+}
+
+function extractSummaryReplacement(transcript: string) {
+  const matched = extractByPatterns(transcript, [
+    /\b(?:set|update|change|replace|edit)\s+(?:my\s+)?(?:professional\s+|profile\s+)?summary\s+(?:to|as)\s+(.+)$/i,
+    /\b(?:summary|professional\s+summary|profile\s+summary|objective)\s*(?:is|to|:)\s+(.+)$/i,
+  ]);
+
+  return sanitizeExtractedValue(matched, FAST_SUMMARY_MAX_CHARS);
+}
+
+function extractSummaryAppend(transcript: string) {
+  const matched = extractByPatterns(transcript, [
+    /\b(?:add|include|append)\s+(.+?)\s+(?:to|in)\s+(?:my\s+)?(?:professional\s+|profile\s+)?summary\b/i,
+  ]);
+
+  return sanitizeExtractedValue(matched, FAST_SUMMARY_MAX_CHARS);
+}
+
+function extractByPatterns(text: string, patterns: RegExp[]) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const value = match?.[1];
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function sanitizeExtractedValue(value: string, maxChars: number) {
+  if (!value) {
+    return "";
+  }
+
+  return value
+    .replace(/^[:\-=\s]+/, "")
+    .replace(/\s+/g, " ")
+    .replace(/[.,!?;:\s]+$/, "")
+    .replace(/\b(?:please|pls)\b[.!\s]*$/i, "")
+    .trim()
+    .slice(0, maxChars);
+}
+
+function mergeSummary(existingSummary: string, addedText: string) {
+  const base = sanitizeExtractedValue(existingSummary, FAST_SUMMARY_MAX_CHARS);
+  const addition = sanitizeExtractedValue(addedText, FAST_SUMMARY_MAX_CHARS);
+
+  if (!base) {
+    return addition;
+  }
+
+  if (!addition) {
+    return base;
+  }
+
+  const separator = /[.!?]$/.test(base) ? " " : ". ";
+  return `${base}${separator}${addition}`;
+}
+
+function detectReplyStyle(transcript: string) {
+  const lower = transcript.toLowerCase();
+  if (/[\u0900-\u097F]/.test(transcript)) {
+    return "hinglish" as const;
+  }
+
+  if (/\b(?:mera|naam|kar|karo|krdo|badal|hai|ko|me)\b/i.test(lower)) {
+    return "hinglish" as const;
+  }
+
+  return "english" as const;
+}
+
+function buildFastReply(style: "english" | "hinglish", englishReply: string, hinglishReply: string) {
+  return style === "hinglish" ? `${hinglishReply} Koi aur change?` : `${englishReply} Any other change?`;
+}
+
+function normalizeSpaces(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function recordVoiceLatency(metric: string, durationMs: number, meta?: Record<string, unknown>) {
+  const snapshot = recordLatencyMetric(metric, durationMs, {
+    enabled: VOICE_LATENCY_LOGS_ENABLED,
+    logEvery: VOICE_LATENCY_LOG_EVERY,
+    windowSize: 240,
+    meta,
+  });
+
+  if (VOICE_LATENCY_DB_ENABLED && snapshot.count % VOICE_LATENCY_LOG_EVERY === 0) {
+    void persistLatencySnapshot({
+      metric,
+      source: "voice-command",
+      route: "/api/resumes/[id]/voice-command",
+      snapshot,
+      meta,
+    });
+  }
+
+  return snapshot;
 }
 
 function isResponseFormatCompatibilityError(error: unknown) {
@@ -386,6 +773,23 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 function parsePositiveInt(value: string | undefined, fallback: number) {
   const parsed = Number.parseInt((value ?? "").trim(), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseBoolean(value: string | undefined, fallback: boolean) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {

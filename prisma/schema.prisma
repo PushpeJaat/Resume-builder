@@ -108,6 +108,27 @@ model VoiceTokenUsage {
   @@index([createdAt])
 }
 
+model LatencyMetricSnapshot {
+  id         String   @id @default(cuid())
+  metric     String
+  source     String
+  route      String?
+  count      Int
+  sampleSize Int
+  lastMs     Float
+  minMs      Float
+  maxMs      Float
+  avgMs      Float
+  p50Ms      Float
+  p95Ms      Float
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([metric, createdAt])
+  @@index([source, createdAt])
+  @@index([createdAt])
+}
+
 model ExtractedResume {
   id             String   @id @default(cuid())
   extractedData  Json     @map("extracted_data") @db.JsonB

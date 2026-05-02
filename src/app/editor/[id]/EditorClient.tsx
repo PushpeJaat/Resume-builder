@@ -37,6 +37,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { TEMPLATES } from "@/lib/templates/registry";
 import { parseResumePdf } from "@/lib/resumeParser";
+import { elapsedMs, nowMs, recordLatencyMetric } from "@/lib/latency-metrics";
 import {
   demoResumeData,
   isResumeDataEmpty,
@@ -66,6 +67,11 @@ type VoiceCommandApiResponse = {
   planTier?: string;
   redirectTo?: string;
   error?: string;
+  latency?: {
+    path?: "fast-router" | "openai";
+    totalMs?: number;
+    modelMs?: number | null;
+  };
 };
 
 type SpeechRecognitionAlternativeLike = {
@@ -120,6 +126,83 @@ function mapSpeechRecognitionError(errorCode: string) {
   }
 }
 
+function normalizeSpeechReplyText(text: string) {
+  return text
+    .replace(/[\u2022\u25CF\u25E6]/g, ",")
+    .replace(/[|]/g, ",")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitSpeechChunks(text: string, maxChunkLength = 180) {
+  const source = normalizeSpeechReplyText(text);
+  if (!source) {
+    return [] as string[];
+  }
+
+  const sentenceLikeChunks = source.match(/[^.!?]+[.!?]?/g) ?? [source];
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const part of sentenceLikeChunks) {
+    const candidate = `${current} ${part}`.trim();
+    if (!current) {
+      current = part.trim();
+      continue;
+    }
+
+    if (candidate.length <= maxChunkLength) {
+      current = candidate;
+      continue;
+    }
+
+    chunks.push(current.trim());
+    current = part.trim();
+  }
+
+  if (current) {
+    chunks.push(current.trim());
+  }
+
+  return chunks;
+}
+
+const PREMIUM_TTS_ENABLED = parseClientBoolean(process.env.NEXT_PUBLIC_VOICE_PREMIUM_TTS, false);
+const PREMIUM_TTS_TIMEOUT_MS = parseClientPositiveInt(process.env.NEXT_PUBLIC_VOICE_PREMIUM_TTS_TIMEOUT_MS, 5_500);
+const VOICE_CLIENT_LATENCY_LOGS_ENABLED = parseClientBoolean(process.env.NEXT_PUBLIC_VOICE_LATENCY_LOGS, true);
+const VOICE_CLIENT_LATENCY_LOG_EVERY = parseClientPositiveInt(process.env.NEXT_PUBLIC_VOICE_LATENCY_LOG_EVERY, 8);
+
+function parseClientPositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt((value ?? "").trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseClientBoolean(value: string | undefined, fallback: boolean) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+}
+
+function recordVoiceClientLatency(metric: string, durationMs: number, meta?: Record<string, unknown>) {
+  return recordLatencyMetric(metric, durationMs, {
+    enabled: VOICE_CLIENT_LATENCY_LOGS_ENABLED,
+    logEvery: VOICE_CLIENT_LATENCY_LOG_EVERY,
+    windowSize: 240,
+    meta,
+  });
+}
+
 type CashfreeCheckoutMode = "production";
 type CashfreeCheckoutFactory = (config: { mode: CashfreeCheckoutMode }) => {
   checkout: (payload: { paymentSessionId: string; redirectTarget?: "_self" | "_blank" | "_modal" }) => Promise<unknown>;
@@ -168,6 +251,10 @@ export function EditorClient({ resumeId }: Props) {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const voiceTranscriptRef = useRef("");
   const voiceFinalTranscriptRef = useRef("");
+  const preferredSpeechVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const premiumAudioRef = useRef<HTMLAudioElement | null>(null);
+  const premiumAudioUrlRef = useRef<string | null>(null);
+  const premiumAudioAbortRef = useRef<AbortController | null>(null);
 
   const isLoggedIn = Boolean(session?.user?.id);
   const isDownloadBusy =
@@ -570,24 +657,205 @@ export function EditorClient({ resumeId }: Props) {
     return /[\u0900-\u097F]/.test(text) ? "hi-IN" : "en-IN";
   }, []);
 
+  const pickBestSpeechVoice = useCallback((lang: string): SpeechSynthesisVoice | null => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return null;
+    }
+
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) {
+      return null;
+    }
+
+    const preferredNameHints = ["google", "microsoft", "natural", "neural"];
+    const targetBase = lang.toLowerCase().split("-")[0] ?? "en";
+
+    const scored = voices
+      .map((voice) => {
+        const voiceLang = voice.lang.toLowerCase();
+        const voiceName = voice.name.toLowerCase();
+        let score = 0;
+
+        if (voiceLang === lang.toLowerCase()) {
+          score += 50;
+        }
+
+        if (voiceLang.startsWith(`${targetBase}-`)) {
+          score += 30;
+        }
+
+        if (voice.localService) {
+          score += 10;
+        }
+
+        if (preferredNameHints.some((hint) => voiceName.includes(hint))) {
+          score += 10;
+        }
+
+        return { voice, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    return scored[0]?.voice ?? null;
+  }, []);
+
+  const stopPremiumVoicePlayback = useCallback(() => {
+    if (premiumAudioAbortRef.current) {
+      premiumAudioAbortRef.current.abort();
+      premiumAudioAbortRef.current = null;
+    }
+
+    if (premiumAudioRef.current) {
+      premiumAudioRef.current.pause();
+      premiumAudioRef.current = null;
+    }
+
+    if (premiumAudioUrlRef.current) {
+      URL.revokeObjectURL(premiumAudioUrlRef.current);
+      premiumAudioUrlRef.current = null;
+    }
+  }, []);
+
+  const speakPremiumVoiceReply = useCallback(
+    async (text: string, locale: string) => {
+      if (!PREMIUM_TTS_ENABLED || typeof window === "undefined") {
+        return false;
+      }
+
+      stopPremiumVoicePlayback();
+
+      const startedAt = nowMs();
+      const abortController = new AbortController();
+      premiumAudioAbortRef.current = abortController;
+      const timeoutId = window.setTimeout(() => abortController.abort(), PREMIUM_TTS_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(`/api/resumes/${resumeId}/voice-reply`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: abortController.signal,
+          body: JSON.stringify({
+            text,
+            locale,
+          }),
+        });
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const audioBlob = await response.blob();
+        if (!(audioBlob instanceof Blob) || audioBlob.size === 0) {
+          return false;
+        }
+
+        const objectUrl = URL.createObjectURL(audioBlob);
+        premiumAudioUrlRef.current = objectUrl;
+
+        const audio = new Audio(objectUrl);
+        audio.preload = "auto";
+        premiumAudioRef.current = audio;
+        await audio.play();
+
+        recordVoiceClientLatency("voice.client.premium_tts_ms", elapsedMs(startedAt), {
+          provider: response.headers.get("X-Voice-TTS-Provider") ?? "openai",
+          model: response.headers.get("X-Voice-TTS-Model") ?? "",
+        });
+
+        audio.onended = () => {
+          if (premiumAudioRef.current === audio) {
+            premiumAudioRef.current = null;
+          }
+
+          if (premiumAudioUrlRef.current === objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+            premiumAudioUrlRef.current = null;
+          }
+        };
+
+        audio.onerror = () => {
+          if (premiumAudioRef.current === audio) {
+            premiumAudioRef.current = null;
+          }
+
+          if (premiumAudioUrlRef.current === objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+            premiumAudioUrlRef.current = null;
+          }
+        };
+
+        return true;
+      } catch (error) {
+        const isAbortError = error instanceof DOMException && error.name === "AbortError";
+        if (!isAbortError) {
+          recordVoiceClientLatency("voice.client.premium_tts_error_ms", elapsedMs(startedAt), {
+            message: error instanceof Error ? error.message : "premium tts failed",
+          });
+        }
+
+        return false;
+      } finally {
+        window.clearTimeout(timeoutId);
+        if (premiumAudioAbortRef.current === abortController) {
+          premiumAudioAbortRef.current = null;
+        }
+      }
+    },
+    [resumeId, stopPremiumVoicePlayback],
+  );
+
   const speakAssistantReply = useCallback(
-    (text: string) => {
+    async (text: string) => {
       if (!voiceReplyEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) {
         return;
       }
 
-      const cleaned = text.trim();
+      const cleaned = normalizeSpeechReplyText(text);
       if (!cleaned) {
         return;
       }
 
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(cleaned);
-      utterance.lang = resolveSpeechLanguage(voiceLangMode, cleaned);
-      utterance.rate = 0.98;
-      window.speechSynthesis.speak(utterance);
+      const lang = resolveSpeechLanguage(voiceLangMode, cleaned);
+      const usedPremiumTts = await speakPremiumVoiceReply(cleaned, lang);
+      if (usedPremiumTts) {
+        return;
+      }
+
+      const synth = window.speechSynthesis;
+      if (synth.speaking || synth.pending) {
+        synth.cancel();
+      }
+
+      const startedAt = nowMs();
+      const chunks = splitSpeechChunks(cleaned);
+      const fallbackVoice = pickBestSpeechVoice(lang);
+      const selectedVoice = preferredSpeechVoiceRef.current ?? fallbackVoice;
+      if (selectedVoice) {
+        preferredSpeechVoiceRef.current = selectedVoice;
+      }
+
+      for (let index = 0; index < chunks.length; index += 1) {
+        const chunk = chunks[index];
+        const utterance = new SpeechSynthesisUtterance(chunk);
+        utterance.lang = lang;
+        utterance.voice = selectedVoice ?? null;
+        utterance.rate = 1.03;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+
+        if (index === 0) {
+          utterance.onstart = () => {
+            recordVoiceClientLatency("voice.client.browser_tts_start_ms", elapsedMs(startedAt), {
+              chunks: chunks.length,
+              lang,
+            });
+          };
+        }
+
+        synth.speak(utterance);
+      }
     },
-    [resolveSpeechLanguage, voiceLangMode, voiceReplyEnabled],
+    [pickBestSpeechVoice, resolveSpeechLanguage, speakPremiumVoiceReply, voiceLangMode, voiceReplyEnabled],
   );
 
   const submitVoiceCommand = useCallback(
@@ -602,10 +870,15 @@ export function EditorClient({ resumeId }: Props) {
       setVoiceState("processing");
       setVoiceError("");
 
+      const abortController = new AbortController();
+      const timeoutId = window.setTimeout(() => abortController.abort(), 15_000);
+      const commandStartedAt = nowMs();
+
       try {
         const response = await fetch(`/api/resumes/${resumeId}/voice-command`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: abortController.signal,
           body: JSON.stringify({
             transcript,
             locale: resolveRecognitionLanguage(voiceLangMode),
@@ -614,6 +887,24 @@ export function EditorClient({ resumeId }: Props) {
         });
 
         const payload = (await response.json().catch(() => null)) as VoiceCommandApiResponse | null;
+        recordVoiceClientLatency("voice.client.command_ms", elapsedMs(commandStartedAt), {
+          ok: response.ok,
+          status: payload?.status ?? "error",
+          path: payload?.latency?.path ?? "unknown",
+        });
+
+        if (typeof payload?.latency?.totalMs === "number") {
+          recordVoiceClientLatency("voice.client.api_total_ms", payload.latency.totalMs, {
+            path: payload?.latency?.path ?? "unknown",
+          });
+        }
+
+        if (typeof payload?.latency?.modelMs === "number" && payload.latency.modelMs > 0) {
+          recordVoiceClientLatency("voice.client.api_model_ms", payload.latency.modelMs, {
+            path: payload?.latency?.path ?? "unknown",
+          });
+        }
+
         if (!response.ok) {
           const message =
             typeof payload?.error === "string" && payload.error.trim()
@@ -653,7 +944,7 @@ export function EditorClient({ resumeId }: Props) {
 
         setVoiceReply(assistantReply);
         setVoiceChangeSummary(changeSummary);
-        speakAssistantReply(assistantReply);
+          void speakAssistantReply(assistantReply);
 
         if (payload?.status === "clarification") {
           setVoiceState("success");
@@ -672,10 +963,23 @@ export function EditorClient({ resumeId }: Props) {
         setVoiceState("success");
         toast.success(changeSummary || "Voice command applied.");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Voice command failed. Please try again.";
+        const isAbortError = error instanceof DOMException && error.name === "AbortError";
+        const message = isAbortError
+          ? "Voice command took too long. Please try a shorter command."
+          : error instanceof Error
+            ? error.message
+            : "Voice command failed. Please try again.";
+
+        recordVoiceClientLatency("voice.client.command_error_ms", elapsedMs(commandStartedAt), {
+          abort: isAbortError,
+          message,
+        });
+
         setVoiceState("error");
         setVoiceError(message);
         toast.error(message);
+      } finally {
+        window.clearTimeout(timeoutId);
       }
     },
     [data, resolveRecognitionLanguage, resumeId, router, speakAssistantReply, voiceLangMode],
@@ -697,6 +1001,8 @@ export function EditorClient({ resumeId }: Props) {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
+
+    stopPremiumVoicePlayback();
 
     if (recognitionRef.current) {
       recognitionRef.current.stop();
@@ -761,7 +1067,14 @@ export function EditorClient({ resumeId }: Props) {
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [getSpeechRecognitionCtor, resolveRecognitionLanguage, submitVoiceCommand, voiceLangMode, voiceState]);
+  }, [
+    getSpeechRecognitionCtor,
+    resolveRecognitionLanguage,
+    stopPremiumVoicePlayback,
+    submitVoiceCommand,
+    voiceLangMode,
+    voiceState,
+  ]);
 
   const stopVoiceCapture = useCallback(() => {
     if (!recognitionRef.current) {
@@ -790,16 +1103,48 @@ export function EditorClient({ resumeId }: Props) {
   }, [getSpeechRecognitionCtor]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+
+    const synth = window.speechSynthesis;
+    const refreshPreferredVoice = () => {
+      const lang = resolveSpeechLanguage(voiceLangMode, voiceReply || "hello");
+      preferredSpeechVoiceRef.current = pickBestSpeechVoice(lang);
+    };
+
+    refreshPreferredVoice();
+    synth.addEventListener("voiceschanged", refreshPreferredVoice);
+
+    return () => {
+      synth.removeEventListener("voiceschanged", refreshPreferredVoice);
+    };
+  }, [pickBestSpeechVoice, resolveSpeechLanguage, voiceLangMode, voiceReply]);
+
+  useEffect(() => {
+    if (voiceReplyEnabled) {
+      return;
+    }
+
+    stopPremiumVoicePlayback();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, [stopPremiumVoicePlayback, voiceReplyEnabled]);
+
+  useEffect(() => {
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
 
+      stopPremiumVoicePlayback();
+
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
     };
-  }, []);
+  }, [stopPremiumVoicePlayback]);
 
   const importResumeFile = useCallback(async (file: File) => {
     setImportState("loading");
@@ -1200,6 +1545,12 @@ export function EditorClient({ resumeId }: Props) {
             {voiceTokenStats ? (
               <p className="text-xs text-cyan-700">
                 Voice tokens: {voiceTokenStats.remaining}/{voiceTokenStats.limit} remaining ({voiceTokenStats.planTier})
+              </p>
+            ) : null}
+
+            {voiceReplyEnabled ? (
+              <p className="text-xs text-slate-500">
+                Voice output: {PREMIUM_TTS_ENABLED ? "Premium neural TTS with browser fallback" : "Browser speech"}
               </p>
             ) : null}
 

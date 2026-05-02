@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { Loader2, RefreshCw, Shield, Trash2 } from "lucide-react";
+import { Activity, Loader2, RefreshCw, Shield, Trash2 } from "lucide-react";
 import { resolveApiMessage, type ApiEnvelope } from "@/lib/api-client";
 
 type AdminStats = {
@@ -69,6 +69,41 @@ type AdminBlogRow = {
 
 type DashboardPayload = {
   stats: AdminStats;
+  latency?: {
+    windowHours: number;
+    windowStart: string;
+    generatedAt: string;
+    totalSnapshots: number;
+    metrics: Array<{
+      metric: string;
+      label: string;
+      hasData: boolean;
+      lastP50Ms: number | null;
+      lastP95Ms: number | null;
+      lastAvgMs: number | null;
+      points: number;
+    }>;
+    series: Array<{
+      metric: string;
+      label: string;
+      points: Array<{
+        at: string;
+        p50Ms: number;
+        p95Ms: number;
+        avgMs: number;
+        sampleSize: number;
+        count: number;
+      }>;
+      latest: {
+        at: string;
+        p50Ms: number;
+        p95Ms: number;
+        avgMs: number;
+        sampleSize: number;
+        count: number;
+      } | null;
+    }>;
+  };
   users: AdminUserRow[];
   resumes: AdminResumeRow[];
   payments: AdminPaymentRow[];
@@ -136,6 +171,86 @@ function parityBadgeClass(allFixturesMatched: boolean) {
   return "border-red-300/35 bg-red-500/15 text-red-100";
 }
 
+function formatMs(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "-";
+  }
+
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(2)} s`;
+  }
+
+  if (value >= 100) {
+    return `${Math.round(value)} ms`;
+  }
+
+  return `${value.toFixed(1)} ms`;
+}
+
+function buildSeriesPath(
+  points: Array<{ p50Ms: number; p95Ms: number }>,
+  accessor: (point: { p50Ms: number; p95Ms: number }) => number,
+  chartWidth: number,
+  chartHeight: number,
+  maxValue: number,
+) {
+  if (points.length === 0) {
+    return "";
+  }
+
+  const denominator = Math.max(points.length - 1, 1);
+
+  return points
+    .map((point, index) => {
+      const x = (index / denominator) * chartWidth;
+      const ratio = Math.max(0, Math.min(1, accessor(point) / Math.max(maxValue, 1)));
+      const y = chartHeight - ratio * chartHeight;
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+function LatencyTrendChart({
+  points,
+}: {
+  points: Array<{ p50Ms: number; p95Ms: number }>;
+}) {
+  const width = 560;
+  const height = 170;
+  const maxValue = Math.max(1, ...points.map((point) => Math.max(point.p50Ms, point.p95Ms)));
+  const p50Path = buildSeriesPath(points, (point) => point.p50Ms, width, height, maxValue);
+  const p95Path = buildSeriesPath(points, (point) => point.p95Ms, width, height, maxValue);
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-40 w-full rounded-xl border border-white/10 bg-slate-950/60">
+      <line x1="0" y1={height} x2={width} y2={height} stroke="rgba(148,163,184,0.28)" strokeWidth="1" />
+      <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="rgba(148,163,184,0.16)" strokeWidth="1" />
+      <line x1="0" y1={height * 0.2} x2={width} y2={height * 0.2} stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
+
+      {p95Path ? (
+        <path
+          d={p95Path}
+          fill="none"
+          stroke="rgba(249,115,22,0.95)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
+      {p50Path ? (
+        <path
+          d={p50Path}
+          fill="none"
+          stroke="rgba(34,211,238,0.98)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
+    </svg>
+  );
+}
+
 export function AdminDashboardClient() {
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
   const [templateEngineData, setTemplateEngineData] = useState<TemplateEnginePayload | null>(null);
@@ -148,6 +263,7 @@ export function AdminDashboardClient() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null);
   const [creatingBlog, setCreatingBlog] = useState(false);
+  const [latencyWindowHours, setLatencyWindowHours] = useState(24 * 7);
 
   const [blogTitle, setBlogTitle] = useState("");
   const [blogCategory, setBlogCategory] = useState("Guides");
@@ -160,7 +276,7 @@ export function AdminDashboardClient() {
 
     try {
       const [dashboardResponse, blogsResponse, templateEngineResponse] = await Promise.all([
-        fetch("/api/admin/dashboard", { cache: "no-store" }),
+        fetch(`/api/admin/dashboard?latencyHours=${latencyWindowHours}`, { cache: "no-store" }),
         fetch("/api/admin/blogs", { cache: "no-store" }),
         fetch("/api/admin/template-engines", { cache: "no-store" }),
       ]);
@@ -213,7 +329,7 @@ export function AdminDashboardClient() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [latencyWindowHours]);
 
   useEffect(() => {
     void refresh();
@@ -520,6 +636,85 @@ export function AdminDashboardClient() {
               <p className="mt-2 text-2xl font-bold text-white">{card.value}</p>
             </article>
           ))}
+        </section>
+
+        <section className="mt-8 rounded-[24px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="text-base font-semibold text-white">Voice latency observability</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Persistent p50/p95 snapshots from server-side voice paths across deployments.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-cyan-200" />
+              <label htmlFor="latency-window" className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-300">
+                Window
+              </label>
+              <select
+                id="latency-window"
+                value={latencyWindowHours}
+                onChange={(event) => setLatencyWindowHours(Number.parseInt(event.target.value, 10) || 24)}
+                className="h-9 rounded-lg border border-white/15 bg-slate-900 px-2.5 text-xs font-semibold text-white outline-none"
+              >
+                <option value={24}>Last 24h</option>
+                <option value={72}>Last 72h</option>
+                <option value={168}>Last 7d</option>
+                <option value={336}>Last 14d</option>
+                <option value={720}>Last 30d</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="border-b border-white/10 px-5 py-3 text-xs text-slate-300 sm:px-6">
+            Snapshots in window: {dashboard?.latency?.totalSnapshots ?? 0} · Updated{" "}
+            {dashboard?.latency?.generatedAt ? new Date(dashboard.latency.generatedAt).toLocaleString() : "-"}
+          </div>
+
+          {!dashboard?.latency || dashboard.latency.series.length === 0 ? (
+            <div className="p-6 text-sm text-slate-300">No persistent latency snapshots found yet.</div>
+          ) : (
+            <div className="grid gap-4 p-5 sm:p-6 xl:grid-cols-2">
+              {dashboard.latency.series.map((series) => (
+                <article key={series.metric} className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-white">{series.label}</p>
+                    <p className="text-xs text-slate-300">{series.points.length} snapshots</p>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                    <div className="rounded-lg border border-cyan-300/20 bg-cyan-500/10 px-2.5 py-2">
+                      <p className="uppercase tracking-[0.1em] text-cyan-100/85">p50</p>
+                      <p className="mt-1 text-sm font-semibold text-cyan-50">{formatMs(series.latest?.p50Ms ?? null)}</p>
+                    </div>
+                    <div className="rounded-lg border border-orange-300/20 bg-orange-500/10 px-2.5 py-2">
+                      <p className="uppercase tracking-[0.1em] text-orange-100/85">p95</p>
+                      <p className="mt-1 text-sm font-semibold text-orange-50">{formatMs(series.latest?.p95Ms ?? null)}</p>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
+                      <p className="uppercase tracking-[0.1em] text-slate-300">avg</p>
+                      <p className="mt-1 text-sm font-semibold text-white">{formatMs(series.latest?.avgMs ?? null)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    {series.points.length >= 2 ? (
+                      <LatencyTrendChart points={series.points} />
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-white/15 bg-slate-950/50 p-6 text-center text-xs text-slate-400">
+                        Not enough points yet for trend rendering.
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="mt-2 text-[11px] text-slate-400">
+                    Latest sample size: {series.latest?.sampleSize ?? 0} · Counter: {series.latest?.count ?? 0}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mt-8 rounded-[24px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
