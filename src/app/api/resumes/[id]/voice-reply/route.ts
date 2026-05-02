@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 type SpeechCreateRequest = Parameters<OpenAI["audio"]["speech"]["create"]>[0];
 type SpeechModel = SpeechCreateRequest["model"];
 type SpeechVoice = SpeechCreateRequest["voice"];
-type SpeechFormat = NonNullable<SpeechCreateRequest["format"]>;
+type SpeechFormat = NonNullable<SpeechCreateRequest["response_format"]>;
 
 const PREMIUM_TTS_ENABLED = parseBoolean(process.env.VOICE_PREMIUM_TTS_ENABLED, false);
 const OPENAI_TTS_TIMEOUT_MS = parsePositiveInt(process.env.OPENAI_VOICE_TTS_TIMEOUT_MS, 9_000);
@@ -77,7 +77,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       model,
       voice,
       input: parsedBody.data.text,
-      format,
+      response_format: format,
       speed,
     };
 

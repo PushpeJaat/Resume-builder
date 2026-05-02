@@ -1,4 +1,5 @@
 import type { LatencySnapshot } from "@/lib/latency-metrics";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type PersistLatencySnapshotArgs = {
@@ -26,7 +27,7 @@ export async function persistLatencySnapshot(args: PersistLatencySnapshotArgs) {
         avgMs: args.snapshot.avgMs,
         p50Ms: args.snapshot.p50Ms,
         p95Ms: args.snapshot.p95Ms,
-        meta,
+        meta: meta ?? Prisma.JsonNull,
       },
     });
   } catch (error) {
