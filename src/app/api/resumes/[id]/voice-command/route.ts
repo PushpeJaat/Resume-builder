@@ -218,6 +218,7 @@ async function applyVoiceCommand(args: {
   const model =
     (process.env.OPENAI_VOICE_MODEL ?? process.env.OPENAI_MODEL ?? DEFAULT_MODEL).trim() ||
     DEFAULT_MODEL;
+  const languageHint = detectUserLanguageHint(args.transcript, args.locale);
 
   const client = new OpenAI({ apiKey });
 
@@ -230,10 +231,13 @@ async function applyVoiceCommand(args: {
     "If critical info is missing: status='clarification', nextData=null, and ask one concise follow-up question.",
     "Keep untouched fields unchanged and do not invent personal facts.",
     "assistantReply: max two short sentences, in user's language style.",
+    "Language policy: if transcript is clearly English, assistantReply MUST be English even when locale is hi-IN.",
+    "Use Hindi/Hinglish only when transcript itself indicates Hindi/Hinglish.",
   ].join("\n");
 
   const userPrompt = JSON.stringify({
     locale: args.locale ?? "unknown",
+    languageHint,
     transcript: args.transcript,
     currentData: args.currentData,
   });
@@ -651,11 +655,42 @@ function detectReplyStyle(transcript: string) {
     return "hinglish" as const;
   }
 
-  if (/\b(?:mera|naam|kar|karo|krdo|badal|hai|ko|me)\b/i.test(lower)) {
+  if (countRomanHindiSignals(lower) >= 2) {
     return "hinglish" as const;
   }
 
   return "english" as const;
+}
+
+function detectUserLanguageHint(transcript: string, locale?: string) {
+  if (/[\u0900-\u097F]/.test(transcript)) {
+    return "hindi" as const;
+  }
+
+  const lower = transcript.toLowerCase();
+  const romanHindiSignals = countRomanHindiSignals(lower);
+  if (romanHindiSignals >= 2) {
+    return "hinglish" as const;
+  }
+
+  const latinChars = (lower.match(/[a-z]/g) ?? []).length;
+  if (latinChars > 0) {
+    return "english" as const;
+  }
+
+  if ((locale ?? "").toLowerCase().startsWith("hi")) {
+    return "hindi" as const;
+  }
+
+  return "english" as const;
+}
+
+function countRomanHindiSignals(lower: string) {
+  const matches = lower.match(
+    /\b(?:mera|meri|mere|mujhe|naam|karo|kardo|krdo|badal|hai|nahi|bolo|likho|hatao|jodo|karna|karni|banao|karo)\b/g,
+  );
+
+  return matches?.length ?? 0;
 }
 
 function buildFastReply(style: "english" | "hinglish", englishReply: string, hinglishReply: string) {

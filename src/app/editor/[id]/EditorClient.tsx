@@ -169,6 +169,7 @@ function splitSpeechChunks(text: string, maxChunkLength = 180) {
 
 const PREMIUM_TTS_ENABLED = parseClientBoolean(process.env.NEXT_PUBLIC_VOICE_PREMIUM_TTS, false);
 const PREMIUM_TTS_TIMEOUT_MS = parseClientPositiveInt(process.env.NEXT_PUBLIC_VOICE_PREMIUM_TTS_TIMEOUT_MS, 5_500);
+const AUTO_VOICE_RECOGNITION_LANG = parseAutoVoiceRecognitionLang(process.env.NEXT_PUBLIC_VOICE_AUTO_RECOGNITION_LANG);
 const VOICE_CLIENT_LATENCY_LOGS_ENABLED = parseClientBoolean(process.env.NEXT_PUBLIC_VOICE_LATENCY_LOGS, true);
 const VOICE_CLIENT_LATENCY_LOG_EVERY = parseClientPositiveInt(process.env.NEXT_PUBLIC_VOICE_LATENCY_LOG_EVERY, 8);
 
@@ -192,6 +193,19 @@ function parseClientBoolean(value: string | undefined, fallback: boolean) {
   }
 
   return fallback;
+}
+
+function parseAutoVoiceRecognitionLang(value: string | undefined) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "hi-in") {
+    return "hi-IN" as const;
+  }
+
+  if (normalized === "en-in") {
+    return "en-IN" as const;
+  }
+
+  return null;
 }
 
 function recordVoiceClientLatency(metric: string, durationMs: number, meta?: Record<string, unknown>) {
@@ -642,7 +656,18 @@ export function EditorClient({ resumeId }: Props) {
       return "hi-IN";
     }
 
-    return "hi-IN";
+    if (AUTO_VOICE_RECOGNITION_LANG) {
+      return AUTO_VOICE_RECOGNITION_LANG;
+    }
+
+    if (typeof window !== "undefined") {
+      const browserLocale = (window.navigator.language ?? "").toLowerCase();
+      if (browserLocale.startsWith("hi")) {
+        return "hi-IN";
+      }
+    }
+
+    return "en-IN";
   }, []);
 
   const resolveSpeechLanguage = useCallback((mode: VoiceLangMode, text: string) => {
@@ -806,7 +831,7 @@ export function EditorClient({ resumeId }: Props) {
 
   const speakAssistantReply = useCallback(
     async (text: string) => {
-      if (!voiceReplyEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) {
+      if (!voiceReplyEnabled || typeof window === "undefined") {
         return;
       }
 
@@ -818,6 +843,10 @@ export function EditorClient({ resumeId }: Props) {
       const lang = resolveSpeechLanguage(voiceLangMode, cleaned);
       const usedPremiumTts = await speakPremiumVoiceReply(cleaned, lang);
       if (usedPremiumTts) {
+        return;
+      }
+
+      if (!("speechSynthesis" in window)) {
         return;
       }
 

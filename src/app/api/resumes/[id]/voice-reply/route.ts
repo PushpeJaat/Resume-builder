@@ -19,13 +19,28 @@ const OPENAI_TTS_TIMEOUT_MS = parsePositiveInt(process.env.OPENAI_VOICE_TTS_TIME
 const VOICE_LATENCY_LOGS_ENABLED = parseBoolean(process.env.VOICE_LATENCY_LOGS, true);
 const VOICE_LATENCY_LOG_EVERY = parsePositiveInt(process.env.VOICE_LATENCY_LOG_EVERY, 8);
 const VOICE_LATENCY_DB_ENABLED = parseBoolean(process.env.VOICE_LATENCY_DB_ENABLED, true);
+const OPENAI_TTS_INSTRUCTIONS = (process.env.OPENAI_VOICE_TTS_INSTRUCTIONS ?? "").trim();
 
 const ttsRequestSchema = z.object({
   text: z.string().trim().min(1).max(420),
   locale: z.string().trim().max(40).optional(),
 });
 
-const supportedVoices = ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"] as SpeechVoice[];
+const supportedVoices = [
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "fable",
+  "onyx",
+  "nova",
+  "sage",
+  "shimmer",
+  "verse",
+  "marin",
+  "cedar",
+] as SpeechVoice[];
 const supportedFormats = ["mp3", "opus", "aac", "flac", "wav", "pcm"] as SpeechFormat[];
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -68,6 +83,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const voice = resolveTtsVoice(parsedBody.data.locale);
   const format = resolveTtsFormat();
   const speed = resolveTtsSpeed();
+  const instructions = resolveTtsInstructions({
+    model,
+    locale: parsedBody.data.locale,
+  });
 
   const client = new OpenAI({ apiKey });
 
@@ -79,6 +98,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       input: parsedBody.data.text,
       response_format: format,
       speed,
+      ...(instructions ? { instructions } : {}),
     };
 
     const response = await withTimeout(
@@ -145,7 +165,7 @@ function resolveTtsVoice(locale?: string) {
     return "coral" as SpeechVoice;
   }
 
-  return "alloy" as SpeechVoice;
+  return "marin" as SpeechVoice;
 }
 
 function resolveTtsFormat() {
@@ -164,6 +184,22 @@ function resolveTtsSpeed() {
   }
 
   return Math.max(0.7, Math.min(1.2, parsed));
+}
+
+function resolveTtsInstructions(args: { model: SpeechModel; locale?: string }) {
+  if (String(args.model).startsWith("tts-1")) {
+    return "";
+  }
+
+  if (OPENAI_TTS_INSTRUCTIONS) {
+    return OPENAI_TTS_INSTRUCTIONS;
+  }
+
+  if ((args.locale ?? "").toLowerCase().startsWith("hi")) {
+    return "Speak in a warm, natural Hindi-Hinglish conversational tone with smooth pacing and no robotic pauses.";
+  }
+
+  return "Speak in a warm, natural conversational tone with smooth pacing and realistic sentence flow. Avoid robotic pauses.";
 }
 
 function contentTypeForFormat(format: SpeechFormat) {
