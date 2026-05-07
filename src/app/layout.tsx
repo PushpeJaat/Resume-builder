@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -25,6 +26,7 @@ export default function RootLayout({
         <Providers>{children}</Providers>
         <SiteFooter />
         <Toaster theme="dark" position="bottom-right" richColors />
+        <Analytics />
       </body>
     </html>
   );
