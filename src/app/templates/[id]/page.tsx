@@ -19,7 +19,7 @@ const DEFAULT_RESUME_DATA: ResumeData = {
   personal: {
     fullName: "Alexandra Reid",
     email: "alex.reid@example.com",
-    phone: "+1 (415) 555-0192",
+    phone: "+91 98765 43210",
     location: "San Francisco, CA",
     photoUrl: DEMO_PHOTO,
     links: [
